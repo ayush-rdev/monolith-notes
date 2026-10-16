@@ -11,10 +11,7 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
-import com.monolith.notes.ui.theme.iOSDivider
-import com.monolith.notes.ui.theme.iOSTextSecondary
-import com.monolith.notes.ui.theme.iOSTextTertiary
-import com.monolith.notes.ui.theme.iOSYellow
+// Monolith WYSIWYG Editor Visual Transformation
 
 /**
  * Apple Notes Visual Transformation:
@@ -25,12 +22,13 @@ import com.monolith.notes.ui.theme.iOSYellow
  * - Headings: "# ", "## ", "### " markers are dimmed, text is styled large and bold.
  * - Bold: "**word**" markers are dimmed, inner word is bold white.
  * - Italic: "*word*" markers are dimmed, inner word is italic.
- * - Strikethrough: "~~word~~" markers are dimmed, inner word is struck through.
- * - Code: "`code`" is rendered in monospace with subtle background.
- * - Hashtags: "#tag" is highlighted in Apple Notes yellow.
+ * - Hashtags: "#tag" is highlighted in theme accent color.
  * - Quotes: "> text" is italicized and tinted.
  */
-class AppleNotesVisualTransformation : VisualTransformation {
+class AppleNotesVisualTransformation(
+    private val accentColor: Color = Color(0xFFE5A93C),
+    private val secondaryTextColor: Color = Color(0xFF8E8E93)
+) : VisualTransformation {
 
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
@@ -55,14 +53,14 @@ class AppleNotesVisualTransformation : VisualTransformation {
                 trimmedLine.startsWith("✓ ") || trimmedLine.startsWith("- [x] ") || trimmedLine.startsWith("- [X] ") -> {
                     val prefixLen = if (trimmedLine.startsWith("✓ ")) 2 else 6
                     builder.addStyle(
-                        SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
+                        SpanStyle(color = accentColor, fontWeight = FontWeight.Bold),
                         actualStart,
                         actualStart + prefixLen - 1
                     )
                     if (actualStart + prefixLen < lineEnd) {
                         builder.addStyle(
                             SpanStyle(
-                                color = iOSTextSecondary,
+                                color = secondaryTextColor,
                                 textDecoration = TextDecoration.LineThrough
                             ),
                             actualStart + prefixLen,
@@ -75,7 +73,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
                 trimmedLine.startsWith("○ ") || trimmedLine.startsWith("- [ ] ") -> {
                     val prefixLen = if (trimmedLine.startsWith("○ ")) 2 else 6
                     builder.addStyle(
-                        SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
+                        SpanStyle(color = accentColor, fontWeight = FontWeight.Bold),
                         actualStart,
                         actualStart + prefixLen - 1
                     )
@@ -84,7 +82,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
                 // Bullet item: "• ", "- ", "* "
                 trimmedLine.startsWith("• ") || (trimmedLine.startsWith("- ") && !trimmedLine.startsWith("- [")) || (trimmedLine.startsWith("* ") && !trimmedLine.startsWith("* [")) -> {
                     builder.addStyle(
-                        SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
+                        SpanStyle(color = accentColor, fontWeight = FontWeight.Bold),
                         actualStart,
                         actualStart + 1
                     )
@@ -117,7 +115,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
                         actualStart + 2
                     )
                     builder.addStyle(
-                        SpanStyle(fontStyle = FontStyle.Italic, color = iOSTextSecondary),
+                        SpanStyle(fontStyle = FontStyle.Italic, color = secondaryTextColor),
                         actualStart + 2,
                         lineEnd
                     )
@@ -148,7 +146,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
             builder.addStyle(
-                SpanStyle(textDecoration = TextDecoration.LineThrough, color = iOSTextSecondary),
+                SpanStyle(textDecoration = TextDecoration.LineThrough, color = secondaryTextColor),
                 range.first + 2,
                 range.last - 1
             )
@@ -162,7 +160,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
             builder.addStyle(
                 SpanStyle(
                     fontFamily = FontFamily.Monospace,
-                    color = iOSYellow,
+                    color = accentColor,
                     background = Color(0xFF2C2C2E)
                 ),
                 range.first + 1,
@@ -176,7 +174,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
             val tagGroup = match.groups[1]
             if (tagGroup != null) {
                 builder.addStyle(
-                    SpanStyle(color = iOSYellow, fontWeight = FontWeight.SemiBold),
+                    SpanStyle(color = accentColor, fontWeight = FontWeight.SemiBold),
                     tagGroup.range.first,
                     tagGroup.range.last + 1
                 )

@@ -47,6 +47,7 @@ private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
 private val HEADING_REGEX = "^(#{1,6})\\s+(.+)$".toRegex()
 
+@Composable
 fun parseInlineMarkdown(text: String): AnnotatedString {
     if (text.isEmpty()) return AnnotatedString("")
     return buildAnnotatedString {

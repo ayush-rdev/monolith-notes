@@ -229,11 +229,12 @@ fun NoteEditorScreen(
 
     val scrollState = rememberScrollState()
 
-    // Apple Notes custom selection colors (Warm Yellow cursor and highlights)
-    val appleTextSelectionColors = remember {
+    // Dynamic Monolith selection colors (Custom cursor and highlights)
+    val theme = LocalMonolithTheme.current
+    val appleTextSelectionColors = remember(theme) {
         TextSelectionColors(
-            handleColor = iOSYellow,
-            backgroundColor = iOSYellow.copy(alpha = 0.35f)
+            handleColor = theme.accent,
+            backgroundColor = theme.accentContainer
         )
     }
 
@@ -688,7 +689,7 @@ fun NoteEditorScreen(
                                 color = Color.White,
                                 fontFamily = SFProDisplay
                             ),
-                            cursorBrush = SolidColor(iOSYellow),
+                            cursorBrush = SolidColor(theme.accent),
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(
                                 capitalization = KeyboardCapitalization.Sentences,
@@ -756,8 +757,13 @@ fun NoteEditorScreen(
                                 color = Color.White,
                                 fontFamily = SFProText
                             ),
-                            cursorBrush = SolidColor(iOSYellow),
-                            visualTransformation = remember { AppleNotesVisualTransformation() },
+                            cursorBrush = SolidColor(theme.accent),
+                            visualTransformation = remember(theme) {
+                                AppleNotesVisualTransformation(
+                                    accentColor = theme.accent,
+                                    secondaryTextColor = theme.textSecondary
+                                )
+                            },
                             keyboardOptions = KeyboardOptions(
                                 capitalization = KeyboardCapitalization.Sentences,
                                 imeAction = ImeAction.Default

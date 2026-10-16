@@ -2,6 +2,7 @@ package com.monolith.notes.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.monolith.notes.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +33,8 @@ data class AppSettings(
     val showWordCount: Boolean = true,
     val autoContinueChecklists: Boolean = true,
     val sortOrder: NoteSortOrder = NoteSortOrder.DATE_EDITED,
-    val biometricLockEnabled: Boolean = false
+    val biometricLockEnabled: Boolean = false,
+    val theme: AppTheme = AppTheme.OBSIDIAN
 )
 
 class SettingsManager(context: Context) {
@@ -52,6 +54,8 @@ class SettingsManager(context: Context) {
         val sortOrderStr = prefs.getString(KEY_SORT_ORDER, NoteSortOrder.DATE_EDITED.name) ?: NoteSortOrder.DATE_EDITED.name
         val sortOrder = try { NoteSortOrder.valueOf(sortOrderStr) } catch (_: Exception) { NoteSortOrder.DATE_EDITED }
         val biometricLock = prefs.getBoolean(KEY_BIOMETRIC_LOCK, false)
+        val themeId = prefs.getString(KEY_APP_THEME, AppTheme.OBSIDIAN.id) ?: AppTheme.OBSIDIAN.id
+        val theme = AppTheme.fromId(themeId)
 
         return AppSettings(
             hapticsEnabled = haptics,
@@ -60,7 +64,8 @@ class SettingsManager(context: Context) {
             showWordCount = showWords,
             autoContinueChecklists = autoChecklist,
             sortOrder = sortOrder,
-            biometricLockEnabled = biometricLock
+            biometricLockEnabled = biometricLock,
+            theme = theme
         )
     }
 
@@ -99,6 +104,11 @@ class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(biometricLockEnabled = enabled)
     }
 
+    fun setTheme(theme: AppTheme) {
+        prefs.edit().putString(KEY_APP_THEME, theme.id).apply()
+        _settings.value = _settings.value.copy(theme = theme)
+    }
+
     companion object {
         private const val KEY_HAPTICS = "key_haptics"
         private const val KEY_START_STYLE = "key_start_style"
@@ -107,5 +117,6 @@ class SettingsManager(context: Context) {
         private const val KEY_AUTO_CHECKLIST = "key_auto_checklist"
         private const val KEY_SORT_ORDER = "key_sort_order"
         private const val KEY_BIOMETRIC_LOCK = "key_biometric_lock"
+        private const val KEY_APP_THEME = "key_app_theme"
     }
 }

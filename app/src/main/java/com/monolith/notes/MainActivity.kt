@@ -88,13 +88,13 @@ class MainActivity : FragmentActivity() {
         checkStoragePermissions()
 
         setContent {
-            MonolithTheme {
+            val settings by settingsManager.settings.collectAsState()
+            MonolithTheme(theme = settings.theme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = iOSBackground
+                    color = settings.theme.background
                 ) {
                     val scope = rememberCoroutineScope()
-                    val settings by settingsManager.settings.collectAsState()
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
                     var selectedFolder by remember { mutableStateOf<String?>(null) }
 
@@ -306,6 +306,7 @@ class MainActivity : FragmentActivity() {
                                                 repository.setSortOrder(order)
                                             }
                                         },
+                                        onUpdateTheme = { settingsManager.setTheme(it) },
                                         onNoteClick = { note ->
                                             currentScreen = Screen.Editor(note)
                                         },

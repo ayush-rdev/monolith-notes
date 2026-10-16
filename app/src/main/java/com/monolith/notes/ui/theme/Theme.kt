@@ -1,37 +1,40 @@
 package com.monolith.notes.ui.theme
 
 import android.app.Activity
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val iOSColorScheme = darkColorScheme(
-    primary = iOSYellow,
+fun createMonolithColorScheme(theme: AppTheme): ColorScheme = darkColorScheme(
+    primary = theme.accent,
     onPrimary = Color.Black,
-    primaryContainer = iOSYellowContainer,
-    onPrimaryContainer = iOSYellow,
-    secondary = iOSEmerald,
+    primaryContainer = theme.accentContainer,
+    onPrimaryContainer = theme.accent,
+    secondary = theme.accent,
     onSecondary = Color.Black,
-    background = iOSBackground,
-    onBackground = iOSTextPrimary,
-    surface = iOSBackground,
-    onSurface = iOSTextPrimary,
-    surfaceVariant = iOSCardBackground,
-    onSurfaceVariant = iOSTextSecondary,
-    surfaceContainerLowest = iOSBackground,
-    surfaceContainerLow = iOSCardBackground,
-    surfaceContainer = iOSCardBackground,
-    surfaceContainerHigh = iOSElevatedCard,
-    surfaceContainerHighest = iOSElevatedCard,
-    outline = iOSDivider
+    background = theme.background,
+    onBackground = theme.textPrimary,
+    surface = theme.background,
+    onSurface = theme.textPrimary,
+    surfaceVariant = theme.cardBackground,
+    onSurfaceVariant = theme.textSecondary,
+    surfaceContainerLowest = theme.background,
+    surfaceContainerLow = theme.cardBackground,
+    surfaceContainer = theme.cardBackground,
+    surfaceContainerHigh = theme.elevatedCard,
+    surfaceContainerHighest = theme.elevatedCard,
+    outline = theme.divider
 )
 
 @Composable
 fun MonolithTheme(
+    theme: AppTheme = AppTheme.OBSIDIAN,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
@@ -47,9 +50,11 @@ fun MonolithTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = iOSColorScheme,
-        typography = MonolithTypography,
-        content = content
-    )
+    CompositionLocalProvider(LocalMonolithTheme provides theme) {
+        MaterialTheme(
+            colorScheme = createMonolithColorScheme(theme),
+            typography = MonolithTypography,
+            content = content
+        )
+    }
 }

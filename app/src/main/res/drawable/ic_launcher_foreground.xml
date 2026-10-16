@@ -4,56 +4,48 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Subtle Drop Shadow under Notepad -->
+    <!-- 1. Ambient Drop Shadow Underneath Monolith -->
     <path
-        android:fillColor="#40000000"
-        android:pathData="M31,31 h46 c4.4,0 8,3.6 8,8 v44 c0,4.4 -3.6,8 -8,8 h-46 c-4.4,0 -8,-3.6 -8,-8 v-44 c0,-4.4 3.6,-8 8,-8 Z" />
+        android:fillColor="#70000000"
+        android:pathData="M34,81 c0,2.5 9,4.5 20,4.5 c11,0 20,-2 20,-4.5 c0,-2.5 -9,-4.5 -20,-4.5 c-11,0 -20,2 -20,4.5 Z" />
 
-    <!-- Main Card Body (Deep OLED Dark Slate) -->
+    <!-- 2. Outer Monolith Bevel / Chiseled Base Plate -->
     <path
-        android:fillColor="#1C1C1E"
-        android:pathData="M30,28 h48 c4.4,0 8,3.6 8,8 v42 c0,4.4 -3.6,8 -8,8 h-48 c-4.4,0 -8,-3.6 -8,-8 v-42 c0,-4.4 3.6,-8 8,-8 Z" />
+        android:fillColor="#0D0E12"
+        android:pathData="M43,26 h22 c4.4,0 8,3.6 8,8 v42 c0,4.4 -3.6,8 -8,8 h-22 c-4.4,0 -8,-3.6 -8,-8 v-42 c0,-4.4 3.6,-8 8,-8 Z" />
 
-    <!-- Top Apple Notes Golden Header Tab -->
+    <!-- 3. Monolith Front Obsidian Slate Face -->
+    <path
+        android:fillColor="#1B1C22"
+        android:pathData="M43.5,27.5 h21 c3.6,0 6.5,2.9 6.5,6.5 v39 c0,3.6 -2.9,6.5 -6.5,6.5 h-21 c-3.6,0 -6.5,-2.9 -6.5,-6.5 v-39 c0,-3.6 2.9,-6.5 6.5,-6.5 Z" />
+
+    <!-- 4. Left Architectural Specular Edge -->
+    <path
+        android:fillColor="#2D2E37"
+        android:pathData="M43.5,27.5 h3 v52 h-3 c-3.6,0 -6.5,-2.9 -6.5,-6.5 v-39 c0,-3.6 2.9,-6.5 6.5,-6.5 Z" />
+
+    <!-- 5. Top Horizon Chamfer -->
+    <path
+        android:fillColor="#3D3E4A"
+        android:pathData="M43.5,27.5 h21 c2.2,0 4.2,1.1 5.4,2.8 h-31.8 c1.2,-1.7 3.2,-2.8 5.4,-2.8 Z" />
+
+    <!-- 6. Luminous Amber Core Glow (Ambient Bloom) -->
+    <path
+        android:fillColor="#25FFD60A"
+        android:pathData="M51,35 h6 c2,0 3.5,1.5 3.5,3.5 v31 c0,2 -1.5,3.5 -3.5,3.5 h-6 c-2,0 -3.5,-1.5 -3.5,-3.5 v-31 c0,-2 1.5,-3.5 3.5,-3.5 Z" />
+
+    <!-- 7. The Signature Golden Chiseled Slit (Vertical Pillar) -->
     <path
         android:fillColor="#FFD60A"
-        android:pathData="M30,28 h48 c4.4,0 8,3.6 8,8 v6 h-64 v-6 c0,-4.4 3.6,-8 8,-8 Z" />
+        android:pathData="M53,37 h2 c0.55,0 1,0.45 1,1 v28 c0,0.55 -0.45,1 -1,1 h-2 c-0.55,0 -1,-0.45 -1,-1 v-28 c0,-0.55 0.45,-1 1,-1 Z" />
 
-    <!-- Ruled Notepad Horizontal Lines -->
-    <path
-        android:fillColor="#2C2C2E"
-        android:pathData="M30,50 h48 v1.5 h-48 Z" />
-    <path
-        android:fillColor="#2C2C2E"
-        android:pathData="M30,58 h48 v1.5 h-48 Z" />
-    <path
-        android:fillColor="#2C2C2E"
-        android:pathData="M30,66 h48 v1.5 h-48 Z" />
-    <path
-        android:fillColor="#2C2C2E"
-        android:pathData="M30,74 h48 v1.5 h-48 Z" />
-
-    <!-- Apple Notes Checklist Circle -->
+    <!-- 8. Luminous Chiseled Crossbar (Minimal Markdown Glyph) -->
     <path
         android:fillColor="#FFD60A"
-        android:pathData="M35,53.5 c0,-1.4 1.1,-2.5 2.5,-2.5 c1.4,0 2.5,1.1 2.5,2.5 c0,1.4 -1.1,2.5 -2.5,2.5 c-1.4,0 -2.5,-1.1 -2.5,-2.5 Z" />
+        android:pathData="M48.5,49.5 h11 c0.55,0 1,0.45 1,1 v0 c0,0.55 -0.45,1 -1,1 h-11 c-0.55,0 -1,-0.45 -1,-1 v0 c0,-0.55 0.45,-1 1,-1 Z" />
+
+    <!-- 9. Luminous Golden Core Spark -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M43,52.5 h26 v2.5 h-26 Z" />
-
-    <!-- Note text content lines -->
-    <path
-        android:fillColor="#8E8E93"
-        android:pathData="M35,61 h36 v2 h-36 Z" />
-    <path
-        android:fillColor="#8E8E93"
-        android:pathData="M35,69 h28 v2 h-28 Z" />
-
-    <!-- Golden Pen / Stylus Accent (Bottom Right Angle) -->
-    <path
-        android:fillColor="#FFD60A"
-        android:pathData="M68,66 l7,-7 c1.2,-1.2 3.1,-1.2 4.2,0 l2.1,2.1 c1.2,1.2 1.2,3.1 0,4.2 l-7,7 l-4.5,1.2 z" />
-    <path
-        android:fillColor="#1C1C1E"
-        android:pathData="M69.8,70.2 l-1.8,0.5 l0.5,-1.8 z" />
+        android:pathData="M53.5,49.5 h1 v2 h-1 Z" />
 </vector>

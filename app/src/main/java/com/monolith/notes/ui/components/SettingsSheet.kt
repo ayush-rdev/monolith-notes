@@ -4,7 +4,9 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -56,7 +58,8 @@ fun SettingsSheet(
     onExportNotes: () -> Unit,
     trashNotesCount: Int = 0,
     onOpenTrash: () -> Unit = {},
-    onUpdateBiometricLock: (Boolean) -> Unit = {}
+    onUpdateBiometricLock: (Boolean) -> Unit = {},
+    onUpdateTheme: (AppTheme) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -114,6 +117,30 @@ fun SettingsSheet(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
+
+            // Section 0: Minimal Premium Theme Selector
+            SettingsSectionHeader(title = "MINIMAL PREMIUM THEMES")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AppTheme.entries.forEach { themeOption ->
+                    val isSelected = settings.theme == themeOption
+                    ThemeCard(
+                        theme = themeOption,
+                        isSelected = isSelected,
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            onUpdateTheme(themeOption)
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Section 1: Notes & Editing (Actually useful controls!)
             SettingsSectionHeader(title = "NOTES & EDITING")
@@ -693,3 +720,69 @@ private fun SettingsToggleRow(
         )
     }
 }
+
+@Composable
+private fun ThemeCard(
+    theme: AppTheme,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(136.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(theme.cardBackground)
+            .border(
+                width = if (isSelected) 2.dp else 0.5.dp,
+                color = if (isSelected) theme.accent else theme.divider,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(10.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Swatch Preview Bar (Shows Theme Background and Accent Dot)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(26.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(theme.background)
+                    .padding(horizontal = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(theme.accent)
+                )
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = theme.accent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = theme.displayName,
+                    style = MonolithTypography.titleMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
+                    color = theme.textPrimary
+                )
+                Text(
+                    text = theme.subtitle,
+                    style = MonolithTypography.labelSmall.copy(fontSize = 10.sp),
+                    color = theme.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+

@@ -1,6 +1,7 @@
 package com.monolith.notes.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -34,7 +35,7 @@ val MonolithTypography = Typography(
         fontSize = 34.sp,
         lineHeight = 41.sp,
         letterSpacing = 0.37.sp,
-        color = iOSTextPrimary
+        color = Color(0xFFFFFFFF)
     ),
     headlineLarge = TextStyle(
         fontFamily = SFProDisplay,
@@ -42,7 +43,7 @@ val MonolithTypography = Typography(
         fontSize = 28.sp,
         lineHeight = 34.sp,
         letterSpacing = 0.36.sp,
-        color = iOSTextPrimary
+        color = Color(0xFFFFFFFF)
     ),
     headlineMedium = TextStyle(
         fontFamily = SFProDisplay,
@@ -50,7 +51,7 @@ val MonolithTypography = Typography(
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.35.sp,
-        color = iOSTextPrimary
+        color = Color(0xFFFFFFFF)
     ),
     titleLarge = TextStyle(
         fontFamily = SFProText,
@@ -58,7 +59,7 @@ val MonolithTypography = Typography(
         fontSize = 17.sp,
         lineHeight = 22.sp,
         letterSpacing = (-0.41).sp,
-        color = iOSTextPrimary
+        color = Color(0xFFFFFFFF)
     ),
     bodyLarge = TextStyle(
         fontFamily = SFProText,
@@ -66,7 +67,7 @@ val MonolithTypography = Typography(
         fontSize = 17.sp,
         lineHeight = 24.sp,
         letterSpacing = (-0.41).sp,
-        color = iOSTextPrimary
+        color = Color(0xFFFFFFFF)
     ),
     bodyMedium = TextStyle(
         fontFamily = SFProText,
@@ -74,7 +75,7 @@ val MonolithTypography = Typography(
         fontSize = 15.sp,
         lineHeight = 20.sp,
         letterSpacing = (-0.24).sp,
-        color = iOSTextSecondary
+        color = Color(0xFF8E8E93)
     ),
     labelMedium = TextStyle(
         fontFamily = SFProText,
@@ -82,7 +83,7 @@ val MonolithTypography = Typography(
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = (-0.08).sp,
-        color = iOSTextSecondary
+        color = Color(0xFF8E8E93)
     ),
     labelSmall = TextStyle(
         fontFamily = SFProText,
@@ -90,6 +91,6 @@ val MonolithTypography = Typography(
         fontSize = 11.sp,
         lineHeight = 13.sp,
         letterSpacing = 0.07.sp,
-        color = iOSTextTertiary
+        color = Color(0xFF636366)
     )
 )

@@ -80,6 +80,7 @@ fun NotesListScreen(
     onOpenFolders: () -> Unit = {},
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
+    onUpdateTheme: (AppTheme) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -932,7 +933,8 @@ fun NotesListScreen(
                 },
                 trashNotesCount = trashNotesCount,
                 onOpenTrash = onOpenTrash,
-                onUpdateBiometricLock = onUpdateBiometricLock
+                onUpdateBiometricLock = onUpdateBiometricLock,
+                onUpdateTheme = onUpdateTheme
             )
         }
     }
@@ -997,11 +999,12 @@ fun IOSNoteRow(
     val dateFormat = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
     val formattedDate = remember(note.lastModified) { dateFormat.format(Date(note.lastModified)) }
 
-    val titleText = remember(note.displayTitle, searchQuery) {
-        highlightQuery(note.displayTitle, searchQuery)
+    val highlightColor = iOSYellow
+    val titleText = remember(note.displayTitle, searchQuery, highlightColor) {
+        highlightQuery(note.displayTitle, searchQuery, highlightColor)
     }
-    val snippetText = remember(note.previewSnippet, searchQuery) {
-        if (note.previewSnippet.isNotBlank()) highlightQuery(note.previewSnippet, searchQuery) else null
+    val snippetText = remember(note.previewSnippet, searchQuery, highlightColor) {
+        if (note.previewSnippet.isNotBlank()) highlightQuery(note.previewSnippet, searchQuery, highlightColor) else null
     }
 
     Row(
@@ -1114,7 +1117,7 @@ private fun getRowShape(index: Int, total: Int): RoundedCornerShape {
     }
 }
 
-fun highlightQuery(text: String, query: String): AnnotatedString {
+fun highlightQuery(text: String, query: String, highlightColor: Color = Color(0xFFE5A93C)): AnnotatedString {
     if (query.isBlank() || text.isEmpty()) return AnnotatedString(text)
     val lowerQuery = query.trim().lowercase()
     if (lowerQuery.isEmpty()) return AnnotatedString(text)
@@ -1134,7 +1137,7 @@ fun highlightQuery(text: String, query: String): AnnotatedString {
                 append(text.substring(startIdx, matchIdx))
             }
             val matchEnd = matchIdx + lowerQuery.length
-            pushStyle(SpanStyle(background = iOSYellow.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
+            pushStyle(SpanStyle(background = highlightColor.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
             append(text.substring(matchIdx, matchEnd))
             pop()
             startIdx = matchEnd
