@@ -870,6 +870,21 @@ fun NoteEditorScreen(
                                     bodyFocusRequester.requestFocus()
                                     showFormatSheet = false
                                 },
+                                onInsertTable = {
+                                    pushUndoState(bodyState)
+                                    val current = bodyState
+                                    val cursor = current.selection.start
+                                    val text = current.text
+                                    val needsLeadingNewline = cursor > 0 && text[cursor - 1] != '\n'
+                                    val tableTemplate = (if (needsLeadingNewline) "\n" else "") +
+                                        "| Item | Category | Status |\n| :--- | :--- | :--- |\n| First | General | In progress |\n| Second | Details | Done |\n\n"
+                                    val newText = text.substring(0, cursor) + tableTemplate + text.substring(cursor)
+                                    val firstCellOffset = tableTemplate.indexOf("First")
+                                    val newCursor = if (firstCellOffset != -1) cursor + firstCellOffset else cursor + tableTemplate.length
+                                    bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor, newCursor + 5))
+                                    bodyFocusRequester.requestFocus()
+                                    showFormatSheet = false
+                                },
                                 onDismiss = {
                                     showFormatSheet = false
                                 }
@@ -976,11 +991,44 @@ private fun handleSmartListContinuation(
             }
             val prevLine = newText.substring(prevLineStart, prevLineEnd)
 
-            // 0. Horizontal Rule on Enter: "---", "***", "___"
-            if (prevLine == "---" || prevLine == "***" || prevLine == "___") {
+            // 0. Horizontal Rule on Enter: "---", "***", "___", "===", or long lines
+            val separatorRegex = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
+            if (prevLine.matches(separatorRegex)) {
                 val resultText = newText.substring(0, prevLineStart) + "───\n" + newText.substring(insertPos + 1)
                 val newCursor = prevLineStart + 4
                 return TextFieldValue(text = resultText, selection = TextRange(newCursor))
+            }
+
+            // 0b. Markdown Table Row Continuation on Enter:
+            if (prevLine.trim().startsWith('|') && prevLine.trim().endsWith('|')) {
+                val cells = com.monolith.notes.ui.components.splitTableRow(prevLine)
+                val isAllBlank = cells.all { it.isBlank() }
+                if (isAllBlank) {
+                    val resultText = newText.removeRange(prevLineStart, prevLineEnd)
+                    val newCursor = prevLineStart
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                    )
+                } else if (com.monolith.notes.ui.components.isTableDelimiter(prevLine)) {
+                    val colCount = cells.size.coerceAtLeast(2)
+                    val newRow = "| " + " | ".repeat(colCount - 1) + " |"
+                    val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + 2
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                    )
+                } else {
+                    val colCount = cells.size.coerceAtLeast(1)
+                    val newRow = "| " + " | ".repeat(colCount - 1) + " |"
+                    val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + 2
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                    )
+                }
             }
 
             // 1. Checklist item: "○ " or "✓ "
@@ -1076,12 +1124,12 @@ private fun handleSmartInput(
             return handleSmartListContinuation(oldValue, newValue)
         }
 
-        if (charInserted == '-' || charInserted == '*' || charInserted == '_') {
+        if (charInserted == '-' || charInserted == '*' || charInserted == '_' || charInserted == '=') {
             val lineStart = newText.lastIndexOf('\n', (insertPos - 1).coerceAtLeast(0)).let {
                 if (it == -1) 0 else it + 1
             }
             val textBeforeCursor = newText.substring(lineStart, insertPos + 1)
-            if (textBeforeCursor == "---" || textBeforeCursor == "***" || textBeforeCursor == "___") {
+            if (textBeforeCursor == "---" || textBeforeCursor == "***" || textBeforeCursor == "___" || textBeforeCursor == "===") {
                 val lineRest = newText.substring(insertPos + 1)
                 val replacement = "───\n"
                 val resultText = newText.substring(0, lineStart) + replacement + lineRest
@@ -1100,7 +1148,7 @@ private fun handleSmartInput(
                 "[] ", "() ", "- [ ] " -> "○ "
                 "* " -> "• "
                 "- " -> "• "
-                "--- ", "*** ", "___ " -> "───\n"
+                "--- ", "*** ", "___ ", "=== " -> "───\n"
                 else -> null
             }
 

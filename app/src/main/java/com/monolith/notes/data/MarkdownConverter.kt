@@ -74,7 +74,7 @@ object MarkdownConverter {
                             trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> bodySb.append("✓ ").append(trimmed.substring(6))
                             trimmed.startsWith("- ") -> bodySb.append("• ").append(trimmed.substring(2))
                             trimmed.startsWith("* ") -> bodySb.append("• ").append(trimmed.substring(2))
-                            trimmed.matches("^(-{3,}|\\*{3,}|_{3,})$".toRegex()) -> bodySb.append("───")
+                            trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> bodySb.append("───")
                             else -> bodySb.append(line)
                         }
                     }
@@ -94,7 +94,7 @@ object MarkdownConverter {
                         trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> bodySb.append("✓ ").append(trimmed.substring(6))
                         trimmed.startsWith("- ") -> bodySb.append("• ").append(trimmed.substring(2))
                         trimmed.startsWith("* ") -> bodySb.append("• ").append(trimmed.substring(2))
-                        trimmed.matches("^(-{3,}|\\*{3,}|_{3,})$".toRegex()) -> bodySb.append("───")
+                        trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> bodySb.append("───")
                         else -> bodySb.append(line)
                     }
                 }

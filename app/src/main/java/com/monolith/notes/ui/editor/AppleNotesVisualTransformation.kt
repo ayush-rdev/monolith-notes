@@ -121,8 +121,8 @@ class AppleNotesVisualTransformation(
                     )
                 }
 
-                // Horizontal Rule / Separator: "---", "***", "___", "───"
-                trimmedLine.matches("^(\\-{3,}|\\*{3,}|_{3,}|─{3,})$".toRegex()) -> {
+                // Horizontal Rule / Separator: "---", "***", "___", "───", "===", or long lines
+                trimmedLine.matches("^(\\-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> {
                     builder.addStyle(
                         SpanStyle(
                             color = ghostSyntaxColor,
@@ -132,6 +132,21 @@ class AppleNotesVisualTransformation(
                         actualStart,
                         lineEnd
                     )
+                }
+
+                // Table Row: Dim pipe characters '|' for a neat, modern grid look
+                trimmedLine.contains('|') -> {
+                    var p = lineStart
+                    while (p < lineEnd) {
+                        if (raw[p] == '|') {
+                            builder.addStyle(
+                                SpanStyle(color = accentColor.copy(alpha = 0.65f), fontWeight = FontWeight.Bold),
+                                p,
+                                p + 1
+                            )
+                        }
+                        p++
+                    }
                 }
             }
 

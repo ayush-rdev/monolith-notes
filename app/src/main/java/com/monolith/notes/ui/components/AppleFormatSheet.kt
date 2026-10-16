@@ -36,6 +36,7 @@ fun AppleFormatSheet(
     onToggleNumbered: () -> Unit,
     onToggleQuote: () -> Unit,
     onInsertDivider: () -> Unit = {},
+    onInsertTable: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -165,6 +166,10 @@ fun AppleFormatSheet(
                 ListFormatButton(icon = Icons.Default.HorizontalRule, label = "Divider") {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onInsertDivider()
+                }
+                ListFormatButton(icon = Icons.Default.TableChart, label = "Table") {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onInsertTable()
                 }
             }
         }

@@ -98,4 +98,67 @@ class MarkdownConverterTest {
         val exported = MarkdownConverter.toMarkdown(title, body)
         assertTrue(exported.contains("---"))
     }
+
+    @Test
+    fun testLongSeparatorSupport() {
+        val raw = """
+            # Long Separators
+            First section
+            ----------------------------------------
+            Second section
+            ========================================
+            Third section
+            ****************************************
+            Fourth section
+        """.trimIndent()
+
+        val (_, body, _) = MarkdownConverter.toUi(raw)
+        val separatorCount = body.lines().count { it.trim() == "───" }
+        assertEquals(3, separatorCount)
+
+        val exported = MarkdownConverter.toMarkdown("Long Separators", body)
+        val exportedCount = exported.lines().count { it.trim() == "---" }
+        assertEquals(3, exportedCount)
+    }
+
+    @Test
+    fun testTableDelimiterRecognition() {
+        assertTrue(com.monolith.notes.ui.components.isTableDelimiter("| --- | --- |"))
+        assertTrue(com.monolith.notes.ui.components.isTableDelimiter("| :--- | :---: | ---: |"))
+        assertTrue(com.monolith.notes.ui.components.isTableDelimiter("--- | ---"))
+        assertFalse(com.monolith.notes.ui.components.isTableDelimiter("| Header 1 | Header 2 |"))
+        assertFalse(com.monolith.notes.ui.components.isTableDelimiter("Just some text"))
+        assertFalse(com.monolith.notes.ui.components.isTableDelimiter("---"))
+    }
+
+    @Test
+    fun testSplitTableRow() {
+        val cells = com.monolith.notes.ui.components.splitTableRow("| Item | Price | Status |")
+        assertEquals(listOf("Item", "Price", "Status"), cells)
+
+        val emptyCells = com.monolith.notes.ui.components.splitTableRow("|  |  |  |")
+        assertEquals(listOf("", "", ""), emptyCells)
+    }
+
+    @Test
+    fun testTableRoundTrip() {
+        val raw = """
+            # Roadmap
+
+            | Milestone | Status | Owner |
+            | :--- | :---: | ---: |
+            | Alpha | Done | Ayush |
+            | Beta | In Progress | Team |
+        """.trimIndent()
+
+        val (title, body, _) = MarkdownConverter.toUi(raw)
+        assertEquals("Roadmap", title)
+        assertTrue(body.contains("| Milestone | Status | Owner |"))
+        assertTrue(body.contains("| :--- | :---: | ---: |"))
+        assertTrue(body.contains("| Alpha | Done | Ayush |"))
+
+        val exported = MarkdownConverter.toMarkdown(title, body)
+        assertTrue(exported.contains("| Milestone | Status | Owner |"))
+        assertTrue(exported.contains("| Alpha | Done | Ayush |"))
+    }
 }

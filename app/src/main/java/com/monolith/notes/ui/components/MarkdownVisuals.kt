@@ -5,7 +5,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,6 +35,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -138,6 +141,152 @@ fun toggleMarkdownTask(content: String, targetTaskIndex: Int): String {
     }
 }
 
+fun isTableDelimiter(line: String): Boolean {
+    val trimmed = line.trim()
+    if (!trimmed.contains('|') || !trimmed.contains('-')) return false
+    val inner = trimmed.trim('|').trim()
+    if (inner.isEmpty()) return false
+    val parts = inner.split('|')
+    if (parts.isEmpty()) return false
+    return parts.all { col ->
+        val c = col.trim()
+        c.matches("^:?-{1,}:?$".toRegex())
+    }
+}
+
+fun splitTableRow(line: String): List<String> {
+    var trimmed = line.trim()
+    if (trimmed.startsWith('|')) {
+        trimmed = trimmed.substring(1)
+    }
+    if (trimmed.endsWith('|')) {
+        trimmed = trimmed.substring(0, trimmed.length - 1)
+    }
+    return trimmed.split('|').map { it.trim() }
+}
+
+fun parseTableAlignments(delimiterLine: String): List<TextAlign> {
+    return splitTableRow(delimiterLine).map { col ->
+        val c = col.trim()
+        when {
+            c.startsWith(':') && c.endsWith(':') -> TextAlign.Center
+            c.endsWith(':') -> TextAlign.End
+            else -> TextAlign.Start
+        }
+    }
+}
+
+@Composable
+fun iOSTableCard(
+    headerLine: String,
+    delimiterLine: String,
+    dataRows: List<String>,
+    modifier: Modifier = Modifier
+) {
+    val headers = remember(headerLine) { splitTableRow(headerLine) }
+    val alignments = remember(delimiterLine) { parseTableAlignments(delimiterLine) }
+    val numCols = headers.size.coerceAtLeast(1)
+    val parsedRows = remember(dataRows) {
+        dataRows.map { row ->
+            val cells = splitTableRow(row)
+            List(numCols) { idx -> if (idx < cells.size) cells[idx] else "" }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(iOSCardBackground)
+            .border(1.dp, iOSDivider, RoundedCornerShape(12.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+        ) {
+            Column(
+                modifier = Modifier.width(IntrinsicSize.Max)
+            ) {
+                // Table Header Row
+                Row(
+                    modifier = Modifier
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    headers.forEachIndexed { index, headerText ->
+                        val align = alignments.getOrElse(index) { TextAlign.Start }
+                        Box(
+                            modifier = Modifier
+                                .widthIn(min = 100.dp, max = 240.dp)
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = when (align) {
+                                TextAlign.Center -> Alignment.Center
+                                TextAlign.End -> Alignment.CenterEnd
+                                else -> Alignment.CenterStart
+                            }
+                        ) {
+                            Text(
+                                text = parseInlineMarkdown(headerText),
+                                style = MonolithTypography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                ),
+                                textAlign = align
+                            )
+                        }
+                    }
+                }
+
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = iOSDivider
+                )
+
+                // Table Data Rows
+                parsedRows.forEachIndexed { rowIndex, rowCells ->
+                    Row(
+                        modifier = Modifier
+                            .padding(vertical = 9.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        rowCells.forEachIndexed { colIndex, cellText ->
+                            val align = alignments.getOrElse(colIndex) { TextAlign.Start }
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(min = 100.dp, max = 240.dp)
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = when (align) {
+                                    TextAlign.Center -> Alignment.Center
+                                    TextAlign.End -> Alignment.CenterEnd
+                                    else -> Alignment.CenterStart
+                                }
+                            ) {
+                                Text(
+                                    text = parseInlineMarkdown(cellText),
+                                    style = MonolithTypography.bodyMedium.copy(
+                                        color = iOSTextPrimary
+                                    ),
+                                    textAlign = align
+                                )
+                            }
+                        }
+                    }
+
+                    if (rowIndex < parsedRows.size - 1) {
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = iOSDivider.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun MarkdownRenderView(
     content: String,
@@ -159,7 +308,9 @@ fun MarkdownRenderView(
         val codeBlockLines = mutableListOf<String>()
         var codeBlockLang = ""
 
-        for (line in lines) {
+        var i = 0
+        while (i < lines.size) {
+            val line = lines[i]
             val trimmed = line.trimStart()
 
             if (trimmed.startsWith("```")) {
@@ -174,11 +325,36 @@ fun MarkdownRenderView(
                     inCodeBlock = true
                     codeBlockLang = trimmed.removePrefix("```").trim()
                 }
+                i++
                 continue
             }
 
             if (inCodeBlock) {
                 codeBlockLines.add(line)
+                i++
+                continue
+            }
+
+            // GFM Markdown Table Detection: line has '|' and next line is a valid delimiter
+            if (trimmed.contains('|') && i + 1 < lines.size && isTableDelimiter(lines[i + 1])) {
+                val headerLine = line
+                val delimiterLine = lines[i + 1]
+                val dataRows = mutableListOf<String>()
+                i += 2
+                while (i < lines.size) {
+                    val candidate = lines[i].trim()
+                    if (candidate.contains('|') && candidate.isNotBlank()) {
+                        dataRows.add(lines[i])
+                        i++
+                    } else {
+                        break
+                    }
+                }
+                iOSTableCard(
+                    headerLine = headerLine,
+                    delimiterLine = delimiterLine,
+                    dataRows = dataRows
+                )
                 continue
             }
 
@@ -282,8 +458,8 @@ fun MarkdownRenderView(
                         )
                     }
                 }
-                // Horizontal Rule / Separator: ---, ***, ___, ───, or spaced variants like - - -
-                trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|(-\\s+){2,}-|(\\*\\s+){2,}\\*|(_\\s+){2,}_)$".toRegex()) -> {
+                // Horizontal Rule / Separator: ---, ***, ___, ───, ===, or long separators (------------------)
+                trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -308,6 +484,7 @@ fun MarkdownRenderView(
                     )
                 }
             }
+            i++
         }
 
         if (inCodeBlock && codeBlockLines.isNotEmpty()) {
