@@ -1,4 +1,0 @@
-#Fri Oct 16 20:35:17 IST 2026
-base.0=/home/rdev/Monolith/app/build/intermediates/dex/release/minifyReleaseWithR8/classes.dex
-renamed.0=classes.dex
-path.0=classes.dex
