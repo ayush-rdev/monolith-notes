@@ -65,8 +65,13 @@ fun TrashScreen(
             .fillMaxSize()
             .background(iOSBackground)
             .statusBarsPadding()
+            .displayCutoutPadding()
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+        ) {
             // Top Navigation Bar
             Row(
                 modifier = Modifier
@@ -236,8 +241,8 @@ fun TrashScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
                         .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     // Actions Card
                     Box(

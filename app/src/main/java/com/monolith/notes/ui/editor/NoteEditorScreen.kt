@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.monolith.notes.ui.editor
 
 import android.content.Intent
@@ -345,12 +347,15 @@ fun NoteEditorScreen(
         bodyFocusRequester.requestFocus()
     }
 
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
     CompositionLocalProvider(LocalTextSelectionColors provides appleTextSelectionColors) {
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .background(iOSBackground)
                 .statusBarsPadding()
+                .displayCutoutPadding()
                 .imePadding()
         ) {
             // Apple Notes Top Navigation Bar
@@ -805,110 +810,129 @@ fun NoteEditorScreen(
                 }
             }
 
-            // Keyboard Formatting Accessories (shown only when editing)
+            // Intelligent Bottom Alignment:
+            // - When Editing: Show format accessories wrapped in a solid theme surface.
+            //   If keyboard is closed (e.g. dismissed or hardware keyboard), add navigationBarsPadding so format buttons sit safely above 3-button nav.
+            //   If keyboard is open, imePadding on parent already elevates the bar above the soft keyboard.
+            // - When Viewing: Add a spacer equal to navigationBars inset so the last lines of the note are never obscured behind 3-button nav.
             if (isEditing) {
-                AnimatedVisibility(
-                    visible = showFormatSheet,
-                    enter = expandVertically(
-                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 450f),
-                        expandFrom = Alignment.Bottom
-                    ) + fadeIn(animationSpec = tween(150)),
-                    exit = shrinkVertically(
-                        animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
-                        shrinkTowards = Alignment.Bottom
-                    ) + fadeOut(animationSpec = tween(120))
+                Surface(
+                    color = iOSCardBackground,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    AppleFormatSheet(
-                        onSetStyle = { prefix ->
-                            toggleLinePrefix(prefix)
-                        },
-                        onToggleInline = { token ->
-                            wrapSelection(token)
-                        },
-                        onToggleChecklist = {
-                            toggleLinePrefix("○ ", alternatePrefix = "✓ ")
-                        },
-                        onToggleBullet = {
-                            toggleLinePrefix("• ")
-                        },
-                        onToggleNumbered = {
-                            toggleLinePrefix("1. ")
-                        },
-                        onToggleQuote = {
-                            toggleLinePrefix("> ")
-                        },
-                        onDismiss = {
-                            showFormatSheet = false
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (!isKeyboardVisible) Modifier.navigationBarsPadding() else Modifier
+                            )
+                    ) {
+                        AnimatedVisibility(
+                            visible = showFormatSheet,
+                            enter = expandVertically(
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 450f),
+                                expandFrom = Alignment.Bottom
+                            ) + fadeIn(animationSpec = tween(150)),
+                            exit = shrinkVertically(
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                                shrinkTowards = Alignment.Bottom
+                            ) + fadeOut(animationSpec = tween(120))
+                        ) {
+                            AppleFormatSheet(
+                                onSetStyle = { prefix ->
+                                    toggleLinePrefix(prefix)
+                                },
+                                onToggleInline = { token ->
+                                    wrapSelection(token)
+                                },
+                                onToggleChecklist = {
+                                    toggleLinePrefix("○ ", alternatePrefix = "✓ ")
+                                },
+                                onToggleBullet = {
+                                    toggleLinePrefix("• ")
+                                },
+                                onToggleNumbered = {
+                                    toggleLinePrefix("1. ")
+                                },
+                                onToggleQuote = {
+                                    toggleLinePrefix("> ")
+                                },
+                                onDismiss = {
+                                    showFormatSheet = false
+                                }
+                            )
                         }
-                    )
-                }
 
-                FormattingBar(
-                    isFormatSheetOpen = showFormatSheet,
-                    canUndo = canUndo,
-                    canRedo = canRedo,
-                    onUndo = onUndo,
-                    onRedo = onRedo,
-                    onToggleFormatSheet = {
-                        showFormatSheet = !showFormatSheet
-                    },
-                    onToggleChecklist = {
-                        toggleLinePrefix("○ ", alternatePrefix = "✓ ")
-                    },
-                    onToggleBullet = {
-                        toggleLinePrefix("• ")
-                    },
-                    onToggleBold = {
-                        wrapSelection("**")
-                    },
-                    onInsertTag = {
-                        pushUndoState(bodyState)
-                        val current = bodyState
-                        val text = current.text
-                        val start = current.selection.min
-                        val end = current.selection.max
+                        FormattingBar(
+                            isFormatSheetOpen = showFormatSheet,
+                            canUndo = canUndo,
+                            canRedo = canRedo,
+                            onUndo = onUndo,
+                            onRedo = onRedo,
+                            onToggleFormatSheet = {
+                                showFormatSheet = !showFormatSheet
+                            },
+                            onToggleChecklist = {
+                                toggleLinePrefix("○ ", alternatePrefix = "✓ ")
+                            },
+                            onToggleBullet = {
+                                toggleLinePrefix("• ")
+                            },
+                            onToggleBold = {
+                                wrapSelection("**")
+                            },
+                            onInsertTag = {
+                                pushUndoState(bodyState)
+                                val current = bodyState
+                                val text = current.text
+                                val start = current.selection.min
+                                val end = current.selection.max
 
-                        if (start != end) {
-                            val selected = text.substring(start, end)
-                            val toggled = if (selected.startsWith("#")) selected.removePrefix("#") else "#$selected"
-                            val newText = text.replaceRange(start, end, toggled)
-                            val newCursor = start + toggled.length
-                            bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
-                        } else {
-                            var wordStart = (start - 1).coerceAtLeast(0)
-                            while (wordStart > 0 && !text[wordStart - 1].isWhitespace()) {
-                                wordStart--
-                            }
-                            var wordEnd = start
-                            while (wordEnd < text.length && !text[wordEnd].isWhitespace()) {
-                                wordEnd++
-                            }
+                                if (start != end) {
+                                    val selected = text.substring(start, end)
+                                    val toggled = if (selected.startsWith("#")) selected.removePrefix("#") else "#$selected"
+                                    val newText = text.replaceRange(start, end, toggled)
+                                    val newCursor = start + toggled.length
+                                    bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                } else {
+                                    var wordStart = (start - 1).coerceAtLeast(0)
+                                    while (wordStart > 0 && !text[wordStart - 1].isWhitespace()) {
+                                        wordStart--
+                                    }
+                                    var wordEnd = start
+                                    while (wordEnd < text.length && !text[wordEnd].isWhitespace()) {
+                                        wordEnd++
+                                    }
 
-                            if (wordStart < wordEnd && !text[wordStart].isWhitespace()) {
-                                val word = text.substring(wordStart, wordEnd)
-                                val toggled = if (word.startsWith("#")) word.removePrefix("#") else "#$word"
-                                val newText = text.replaceRange(wordStart, wordEnd, toggled)
-                                val newCursor = (wordStart + toggled.length).coerceIn(0, newText.length)
-                                bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
-                            } else {
-                                val newText = text.replaceRange(start, start, "#")
-                                val newCursor = start + 1
-                                bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                    if (wordStart < wordEnd && !text[wordStart].isWhitespace()) {
+                                        val word = text.substring(wordStart, wordEnd)
+                                        val toggled = if (word.startsWith("#")) word.removePrefix("#") else "#$word"
+                                        val newText = text.replaceRange(wordStart, wordEnd, toggled)
+                                        val newCursor = (wordStart + toggled.length).coerceIn(0, newText.length)
+                                        bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                    } else {
+                                        val newText = text.replaceRange(start, start, "#")
+                                        val newCursor = start + 1
+                                        bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                    }
+                                }
+                                bodyFocusRequester.requestFocus()
+                            },
+                            onAttachImage = {
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            onDismissKeyboard = {
+                                focusManager.clearFocus()
+                                showFormatSheet = false
+                                isEditing = false
                             }
-                        }
-                        bodyFocusRequester.requestFocus()
-                    },
-                    onAttachImage = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    },
-                    onDismissKeyboard = {
-                        focusManager.clearFocus()
-                        showFormatSheet = false
-                        isEditing = false
                     }
-                )
+                }
+            } else {
+                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
         }
     }

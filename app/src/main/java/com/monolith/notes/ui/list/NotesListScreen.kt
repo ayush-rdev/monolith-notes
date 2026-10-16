@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.monolith.notes.ui.list
 
 import android.content.Intent
@@ -155,9 +157,12 @@ fun NotesListScreen(
             .fillMaxSize()
             .background(iOSBackground)
             .statusBarsPadding()
+            .displayCutoutPadding()
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
         ) {
             // iOS Top Navigation Bar (< Folders on left, Settings on right)
             Row(
@@ -439,74 +444,86 @@ fun NotesListScreen(
                 }
             }
 
-            // Apple Notes Bottom Bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .background(iOSCardBackground)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // Monolith Notes Bottom Bar with Intelligent Inset Adaptation
+            val isKeyboardVisible = WindowInsets.isImeVisible
+            Surface(
+                color = iOSCardBackground,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Folders & Recently Deleted button
-                IconButton(
-                    onClick = {
-                        performHaptic(HapticFeedbackType.TextHandleMove)
-                        onOpenFolders()
-                    },
-                    modifier = Modifier.size(36.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (!isKeyboardVisible) Modifier.navigationBarsPadding() else Modifier
+                        )
                 ) {
-                    BadgedBox(
-                        badge = {
-                            if (trashNotesCount > 0) {
-                                Badge(
-                                    containerColor = Color(0xFFFF453A),
-                                    contentColor = Color.White
-                                ) {
-                                    Text(
-                                        text = "$trashNotesCount",
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Folders & Recently Deleted button
+                        IconButton(
+                            onClick = {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                onOpenFolders()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            BadgedBox(
+                                badge = {
+                                    if (trashNotesCount > 0) {
+                                        Badge(
+                                            containerColor = Color(0xFFFF453A),
+                                            contentColor = Color.White
+                                        ) {
+                                            Text(
+                                                text = "$trashNotesCount",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FolderOpen,
+                                    contentDescription = "Folders and Recently Deleted",
+                                    tint = iOSYellow,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FolderOpen,
-                            contentDescription = "Folders and Recently Deleted",
-                            tint = iOSYellow,
-                            modifier = Modifier.size(24.dp)
+                        val countLabel = if (searchQuery.isNotBlank()) {
+                            "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"
+                        } else {
+                            "${notes.size} ${if (notes.size == 1) "Note" else "Notes"}"
+                        }
+                        Text(
+                            text = countLabel,
+                            style = MonolithTypography.labelSmall,
+                            color = iOSTextSecondary
                         )
-                    }
-                }
-                val countLabel = if (searchQuery.isNotBlank()) {
-                    "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"
-                } else {
-                    "${notes.size} ${if (notes.size == 1) "Note" else "Notes"}"
-                }
-                Text(
-                    text = countLabel,
-                    style = MonolithTypography.labelSmall,
-                    color = iOSTextSecondary
-                )
 
-                // Yellow Compose Button
-                IconButton(
-                    onClick = {
-                        performHaptic(HapticFeedbackType.LongPress)
-                        onNewNoteClick()
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.EditNote,
-                        contentDescription = "New Note",
-                        tint = iOSYellow,
-                        modifier = Modifier.size(28.dp)
-                    )
+                        // Yellow Compose Button
+                        IconButton(
+                            onClick = {
+                                performHaptic(HapticFeedbackType.LongPress)
+                                onNewNoteClick()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EditNote,
+                                contentDescription = "New Note",
+                                tint = iOSYellow,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -525,8 +542,8 @@ fun NotesListScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     // Group 1: Preview Header & Actions
                     Surface(
@@ -716,8 +733,8 @@ fun NotesListScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
                         .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = "Move to Folder",
@@ -819,8 +836,8 @@ fun NotesListScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
                         .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
                     // Group 1: Warning header + Delete Button
                     Surface(

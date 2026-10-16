@@ -89,9 +89,9 @@ fun SettingsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 4.dp)
-                .navigationBarsPadding()
         ) {
             // Header
             Row(

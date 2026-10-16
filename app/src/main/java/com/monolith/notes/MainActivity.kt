@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
@@ -75,7 +76,10 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+        )
 
         repository = NoteRepository(applicationContext)
         settingsManager = SettingsManager(applicationContext)
@@ -487,6 +491,7 @@ fun BiometricLockScreen(
             .fillMaxSize()
             .background(iOSBackground)
             .statusBarsPadding()
+            .displayCutoutPadding()
             .navigationBarsPadding(),
         contentAlignment = Alignment.Center
     ) {

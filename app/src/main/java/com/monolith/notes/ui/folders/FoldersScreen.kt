@@ -74,6 +74,7 @@ fun FoldersScreen(
             .fillMaxSize()
             .background(iOSBackground)
             .statusBarsPadding()
+            .displayCutoutPadding()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Navigation Bar
@@ -122,9 +123,10 @@ fun FoldersScreen(
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
+                    .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 80.dp)
+                contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 // Large iOS Title: "Folders"
                 item {
@@ -234,61 +236,69 @@ fun FoldersScreen(
                     }
                 }
             }
-        }
 
-        // Apple Bottom Bar: "New Folder" & "New Note"
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(48.dp)
-                .background(iOSCardBackground)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // New Folder button
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        newFolderName = ""
-                        showCreateDialog = true
+            // Monolith Bottom Bar: "New Folder" & "New Note"
+            Surface(
+                color = iOSCardBackground,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // New Folder button
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    newFolderName = ""
+                                    showCreateDialog = true
+                                }
+                                .padding(vertical = 6.dp, horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CreateNewFolder,
+                                contentDescription = "New Folder",
+                                tint = iOSYellow,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "New Folder",
+                                color = iOSYellow,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        // New Note button
+                        IconButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onNewNoteClick()
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "New Note",
+                                tint = iOSYellow,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-                    .padding(vertical = 6.dp, horizontal = 4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CreateNewFolder,
-                    contentDescription = "New Folder",
-                    tint = iOSYellow,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "New Folder",
-                    color = iOSYellow,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            // New Note button
-            IconButton(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    onNewNoteClick()
-                },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "New Note",
-                    tint = iOSYellow,
-                    modifier = Modifier.size(24.dp)
-                )
+                }
             }
         }
 
