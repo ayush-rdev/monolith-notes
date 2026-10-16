@@ -1,0 +1,59 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Subtle Drop Shadow under Notepad -->
+    <path
+        android:fillColor="#40000000"
+        android:pathData="M31,31 h46 c4.4,0 8,3.6 8,8 v44 c0,4.4 -3.6,8 -8,8 h-46 c-4.4,0 -8,-3.6 -8,-8 v-44 c0,-4.4 3.6,-8 8,-8 Z" />
+
+    <!-- Main Card Body (Deep OLED Dark Slate) -->
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M30,28 h48 c4.4,0 8,3.6 8,8 v42 c0,4.4 -3.6,8 -8,8 h-48 c-4.4,0 -8,-3.6 -8,-8 v-42 c0,-4.4 3.6,-8 8,-8 Z" />
+
+    <!-- Top Apple Notes Golden Header Tab -->
+    <path
+        android:fillColor="#FFD60A"
+        android:pathData="M30,28 h48 c4.4,0 8,3.6 8,8 v6 h-64 v-6 c0,-4.4 3.6,-8 8,-8 Z" />
+
+    <!-- Ruled Notepad Horizontal Lines -->
+    <path
+        android:fillColor="#2C2C2E"
+        android:pathData="M30,50 h48 v1.5 h-48 Z" />
+    <path
+        android:fillColor="#2C2C2E"
+        android:pathData="M30,58 h48 v1.5 h-48 Z" />
+    <path
+        android:fillColor="#2C2C2E"
+        android:pathData="M30,66 h48 v1.5 h-48 Z" />
+    <path
+        android:fillColor="#2C2C2E"
+        android:pathData="M30,74 h48 v1.5 h-48 Z" />
+
+    <!-- Apple Notes Checklist Circle -->
+    <path
+        android:fillColor="#FFD60A"
+        android:pathData="M35,53.5 c0,-1.4 1.1,-2.5 2.5,-2.5 c1.4,0 2.5,1.1 2.5,2.5 c0,1.4 -1.1,2.5 -2.5,2.5 c-1.4,0 -2.5,-1.1 -2.5,-2.5 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,52.5 h26 v2.5 h-26 Z" />
+
+    <!-- Note text content lines -->
+    <path
+        android:fillColor="#8E8E93"
+        android:pathData="M35,61 h36 v2 h-36 Z" />
+    <path
+        android:fillColor="#8E8E93"
+        android:pathData="M35,69 h28 v2 h-28 Z" />
+
+    <!-- Golden Pen / Stylus Accent (Bottom Right Angle) -->
+    <path
+        android:fillColor="#FFD60A"
+        android:pathData="M68,66 l7,-7 c1.2,-1.2 3.1,-1.2 4.2,0 l2.1,2.1 c1.2,1.2 1.2,3.1 0,4.2 l-7,7 l-4.5,1.2 z" />
+    <path
+        android:fillColor="#1C1C1E"
+        android:pathData="M69.8,70.2 l-1.8,0.5 l0.5,-1.8 z" />
+</vector>

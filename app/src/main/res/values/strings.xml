@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Monolith</string>
+    <string name="widget_description">Quickly capture thoughts and checklists into your local Markdown vault.</string>
+</resources>

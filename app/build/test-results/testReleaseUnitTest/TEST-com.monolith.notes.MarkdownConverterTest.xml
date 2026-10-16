@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.monolith.notes.MarkdownConverterTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-16T15:04:55" hostname="omarchy" time="0.025">
+  <properties/>
+  <testcase name="testToUiExtraction" classname="com.monolith.notes.MarkdownConverterTest" time="0.016"/>
+  <testcase name="testToggleMarkdownTask" classname="com.monolith.notes.MarkdownConverterTest" time="0.007"/>
+  <testcase name="testToMarkdownSerialization" classname="com.monolith.notes.MarkdownConverterTest" time="0.001"/>
+  <testcase name="testPinnedFrontmatterRoundTrip" classname="com.monolith.notes.MarkdownConverterTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

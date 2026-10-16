@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.monolith.notes.app-mergeReleaseResources-48:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "/home/rdev/.gradle/caches/transforms-4/dd92871342fe75da0e46cf6693c67741/transformed/appcompat-1.6.1/res/values-v18/values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

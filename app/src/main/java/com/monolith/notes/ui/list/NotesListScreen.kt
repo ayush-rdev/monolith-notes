@@ -1,0 +1,1179 @@
+package com.monolith.notes.ui.list
+
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.monolith.notes.data.AppSettings
+import com.monolith.notes.data.EditorFontSize
+import com.monolith.notes.data.NewNoteStartStyle
+import com.monolith.notes.data.NoteSortOrder
+import com.monolith.notes.model.Note
+import com.monolith.notes.ui.components.SettingsSheet
+import com.monolith.notes.ui.theme.*
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun NotesListScreen(
+    notes: List<Note>,
+    vaultPath: String = "/sdcard/Documents/MonolithNotes",
+    settings: AppSettings = AppSettings(),
+    onUpdateHaptics: (Boolean) -> Unit = {},
+    onUpdateStartStyle: (NewNoteStartStyle) -> Unit = {},
+    onUpdateFontSize: (EditorFontSize) -> Unit = {},
+    onUpdateShowWordCount: (Boolean) -> Unit = {},
+    onUpdateAutoChecklists: (Boolean) -> Unit = {},
+    onSortOrderChange: (NoteSortOrder) -> Unit = {},
+    onNoteClick: (Note) -> Unit,
+    onNewNoteClick: () -> Unit,
+    onTogglePin: (Note) -> Unit = {},
+    onDeleteNote: (Note) -> Unit,
+    onDuplicateNote: (Note) -> Unit = {},
+    onExportNotes: () -> Unit = {},
+    trashNotesCount: Int = 0,
+    onOpenTrash: () -> Unit = {},
+    currentFolder: String? = null,
+    folders: List<String> = emptyList(),
+    onOpenFolders: () -> Unit = {},
+    onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
+    onUpdateBiometricLock: (Boolean) -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    fun performHaptic(type: HapticFeedbackType) {
+        if (settings.hapticsEnabled) {
+            haptic.performHapticFeedback(type)
+        }
+    }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+    var noteToDelete by remember { mutableStateOf<Note?>(null) }
+    var noteActionTarget by remember { mutableStateOf<Note?>(null) }
+    var noteToMove by remember { mutableStateOf<Note?>(null) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    val baseNotes = remember(notes, currentFolder) {
+        if (currentFolder == null) notes
+        else notes.filter { it.folderName.equals(currentFolder, ignoreCase = true) }
+    }
+
+    val allTags = remember(baseNotes) {
+        baseNotes.flatMap { it.tags }.distinct().sorted()
+    }
+
+    val filteredNotes = remember(baseNotes, searchQuery, selectedTag) {
+        baseNotes.filter { note ->
+            val matchesSearch = searchQuery.isBlank() ||
+                    note.displayTitle.contains(searchQuery, ignoreCase = true) ||
+                    note.content.contains(searchQuery, ignoreCase = true)
+            val matchesTag = selectedTag == null || note.tags.contains(selectedTag)
+            matchesSearch && matchesTag
+        }
+    }
+
+    val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
+    val unpinnedNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
+
+    val groupedUnpinnedNotes = remember(unpinnedNotes) {
+        val now = System.currentTimeMillis()
+        val oneDayMs = 24L * 60 * 60 * 1000
+        val sevenDaysMs = 7 * oneDayMs
+        val thirtyDaysMs = 30 * oneDayMs
+
+        val today = mutableListOf<Note>()
+        val prev7 = mutableListOf<Note>()
+        val prev30 = mutableListOf<Note>()
+        val earlier = mutableListOf<Note>()
+
+        unpinnedNotes.forEach { note ->
+            val diff = now - note.lastModified
+            when {
+                diff < oneDayMs -> today.add(note)
+                diff < sevenDaysMs -> prev7.add(note)
+                diff < thirtyDaysMs -> prev30.add(note)
+                else -> earlier.add(note)
+            }
+        }
+
+        listOfNotNull(
+            if (today.isNotEmpty()) "TODAY" to today else null,
+            if (prev7.isNotEmpty()) "PREVIOUS 7 DAYS" to prev7 else null,
+            if (prev30.isNotEmpty()) "PREVIOUS 30 DAYS" to prev30 else null,
+            if (earlier.isNotEmpty()) "EARLIER" to earlier else null
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(iOSBackground)
+            .statusBarsPadding()
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // iOS Top Navigation Bar (< Folders on left, Settings on right)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back to Folders button
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            onOpenFolders()
+                        }
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Folders",
+                        tint = iOSYellow,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Folders",
+                        color = iOSYellow,
+                        style = MonolithTypography.titleMedium.copy(fontSize = 17.sp)
+                    )
+                }
+
+                // Settings Button
+                IconButton(
+                    onClick = {
+                        performHaptic(HapticFeedbackType.TextHandleMove)
+                        showSettings = true
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = iOSYellow,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            // Large Title below navigation bar:
+            Text(
+                text = currentFolder ?: "Notes",
+                style = MonolithTypography.displayLarge,
+                color = iOSTextPrimary,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
+            )
+
+            // iOS Search Capsule
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .height(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iOSSearchPill)
+                    .padding(horizontal = 12.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = iOSTextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        textStyle = MonolithTypography.bodyMedium.copy(color = iOSTextPrimary, fontSize = 16.sp),
+                        cursorBrush = SolidColor(iOSYellow),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = "Search",
+                                    style = MonolithTypography.bodyMedium.copy(fontSize = 16.sp),
+                                    color = iOSTextSecondary
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = { searchQuery = "" },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cancel,
+                                contentDescription = "Clear",
+                                tint = iOSTextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Tag Filter Chips (iOS Capsule Chips)
+            if (allTags.isNotEmpty()) {
+                val tagScrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .horizontalScroll(tagScrollState),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IOSTagChip(
+                        label = "All Notes",
+                        isSelected = selectedTag == null,
+                        onClick = { selectedTag = null }
+                    )
+                    allTags.forEach { tag ->
+                        IOSTagChip(
+                            label = "#$tag",
+                            isSelected = selectedTag == tag,
+                            onClick = { selectedTag = if (selectedTag == tag) null else tag }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Notes Stream (Apple Notes Inset Grouped Table)
+            if (filteredNotes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "No Results for \"$searchQuery\"" else "No Notes",
+                            style = MonolithTypography.titleLarge,
+                            color = iOSTextSecondary
+                        )
+                        if (searchQuery.isBlank()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Tap the pencil icon to write your first note",
+                                style = MonolithTypography.bodyMedium,
+                                color = iOSTextTertiary
+                            )
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(bottom = 60.dp)
+                ) {
+                    // 1. PINNED SECTION (if any notes pinned)
+                    if (pinnedNotes.isNotEmpty()) {
+                        item(key = "header_pinned", contentType = "section_header") {
+                            Text(
+                                text = "PINNED",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = iOSTextSecondary,
+                                modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 6.dp)
+                            )
+                        }
+                        itemsIndexed(
+                            items = pinnedNotes,
+                            key = { _, note -> "pinned_${note.id}" },
+                            contentType = { _, _ -> "note_card_row" }
+                        ) { index, note ->
+                            val rowShape = remember(index, pinnedNotes.size) {
+                                getRowShape(index, pinnedNotes.size)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(rowShape)
+                                    .background(iOSCardBackground)
+                            ) {
+                                Column {
+                                    IOSNoteRow(
+                                        note = note,
+                                        searchQuery = searchQuery,
+                                        onClick = {
+                                            performHaptic(HapticFeedbackType.TextHandleMove)
+                                            onNoteClick(note)
+                                        },
+                                        onLongClick = {
+                                            performHaptic(HapticFeedbackType.LongPress)
+                                            noteActionTarget = note
+                                        }
+                                    )
+                                    if (index < pinnedNotes.size - 1) {
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(start = 16.dp),
+                                            thickness = 0.5.dp,
+                                            color = iOSDivider
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. TIMELINE GROUPED SECTIONS (Apple Notes Date Architecture)
+                    if (unpinnedNotes.isNotEmpty()) {
+                        groupedUnpinnedNotes.forEach { (sectionTitle, sectionNotes) ->
+                            item(key = "header_$sectionTitle", contentType = "section_header") {
+                                Text(
+                                    text = sectionTitle,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = iOSTextSecondary,
+                                    modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp)
+                                )
+                            }
+                            itemsIndexed(
+                                items = sectionNotes,
+                                key = { _, note -> note.id },
+                                contentType = { _, _ -> "note_card_row" }
+                            ) { index, note ->
+                                val rowShape = remember(index, sectionNotes.size) {
+                                    getRowShape(index, sectionNotes.size)
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(rowShape)
+                                        .background(iOSCardBackground)
+                                ) {
+                                    Column {
+                                        IOSNoteRow(
+                                            note = note,
+                                            searchQuery = searchQuery,
+                                            onClick = {
+                                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                                onNoteClick(note)
+                                            },
+                                            onLongClick = {
+                                                performHaptic(HapticFeedbackType.LongPress)
+                                                noteActionTarget = note
+                                            }
+                                        )
+                                        if (index < sectionNotes.size - 1) {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(start = 16.dp),
+                                                thickness = 0.5.dp,
+                                                color = iOSDivider
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apple Notes Bottom Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .background(iOSCardBackground)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Folders & Recently Deleted button
+                IconButton(
+                    onClick = {
+                        performHaptic(HapticFeedbackType.TextHandleMove)
+                        onOpenFolders()
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    BadgedBox(
+                        badge = {
+                            if (trashNotesCount > 0) {
+                                Badge(
+                                    containerColor = Color(0xFFFF453A),
+                                    contentColor = Color.White
+                                ) {
+                                    Text(
+                                        text = "$trashNotesCount",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FolderOpen,
+                            contentDescription = "Folders and Recently Deleted",
+                            tint = iOSYellow,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+                val countLabel = if (searchQuery.isNotBlank()) {
+                    "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"
+                } else {
+                    "${notes.size} ${if (notes.size == 1) "Note" else "Notes"}"
+                }
+                Text(
+                    text = countLabel,
+                    style = MonolithTypography.labelSmall,
+                    color = iOSTextSecondary
+                )
+
+                // Yellow Compose Button
+                IconButton(
+                    onClick = {
+                        performHaptic(HapticFeedbackType.LongPress)
+                        onNewNoteClick()
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = "New Note",
+                        tint = iOSYellow,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+        }
+
+        // Long-Press iOS Cupertino Action Sheet
+        if (noteActionTarget != null) {
+            val targetNote = noteActionTarget!!
+            ModalBottomSheet(
+                onDismissRequest = { noteActionTarget = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.Transparent,
+                scrimColor = Color.Black.copy(alpha = 0.6f),
+                dragHandle = null,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    // Group 1: Preview Header & Actions
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = iOSCardBackground,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            // Header preview
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = targetNote.displayTitle,
+                                    style = MonolithTypography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = iOSTextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = targetNote.previewSnippet,
+                                    style = MonolithTypography.bodyMedium.copy(fontSize = 12.sp),
+                                    color = iOSTextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Pin / Unpin Action
+                            CupertinoActionRow(
+                                title = if (targetNote.isPinned) "Unpin Note" else "Pin Note",
+                                icon = Icons.Default.PushPin,
+                                tint = iOSYellow,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    onTogglePin(targetNote)
+                                    noteActionTarget = null
+                                }
+                            )
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Duplicate Action
+                            CupertinoActionRow(
+                                title = "Duplicate Note",
+                                icon = Icons.Default.ContentCopy,
+                                tint = Color(0xFF0A84FF),
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    onDuplicateNote(targetNote)
+                                    noteActionTarget = null
+                                }
+                            )
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Copy Markdown Action
+                            CupertinoActionRow(
+                                title = "Copy Markdown",
+                                icon = Icons.Default.ContentPaste,
+                                tint = iOSEmerald,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    val fullMarkdown = if (targetNote.content.isBlank()) {
+                                        "# ${targetNote.displayTitle}"
+                                    } else {
+                                        "# ${targetNote.displayTitle}\n\n${targetNote.content}"
+                                    }
+                                    clipboardManager.setText(AnnotatedString(fullMarkdown))
+                                    Toast.makeText(context, "Note copied as Markdown", Toast.LENGTH_SHORT).show()
+                                    noteActionTarget = null
+                                }
+                            )
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Share Note Action
+                            CupertinoActionRow(
+                                title = "Share Note",
+                                icon = Icons.Default.Share,
+                                tint = iOSYellow,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    val sendIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(Intent.EXTRA_TITLE, targetNote.displayTitle)
+                                        putExtra(Intent.EXTRA_SUBJECT, targetNote.displayTitle)
+                                        val fullText = if (targetNote.content.isBlank()) targetNote.displayTitle else "${targetNote.displayTitle}\n\n${targetNote.content}"
+                                        putExtra(Intent.EXTRA_TEXT, fullText)
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(Intent.createChooser(sendIntent, "Share Note"))
+                                    noteActionTarget = null
+                                }
+                            )
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Move to Folder Action
+                            CupertinoActionRow(
+                                title = "Move to Folder...",
+                                icon = Icons.AutoMirrored.Filled.DriveFileMove,
+                                tint = Color(0xFFFF9F0A),
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    val toMove = targetNote
+                                    noteActionTarget = null
+                                    noteToMove = toMove
+                                }
+                            )
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Delete Action (Destructive Red)
+                            CupertinoActionRow(
+                                title = "Delete Note",
+                                icon = Icons.Default.Delete,
+                                tint = Color(0xFFFF453A),
+                                isDestructive = true,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    val toDelete = targetNote
+                                    noteActionTarget = null
+                                    noteToDelete = toDelete
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Group 2: Isolated Cupertino Cancel Pill
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = iOSCardBackground,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clickable {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                noteActionTarget = null
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                style = MonolithTypography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 17.sp
+                                ),
+                                color = iOSYellow
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Move to Folder Bottom Sheet
+        noteToMove?.let { targetNote ->
+            ModalBottomSheet(
+                onDismissRequest = { noteToMove = null },
+                containerColor = iOSBackground,
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 10.dp)
+                            .width(36.dp)
+                            .height(5.dp)
+                            .clip(CircleShape)
+                            .background(iOSTextTertiary)
+                    )
+                }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    Text(
+                        text = "Move to Folder",
+                        style = MonolithTypography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        color = iOSTextPrimary,
+                        modifier = Modifier.padding(bottom = 4.dp, start = 4.dp)
+                    )
+                    Text(
+                        text = targetNote.displayTitle,
+                        style = MonolithTypography.bodyMedium.copy(fontSize = 13.sp),
+                        color = iOSTextSecondary,
+                        modifier = Modifier.padding(bottom = 12.dp, start = 4.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(iOSCardBackground)
+                    ) {
+                        Column {
+                            // "Notes" Root
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .clickable {
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        onMoveNoteToFolder(targetNote, "Notes")
+                                        noteToMove = null
+                                    }
+                                    .padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Folder,
+                                    contentDescription = null,
+                                    tint = iOSYellow,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Notes (Root)",
+                                    style = MonolithTypography.bodyLarge.copy(fontSize = 16.sp),
+                                    color = iOSTextPrimary
+                                )
+                            }
+
+                            // Custom folders
+                            val otherFolders = folders.filter { it != "Notes" }
+                            otherFolders.forEach { folderName ->
+                                HorizontalDivider(modifier = Modifier.padding(start = 48.dp), thickness = 0.5.dp, color = iOSDivider)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(50.dp)
+                                        .clickable {
+                                            performHaptic(HapticFeedbackType.TextHandleMove)
+                                            onMoveNoteToFolder(targetNote, folderName)
+                                            noteToMove = null
+                                        }
+                                        .padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Folder,
+                                        contentDescription = null,
+                                        tint = iOSYellow,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = folderName,
+                                        style = MonolithTypography.bodyLarge.copy(fontSize = 16.sp),
+                                        color = iOSTextPrimary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
+
+        // Cupertino Delete Confirmation Sheet
+        if (noteToDelete != null) {
+            val targetNote = noteToDelete!!
+            ModalBottomSheet(
+                onDismissRequest = { noteToDelete = null },
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                containerColor = Color.Transparent,
+                scrimColor = Color.Black.copy(alpha = 0.65f),
+                dragHandle = null,
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .navigationBarsPadding()
+                ) {
+                    // Group 1: Warning header + Delete Button
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = iOSCardBackground,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Delete Note?",
+                                    style = MonolithTypography.titleMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = iOSTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Are you sure you want to delete '${targetNote.displayTitle}'? This file will be permanently removed.",
+                                    style = MonolithTypography.bodyMedium.copy(fontSize = 13.sp),
+                                    color = iOSTextSecondary,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+
+                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
+
+                            // Red Delete Button
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clickable {
+                                        performHaptic(HapticFeedbackType.LongPress)
+                                        onDeleteNote(targetNote)
+                                        noteToDelete = null
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Delete Note",
+                                    style = MonolithTypography.titleMedium.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 17.sp
+                                    ),
+                                    color = Color(0xFFFF453A)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Group 2: Cancel Pill
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = iOSCardBackground,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .clickable {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                noteToDelete = null
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                style = MonolithTypography.titleMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 17.sp
+                                ),
+                                color = iOSYellow
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Settings Sheet
+        if (showSettings) {
+            val totalWords = remember(notes) { notes.sumOf { it.wordCount } }
+            SettingsSheet(
+                settings = settings,
+                noteCount = notes.size,
+                totalWords = totalWords,
+                vaultPath = vaultPath,
+                onUpdateHaptics = onUpdateHaptics,
+                onUpdateStartStyle = onUpdateStartStyle,
+                onUpdateFontSize = onUpdateFontSize,
+                onUpdateShowWordCount = onUpdateShowWordCount,
+                onUpdateAutoChecklists = onUpdateAutoChecklists,
+                onSortOrderChange = onSortOrderChange,
+                onDismiss = { showSettings = false },
+                onExportNotes = {
+                    showSettings = false
+                    onExportNotes()
+                },
+                trashNotesCount = trashNotesCount,
+                onOpenTrash = onOpenTrash,
+                onUpdateBiometricLock = onUpdateBiometricLock
+            )
+        }
+    }
+}
+
+@Composable
+fun IOSTagChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val chipBg by animateColorAsState(
+        targetValue = if (isSelected) iOSYellowContainer else iOSCardBackground,
+        animationSpec = tween(durationMillis = 150),
+        label = "chipBg"
+    )
+    val chipTextColor by animateColorAsState(
+        targetValue = if (isSelected) iOSYellow else iOSTextSecondary,
+        animationSpec = tween(durationMillis = 150),
+        label = "chipTextColor"
+    )
+
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(chipBg)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            style = MonolithTypography.labelMedium,
+            color = chipTextColor,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun IOSNoteRow(
+    note: Note,
+    searchQuery: String = "",
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val rowBg by animateColorAsState(
+        targetValue = if (isPressed) Color(0xFF2C2C2E) else Color.Transparent,
+        animationSpec = tween(durationMillis = 100),
+        label = "iosRowPressBg"
+    )
+
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+        label = "iosRowPressScale"
+    )
+
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
+    val formattedDate = remember(note.lastModified) { dateFormat.format(Date(note.lastModified)) }
+
+    val titleText = remember(note.displayTitle, searchQuery) {
+        highlightQuery(note.displayTitle, searchQuery)
+    }
+    val snippetText = remember(note.previewSnippet, searchQuery) {
+        if (note.previewSnippet.isNotBlank()) highlightQuery(note.previewSnippet, searchQuery) else null
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .background(rowBg)
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (note.isPinned) {
+                    Icon(
+                        imageVector = Icons.Default.PushPin,
+                        contentDescription = "Pinned",
+                        tint = iOSYellow,
+                        modifier = Modifier
+                            .size(14.dp)
+                            .padding(end = 4.dp)
+                    )
+                }
+                Text(
+                    text = titleText,
+                    style = MonolithTypography.titleLarge,
+                    color = iOSTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+
+                note.taskStats?.let { (completed, total) ->
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (completed == total) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = if (completed == total) "✓ Done" else "✓ $completed/$total",
+                            style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
+                            color = if (completed == total) iOSEmerald else iOSYellow,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = formattedDate,
+                    style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                    color = iOSTextPrimary.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.Medium
+                )
+
+                if (note.folderName != "Notes") {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "📁 ${note.folderName}",
+                        style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
+                        color = iOSYellow.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (snippetText != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = snippetText,
+                        style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                        color = iOSTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = iOSTextTertiary.copy(alpha = 0.4f),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+private fun getRowShape(index: Int, total: Int): RoundedCornerShape {
+    return when {
+        total <= 1 -> RoundedCornerShape(12.dp)
+        index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+        index == total - 1 -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+        else -> RoundedCornerShape(0.dp)
+    }
+}
+
+fun highlightQuery(text: String, query: String): AnnotatedString {
+    if (query.isBlank() || text.isEmpty()) return AnnotatedString(text)
+    val lowerQuery = query.trim().lowercase()
+    if (lowerQuery.isEmpty()) return AnnotatedString(text)
+    val lowerText = text.lowercase()
+    val firstMatch = lowerText.indexOf(lowerQuery)
+    if (firstMatch == -1) return AnnotatedString(text)
+
+    return buildAnnotatedString {
+        var startIdx = 0
+        while (startIdx < text.length) {
+            val matchIdx = lowerText.indexOf(lowerQuery, startIdx)
+            if (matchIdx == -1) {
+                append(text.substring(startIdx))
+                break
+            }
+            if (matchIdx > startIdx) {
+                append(text.substring(startIdx, matchIdx))
+            }
+            val matchEnd = matchIdx + lowerQuery.length
+            pushStyle(SpanStyle(background = iOSYellow.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
+            append(text.substring(matchIdx, matchEnd))
+            pop()
+            startIdx = matchEnd
+        }
+    }
+}
+
+@Composable
+private fun CupertinoActionRow(
+    title: String,
+    icon: ImageVector,
+    tint: Color,
+    isDestructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MonolithTypography.bodyLarge.copy(
+                fontSize = 16.sp,
+                fontWeight = if (isDestructive) FontWeight.SemiBold else FontWeight.Normal
+            ),
+            color = if (isDestructive) Color(0xFFFF453A) else iOSTextPrimary
+        )
+
+        Icon(
+            imageVector = icon,
+            contentDescription = title,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+

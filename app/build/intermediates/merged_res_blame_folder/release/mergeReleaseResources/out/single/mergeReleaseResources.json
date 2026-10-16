@@ -1,0 +1,70 @@
+[
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_widget_background.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/widget_background.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/xml_quick_capture_widget_info.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/xml/quick_capture_widget_info.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_ic_widget_checklist.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/ic_widget_checklist.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_mono_regular.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_mono_regular.otf"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_pro_text_regular.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_pro_text_regular.otf"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_pro_rounded_bold.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_pro_rounded_bold.otf"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_ic_launcher_background.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_widget_button_bg.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/widget_button_bg.xml"
+    },
+    {
+        "merged": "com.monolith.notes.app-release-50:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.monolith.notes.app-main-51:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/drawable_ic_widget_note.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/drawable/ic_widget_note.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/layout_widget_quick_capture.xml.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/layout/widget_quick_capture.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_pro_display_bold.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_pro_display_bold.otf"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_pro_text_medium.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_pro_text_medium.otf"
+    },
+    {
+        "merged": "com.monolith.notes.app-release-50:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.monolith.notes.app-main-51:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-release-50:/font_sf_pro_display_semibold.otf.flat",
+        "source": "/home/rdev/.gradle/daemon/8.7/com.monolith.notes.app-main-51:/font/sf_pro_display_semibold.otf"
+    }
+]
