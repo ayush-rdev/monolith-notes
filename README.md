@@ -13,7 +13,7 @@
 
 <br/>
 
-> *"Your thoughts belong to you — not a closed cloud silo, and not an ad-tracking algorithm."*
+> *"We're more ghosts than people, but what we write down... that stays."* — **Arthur Morgan**
 
 [Download Latest APK](https://github.com/ayush-rdev/monolith-notes/releases) • [Features](#-the-four-pillars) • [Architecture](#%EF%B8%8F-technology-stack) • [Building](#-building--installation) • [Author](#-creator--author)
 
