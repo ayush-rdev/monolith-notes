@@ -142,30 +142,18 @@ class NoteRepository(private val context: Context) {
             loaded.add(parsed)
         }
 
+        val welcomeFile = File(notesDir, "Welcome_to_Notes.md")
+        if (welcomeFile.exists()) {
+            val raw = try { welcomeFile.readText() } catch (_: Exception) { "" }
+            if (raw.contains("The official Apple Notes experience on Android.") && !raw.contains("ayush-rdev")) {
+                try { welcomeFile.writeText(WELCOME_MARKDOWN) } catch (_: Exception) {}
+            }
+        }
+
         if (loaded.isEmpty()) {
             // Seed default welcome note with Apple Notes styling
-            val welcomeMarkdown = """
-                # Welcome to Notes
-                
-                The official Apple Notes experience on Android.
-                
-                Philosophy
-                • File Over App: Every note is a plain .md file in Documents/MonolithNotes.
-                • Zero Cloud Lock-in: 100% compatible with Obsidian, Logseq, and PC.
-                • Pure iOS Experience: True black Inset Grouped cards and warm yellow accents.
-                
-                Interactive Tasks
-                - [ ] Tap the circular checklist to tick off tasks
-                - [ ] Press Enter on a checklist line to auto-continue
-                - [ ] Press Enter on an empty checklist item to finish
-                - [x] Experience 0ms typing response
-                
-                #welcome #manifesto #craft
-            """.trimIndent()
-
-            val welcomeFile = File(notesDir, "Welcome_to_Notes.md")
-            try { welcomeFile.writeText(welcomeMarkdown) } catch (_: Exception) {}
-            val welcomeNote = parseNoteFromFile(welcomeFile, welcomeMarkdown)
+            try { welcomeFile.writeText(WELCOME_MARKDOWN) } catch (_: Exception) {}
+            val welcomeNote = parseNoteFromFile(welcomeFile, WELCOME_MARKDOWN)
             noteFileMap[welcomeNote.id] = welcomeFile
             _notes.value = listOf(welcomeNote)
         } else {
@@ -459,5 +447,70 @@ class NoteRepository(private val context: Context) {
 
     companion object {
         private val TAG_REGEX = "(?:^|\\s)#([a-zA-Z0-9_\\-/]+)".toRegex()
+
+        val WELCOME_MARKDOWN = """
+            # Welcome to Monolith Notes
+
+            To the thinkers, the dreamers, and the builders.
+
+            We built Monolith because we believe your thoughts are sacred. In a world where every app demands your credit card, stores your private words in distant corporate clouds, tracks your every tap, and locks you behind proprietary databases, Monolith chooses a different path.
+
+            Here, you are sovereign. Every note you write is saved as a clean, plain CommonMark `.md` file directly on your device. Zero telemetry. Zero accounts. Zero cloud lock-in. If this app disappears fifty years from now, your notes will still be yours—ready to open in Obsidian, VS Code, or whatever comes next.
+
+            ---
+
+            ### 📖 Complete Feature Guide
+
+            Here is everything you need to know to master your new workspace:
+
+            #### 1. 📁 Folders & Subdirectory Vaults
+            • Tap `< Folders` in the top left to organize your thoughts into notebooks.
+            • Folders in Monolith are real directories in `Documents/MonolithNotes/`.
+            • 1:1 bidirectional sync with Obsidian desktop vaults.
+
+            #### 2. 🔒 Hardware Biometric Lock
+            • Protect private journals with hardware-backed fingerprint and face authentication.
+            • Toggle **Biometric Lock** in Settings.
+            • The vault instantly shields itself the second you switch apps or turn off your screen.
+
+            #### 3. 🗑️ 30-Day Trash & Recovery
+            • Never worry about accidental deletions.
+            • Deleted notes rest safely in `.trash/` with a 30-day recovery countdown.
+            • Access and restore notes anytime from **Settings → Recently Deleted**.
+
+            #### 4. 🖼️ Inline Media & Attachments
+            • Tap the camera icon on the formatting bar to insert photos.
+            • Images are copied directly into your vault's `attachments/` folder.
+            • Tap any photo to expand into a high-res full-screen preview.
+
+            #### 5. ⚡ Gestures & Apple Spring Physics
+            • **Swipe Right** on any note card to pin it to the top.
+            • **Swipe Left** to move it smoothly to Trash.
+            • **Long-Press** for quick actions: Duplicate, Move to Folder, Share.
+            • Ultra-low 0ms typing response synchronized with 120Hz display refresh.
+
+            ---
+
+            ### ✨ Your First Steps
+
+            - [x] Experience 0ms typing response
+            - [ ] Write your first honest thought
+            - [ ] Explore the Folders drawer
+            - [ ] Turn on Biometric Lock in Settings
+            - [ ] Star the project on GitHub: github.com/ayush-rdev/monolith-notes
+
+            ---
+
+            ### 🌐 Open Source & Legacy
+
+            Monolith Notes is 100% free and open-source software under the MIT License.
+            Crafted with passion, stubborn engineering, and care by **Ayush** ([@ayush-rdev](https://github.com/ayush-rdev)).
+
+            GitHub: **https://github.com/ayush-rdev/monolith-notes**
+
+            *Write fearlessly. Your mind belongs to you.*
+
+            #welcome #manifesto #freedom #craft #opensource
+        """.trimIndent()
     }
 }

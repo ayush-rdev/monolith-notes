@@ -8,21 +8,27 @@
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose_BOM-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Markdown](https://img.shields.io/badge/Storage-Pure_CommonMark_Vault-000000?style=for-the-badge&logo=markdown&logoColor=white)](https://commonmark.org)
 [![Obsidian Compatible](https://img.shields.io/badge/Interop-Obsidian_100%25-7C3AED?style=for-the-badge&logo=obsidian&logoColor=white)](https://obsidian.md)
-[![Privacy](https://img.shields.io/badge/Telemetry-ZERO_Cloud_Lock--in-10B981?style=for-the-badge&logo=signal&logoColor=white)](https://en.wikipedia.org/wiki/Local-first_software)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Author](https://img.shields.io/badge/Crafted_By-Ayush_(@ayush--rdev)-FFD60A?style=for-the-badge&logo=github&logoColor=black)](https://github.com/ayush-rdev)
 
 <br/>
 
 > *"Your thoughts belong to you — not a closed cloud silo, and not an ad-tracking algorithm."*
 
+[Download Latest APK](https://github.com/ayush-rdev/monolith-notes/releases) • [Features](#-the-four-pillars) • [Architecture](#%EF%B8%8F-technology-stack) • [Building](#-building--installation) • [Author](#-creator--author)
+
 </div>
 
 ---
 
-## 🌟 Overview
+## 🌟 The Manifesto
 
-**Monolith Notes** brings the iconic tactile elegance of **Apple Notes (iOS 17/18)** to Android flagships, powered by the architectural freedom of **Obsidian local vaults**.
+We built **Monolith Notes** because modern note apps have lost their way. They charge subscriptions to view your own ideas, store your intimate thoughts in opaque proprietary clouds, track your every tap, and hold your data hostage when you don't have internet.
 
-Every single note created in Monolith is an honest, plain-text `.md` CommonMark file stored directly in your device’s `Documents/MonolithNotes/` directory. No proprietary binary databases, no accounts, and zero cloud lock-in. Plug your phone into your PC, or open your vault in Obsidian, Logseq, or VS Code — everything syncs and renders effortlessly.
+**Monolith is different.**
+- **File Over App**: Every note is an honest, human-readable CommonMark `.md` file stored directly on your device in `Documents/MonolithNotes/`.
+- **Zero Cloud Lock-in**: If this app vanishes tomorrow, your thoughts stay safe. Open them in Obsidian, Logseq, VS Code, or whatever software exists fifty years from now. Plain text is forever.
+- **Pure Apple Craftsmanship**: Designed with obsessive attention to the tactile elegance, typography, and spring physics of iOS 17/18, running natively on Android at 120 FPS.
 
 ---
 
@@ -43,30 +49,31 @@ Every single note created in Monolith is an honest, plain-text `.md` CommonMark 
 └──────────────────┘    └──────────────────┘            └──────────────────┘    └──────────────────┘
 ```
 
-### 1. 🗂️ File Over App (True Data Sovereignty)
-- **Local Vault Storage**: Stored at `/sdcard/Documents/MonolithNotes/`.
-- **Obsidian Interoperability**: Compatible out-of-the-box with Obsidian folders, tags (`#ideas`, `#todo`), and `attachments/`.
-- **Pure Markdown**: Notes maintain human-readable CommonMark standard syntax with YAML-safe frontmatter.
+### 1. 🗂️ File Over App (Obsidian Interoperability)
+- **Local Vault**: Direct disk I/O to `/sdcard/Documents/MonolithNotes/`.
+- **Standard CommonMark**: 100% interoperable with Obsidian desktop and mobile, Logseq, and text editors.
+- **Multi-Threaded Disk Pipeline**: Asynchronous background I/O on `Dispatchers.IO` with parallel file loading.
+- **Live Search & Tags**: Instant filter by content, title, or `#hashtags`.
 
 ### 2. 🎨 Pixel-Perfect Cupertino UI & Motion
-- **Apple Typography**: Rendered with official SF Pro Display, SF Pro Text, SF Pro Rounded, and SF Mono font families.
+- **Apple Typography**: Rendered with official San Francisco font families (SF Pro Display, SF Pro Text, SF Pro Rounded, SF Mono).
 - **Fluid UIKit Springs**: Physics-based screen transitions using Apple’s custom `CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)` with a 30% parallax background slide.
 - **OLED Inset Grouped Hierarchy**: True black background (`#000000`), Cupertino card slate (`#1C1C1E`), elevated sheets (`#2C2C2E`), and signature yellow accents (`#FFD60A`).
-- **Interactive Checklists**: Circular checklist bubbles with spring-animated bounce and auto-continuation on Enter.
+- **Interactive Checklists**: Circular checklist bubbles with spring bounce and auto-continuation on Enter.
 
 ### 3. 🔒 Biometric Security & 30-Day Safety Net
 - **Hardware-Backed Lock**: Integrated AndroidX `BiometricPrompt` supporting Face Unlock, Fingerprint, and device fallback credentials.
-- **Auto-Lock on Background**: Automatically conceals notes when navigating away or switching apps.
-- **Recently Deleted Recovery**: Soft-delete safety net storing removed notes in `.trash/` with a 30-day countdown before permanent cleanup.
+- **Instant Auto-Lock**: Automatically shields notes the moment you leave the app, turn off the screen, or open the app switcher.
+- **Recently Deleted Recovery**: Soft-delete safety net storing removed notes in `.trash/` with a 30-day countdown before permanent deletion.
 
 ### 4. 📁 Subdirectory Notebooks & Inline Media
-- **Folder Navigation**: Subdirectories inside your vault map directly to Apple Notes notebooks (e.g., `Work/`, `Personal/`, `Projects/`).
-- **Inline Image Attachments**: Photos inserted via the camera or gallery are saved to `attachments/` and rendered natively with tap-to-expand full-screen dialogs.
+- **Folder Navigation**: Subdirectories inside your vault map directly to Apple Notes notebooks (e.g., `Work/`, `Personal/`, `Ideas/`).
+- **Inline Image Attachments**: Photos inserted via the camera or gallery are saved to `attachments/` and rendered with pinch/tap-to-expand full-screen dialogs.
 - **Home Screen Quick Capture**: High-performance Android App Widget for 1-tap capture of notes and checklists.
 
 ---
 
-## 📊 Market Comparison
+## 📊 Comparison Against Other Apps
 
 | Feature | Monolith Notes | Apple Notes (iOS) | Google Keep | Obsidian Mobile |
 | :--- | :---: | :---: | :---: | :---: |
@@ -78,17 +85,18 @@ Every single note created in Monolith is an honest, plain-text `.md` CommonMark 
 | **Biometric Lock** | **Hardware Biometric** | FaceID / TouchID | ❌ None | Community Plugin |
 | **Recently Deleted** | **30-Day Recovery** | 30-Day Recovery | 7-Day Bin | ❌ Manual File Trashing |
 | **Home Screen Widget** | **Quick Capture** | Smart Widget | Note Grid | Basic Shortcuts |
+| **Telemetry & Ads** | **ZERO (100% Free)** | Apple Analytics | Google Analytics | Zero |
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **UI Toolkit**: [Jetpack Compose](https://developer.android.com/jetpack/compose) (BOM `2024.04.00`)
+- **UI Framework**: [Jetpack Compose](https://developer.android.com/jetpack/compose) (BOM `2024.04.00`)
 - **Language**: Kotlin 1.9.22 (Coroutines, StateFlow, Flow)
 - **Image Pipeline**: [Coil](https://coil-kt.github.io/coil/) 2.6.0
 - **Security**: AndroidX Biometric `1.2.0-alpha05`
 - **Typography**: Apple San Francisco Typography suite
-- **Target Architecture**: Android 8.0 (API 26) through Android 14+ (API 34)
+- **Target SDK**: Android 14+ (API 34) • Minimum SDK: Android 8.0 (API 26)
 
 ---
 
@@ -101,7 +109,7 @@ Every single note created in Monolith is an honest, plain-text `.md` CommonMark 
 ### Build Release APK
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/monolith-notes.git
+git clone https://github.com/ayush-rdev/monolith-notes.git
 cd monolith-notes
 
 # Build Release APK with ProGuard/R8
@@ -111,7 +119,24 @@ cd monolith-notes
 # app/build/outputs/apk/release/app-release.apk
 ```
 
+### Run Unit Tests
+```bash
+./gradlew testReleaseUnitTest
+```
+
+---
+
+## 👤 Creator & Author
+
+**Ayush**
+- **GitHub**: [@ayush-rdev](https://github.com/ayush-rdev)
+- **Repository**: [ayush-rdev/monolith-notes](https://github.com/ayush-rdev/monolith-notes)
+
+If you find Monolith Notes helpful, please give the repository a ⭐️ star on GitHub!
+
 ---
 
 ## 📄 License
-Crafted with passion for typography, local-first computing, and engineering discipline. Released under the **MIT License**.
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+Crafted with passion for typography, local-first computing, and engineering discipline.

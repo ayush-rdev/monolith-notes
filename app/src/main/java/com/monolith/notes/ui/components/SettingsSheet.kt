@@ -1,5 +1,7 @@
 package com.monolith.notes.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -384,6 +386,64 @@ fun SettingsSheet(
                         color = iOSTextSecondary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Section 5: Creator & Open Source (Ayush / @ayush-rdev)
+            SettingsSectionHeader(title = "OPEN SOURCE & CREATOR")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iOSCardBackground)
+            ) {
+                Column {
+                    SettingsDetailRow(
+                        icon = Icons.Default.Person,
+                        iconTint = iOSYellow,
+                        title = "Ayush (@ayush-rdev)",
+                        subtitle = "Lead Architect & Creator • github.com/ayush-rdev",
+                        actionLabel = "VISIT",
+                        trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            performHaptic(HapticFeedbackType.LongPress)
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ayush-rdev"))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+
+                    SettingsDetailRow(
+                        icon = Icons.Default.Code,
+                        iconTint = Color(0xFF0A84FF),
+                        title = "GitHub Repository",
+                        subtitle = "ayush-rdev/monolith-notes • Star & Contribute",
+                        actionLabel = "STAR",
+                        trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            performHaptic(HapticFeedbackType.LongPress)
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ayush-rdev/monolith-notes"))
+                                context.startActivity(intent)
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+
+                    SettingsRow(
+                        icon = Icons.Default.Favorite,
+                        iconTint = Color(0xFFFF375F),
+                        title = "License & Freedom",
+                        value = "MIT Open Source"
                     )
                 }
             }
