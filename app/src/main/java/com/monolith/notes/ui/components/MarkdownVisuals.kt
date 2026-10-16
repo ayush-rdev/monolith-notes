@@ -45,7 +45,7 @@ import java.io.File
 private val INLINE_MARKDOWN_REGEX = "(\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|#[a-zA-Z0-9_\\-/]+)".toRegex()
 private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\t]+.*$)".toRegex(RegexOption.MULTILINE)
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
-private val HEADING_REGEX = "^(#{1,6})\\s*(.*)$".toRegex()
+private val HEADING_REGEX = "^(#{1,6})\\s+(.+)$".toRegex()
 
 fun parseInlineMarkdown(text: String): AnnotatedString {
     if (text.isEmpty()) return AnnotatedString("")

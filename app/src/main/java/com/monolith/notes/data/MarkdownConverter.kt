@@ -54,8 +54,29 @@ object MarkdownConverter {
 
             if (!titleFound) {
                 if (trimmed.isNotBlank()) {
-                    cleanTitle = trimmed.removePrefix("#").trim().ifBlank { fallbackTitle }
-                    titleFound = true
+                    // Only consume the first line as Title if it starts with H1 '# ' (and not '##', '###', etc.)
+                    // or if it's plain text without markdown list/quote/code formatting.
+                    if (trimmed.startsWith("# ") && !trimmed.startsWith("##")) {
+                        cleanTitle = trimmed.removePrefix("# ").trim().ifBlank { fallbackTitle }
+                        titleFound = true
+                    } else if (!trimmed.startsWith("#") && !trimmed.startsWith("-") && !trimmed.startsWith("*") && !trimmed.startsWith("○") && !trimmed.startsWith("✓") && !trimmed.startsWith(">") && !trimmed.startsWith("`")) {
+                        cleanTitle = trimmed.trim().ifBlank { fallbackTitle }
+                        titleFound = true
+                    } else {
+                        // First line is a heading (like '### Heading') or list/tag/quote: keep it in body!
+                        cleanTitle = fallbackTitle
+                        titleFound = true
+                        isBodyLeading = false
+                        when {
+                            trimmed.startsWith("- [ ] ") -> bodySb.append("○ ").append(trimmed.substring(6))
+                            trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ") -> bodySb.append("✓ ").append(trimmed.substring(6))
+                            trimmed.startsWith("* [ ] ") -> bodySb.append("○ ").append(trimmed.substring(6))
+                            trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> bodySb.append("✓ ").append(trimmed.substring(6))
+                            trimmed.startsWith("- ") -> bodySb.append("• ").append(trimmed.substring(2))
+                            trimmed.startsWith("* ") -> bodySb.append("• ").append(trimmed.substring(2))
+                            else -> bodySb.append(line)
+                        }
+                    }
                 }
             } else {
                 if (isBodyLeading && trimmed.isBlank()) {
@@ -102,7 +123,10 @@ object MarkdownConverter {
             sb.append("---\npinned: true\n---\n\n")
         }
         if (cleanTitle.isNotBlank()) {
-            sb.append("# ").append(cleanTitle).append("\n\n")
+            val strippedTitle = cleanTitle.replaceFirst("^#{1,6}\\s*".toRegex(), "").trim()
+            if (strippedTitle.isNotBlank()) {
+                sb.append("# ").append(strippedTitle).append("\n\n")
+            }
         }
 
         var lineStart = 0

@@ -51,29 +51,38 @@ class AppleNotesVisualTransformation : VisualTransformation {
             val actualStart = lineStart + indent
 
             when {
-                // Completed Checklist: "✓ "
-                trimmedLine.startsWith("✓ ") -> {
-                    // Accent the checkmark symbol in Apple Yellow
+                // Completed Checklist: "✓ " or "- [x] "
+                trimmedLine.startsWith("✓ ") || trimmedLine.startsWith("- [x] ") || trimmedLine.startsWith("- [X] ") -> {
+                    val prefixLen = if (trimmedLine.startsWith("✓ ")) 2 else 6
                     builder.addStyle(
                         SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
                         actualStart,
-                        actualStart + 1
+                        actualStart + prefixLen - 1
                     )
-                    // Strike through the rest of the completed line
-                    if (actualStart + 2 < lineEnd) {
+                    if (actualStart + prefixLen < lineEnd) {
                         builder.addStyle(
                             SpanStyle(
                                 color = iOSTextSecondary,
                                 textDecoration = TextDecoration.LineThrough
                             ),
-                            actualStart + 2,
+                            actualStart + prefixLen,
                             lineEnd
                         )
                     }
                 }
 
-                // Active Checklist: "○ "
-                trimmedLine.startsWith("○ ") -> {
+                // Active Checklist: "○ " or "- [ ] "
+                trimmedLine.startsWith("○ ") || trimmedLine.startsWith("- [ ] ") -> {
+                    val prefixLen = if (trimmedLine.startsWith("○ ")) 2 else 6
+                    builder.addStyle(
+                        SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
+                        actualStart,
+                        actualStart + prefixLen - 1
+                    )
+                }
+
+                // Bullet item: "• ", "- ", "* "
+                trimmedLine.startsWith("• ") || (trimmedLine.startsWith("- ") && !trimmedLine.startsWith("- [")) || (trimmedLine.startsWith("* ") && !trimmedLine.startsWith("* [")) -> {
                     builder.addStyle(
                         SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
                         actualStart,
@@ -81,43 +90,23 @@ class AppleNotesVisualTransformation : VisualTransformation {
                     )
                 }
 
-                // Bullet item: "• "
-                trimmedLine.startsWith("• ") -> {
-                    builder.addStyle(
-                        SpanStyle(color = iOSYellow, fontWeight = FontWeight.Bold),
-                        actualStart,
-                        actualStart + 1
-                    )
-                }
-
-                // Headings (H1 to H4): "#", "##", "###", "####" with or without space
-                trimmedLine.startsWith("####") -> {
-                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
-                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
-                    val prefixLen = hashCount + spaceCount
-                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), actualStart, actualStart + prefixLen)
-                    builder.addStyle(SpanStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White), actualStart + prefixLen, lineEnd)
-                }
-                trimmedLine.startsWith("###") -> {
-                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
-                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
-                    val prefixLen = hashCount + spaceCount
-                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), actualStart, actualStart + prefixLen)
-                    builder.addStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
-                }
-                trimmedLine.startsWith("##") -> {
-                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
-                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
-                    val prefixLen = hashCount + spaceCount
-                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), actualStart, actualStart + prefixLen)
-                    builder.addStyle(SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
-                }
-                trimmedLine.startsWith("#") && (trimmedLine.length == 1 || trimmedLine[1] == ' ' || trimmedLine[1].isLetterOrDigit()) -> {
-                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
-                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
-                    val prefixLen = hashCount + spaceCount
-                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 13.sp), actualStart, actualStart + prefixLen)
-                    builder.addStyle(SpanStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
+                // Headings (H1 to H6): Must have 1-6 '#' followed by at least one space
+                HEADING_PREFIX_REGEX.find(trimmedLine) != null -> {
+                    val match = HEADING_PREFIX_REGEX.find(trimmedLine)!!
+                    val level = match.groupValues[1].length
+                    val prefixLen = match.value.length
+                    val (prefixSize, textSize, weight) = when (level) {
+                        1 -> Triple(14.sp, 24.sp, FontWeight.Bold)
+                        2 -> Triple(13.sp, 20.sp, FontWeight.Bold)
+                        3 -> Triple(12.sp, 18.sp, FontWeight.Bold)
+                        4 -> Triple(12.sp, 16.sp, FontWeight.SemiBold)
+                        5 -> Triple(11.sp, 15.sp, FontWeight.SemiBold)
+                        else -> Triple(11.sp, 14.sp, FontWeight.SemiBold)
+                    }
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = prefixSize), actualStart, actualStart + prefixLen)
+                    if (actualStart + prefixLen < lineEnd) {
+                        builder.addStyle(SpanStyle(fontSize = textSize, fontWeight = weight, color = Color.White), actualStart + prefixLen, lineEnd)
+                    }
                 }
 
                 // Blockquote: "> "
@@ -198,6 +187,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
     }
 
     companion object {
+        private val HEADING_PREFIX_REGEX = "^(#{1,6})\\s+".toRegex()
         private val BOLD_REGEX = "\\*\\*(.+?)\\*\\*".toRegex()
         private val ITALIC_REGEX = "(?<!\\*)\\*([^*\\n]+?)\\*(?!\\*)".toRegex()
         private val STRIKE_REGEX = "~~(.+?)~~".toRegex()

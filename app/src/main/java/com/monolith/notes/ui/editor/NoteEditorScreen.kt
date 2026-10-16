@@ -252,17 +252,20 @@ fun NoteEditorScreen(
         }
         val line = text.substring(lineStart, lineEnd)
 
+        val cleanLinePrefix = { input: String ->
+            input
+                .replaceFirst("^#{1,6}\\s*".toRegex(), "")
+                .removePrefix("○ ")
+                .removePrefix("✓ ")
+                .removePrefix("• ")
+                .removePrefix("> ")
+                .replaceFirst("^-\\s+\\[[ xX]\\]\\s*".toRegex(), "")
+                .replaceFirst("^[-*]\\s+".toRegex(), "")
+        }
+
         val (newLine, cursorOffset) = when {
             targetPrefix.isEmpty() -> {
-                val cleanLine = line
-                    .removePrefix("#### ")
-                    .removePrefix("### ")
-                    .removePrefix("## ")
-                    .removePrefix("# ")
-                    .removePrefix("○ ")
-                    .removePrefix("✓ ")
-                    .removePrefix("• ")
-                    .removePrefix("> ")
+                val cleanLine = cleanLinePrefix(line)
                 Pair(cleanLine, cleanLine.length - line.length)
             }
             line.startsWith(targetPrefix) -> {
@@ -279,15 +282,7 @@ fun NoteEditorScreen(
                 Pair(toggled, -alternatePrefix.length)
             }
             else -> {
-                val cleanLine = line
-                    .removePrefix("#### ")
-                    .removePrefix("### ")
-                    .removePrefix("## ")
-                    .removePrefix("# ")
-                    .removePrefix("○ ")
-                    .removePrefix("✓ ")
-                    .removePrefix("• ")
-                    .removePrefix("> ")
+                val cleanLine = cleanLinePrefix(line)
                 Pair(targetPrefix + cleanLine, (targetPrefix + cleanLine).length - line.length)
             }
         }
@@ -861,7 +856,41 @@ fun NoteEditorScreen(
                         wrapSelection("**")
                     },
                     onInsertTag = {
-                        wrapSelection("#")
+                        pushUndoState(bodyState)
+                        val current = bodyState
+                        val text = current.text
+                        val start = current.selection.min
+                        val end = current.selection.max
+
+                        if (start != end) {
+                            val selected = text.substring(start, end)
+                            val toggled = if (selected.startsWith("#")) selected.removePrefix("#") else "#$selected"
+                            val newText = text.replaceRange(start, end, toggled)
+                            val newCursor = start + toggled.length
+                            bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                        } else {
+                            var wordStart = (start - 1).coerceAtLeast(0)
+                            while (wordStart > 0 && !text[wordStart - 1].isWhitespace()) {
+                                wordStart--
+                            }
+                            var wordEnd = start
+                            while (wordEnd < text.length && !text[wordEnd].isWhitespace()) {
+                                wordEnd++
+                            }
+
+                            if (wordStart < wordEnd && !text[wordStart].isWhitespace()) {
+                                val word = text.substring(wordStart, wordEnd)
+                                val toggled = if (word.startsWith("#")) word.removePrefix("#") else "#$word"
+                                val newText = text.replaceRange(wordStart, wordEnd, toggled)
+                                val newCursor = (wordStart + toggled.length).coerceIn(0, newText.length)
+                                bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                            } else {
+                                val newText = text.replaceRange(start, start, "#")
+                                val newCursor = start + 1
+                                bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                            }
+                        }
+                        bodyFocusRequester.requestFocus()
                     },
                     onAttachImage = {
                         photoPickerLauncher.launch(
