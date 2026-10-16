@@ -90,46 +90,34 @@ class AppleNotesVisualTransformation : VisualTransformation {
                     )
                 }
 
-                // H1 Heading: "# "
-                trimmedLine.startsWith("# ") -> {
-                    builder.addStyle(
-                        SpanStyle(color = ghostSyntaxColor, fontSize = 13.sp),
-                        actualStart,
-                        actualStart + 2
-                    )
-                    builder.addStyle(
-                        SpanStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White),
-                        actualStart + 2,
-                        lineEnd
-                    )
+                // Headings (H1 to H4): "#", "##", "###", "####" with or without space
+                trimmedLine.startsWith("####") -> {
+                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
+                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
+                    val prefixLen = hashCount + spaceCount
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), actualStart, actualStart + prefixLen)
+                    builder.addStyle(SpanStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White), actualStart + prefixLen, lineEnd)
                 }
-
-                // H2 Heading: "## "
-                trimmedLine.startsWith("## ") -> {
-                    builder.addStyle(
-                        SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp),
-                        actualStart,
-                        actualStart + 3
-                    )
-                    builder.addStyle(
-                        SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White),
-                        actualStart + 3,
-                        lineEnd
-                    )
+                trimmedLine.startsWith("###") -> {
+                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
+                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
+                    val prefixLen = hashCount + spaceCount
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), actualStart, actualStart + prefixLen)
+                    builder.addStyle(SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
                 }
-
-                // H3 Subheading: "### "
-                trimmedLine.startsWith("### ") -> {
-                    builder.addStyle(
-                        SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp),
-                        actualStart,
-                        actualStart + 4
-                    )
-                    builder.addStyle(
-                        SpanStyle(fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color.White),
-                        actualStart + 4,
-                        lineEnd
-                    )
+                trimmedLine.startsWith("##") -> {
+                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
+                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
+                    val prefixLen = hashCount + spaceCount
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), actualStart, actualStart + prefixLen)
+                    builder.addStyle(SpanStyle(fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
+                }
+                trimmedLine.startsWith("#") && (trimmedLine.length == 1 || trimmedLine[1] == ' ' || trimmedLine[1].isLetterOrDigit()) -> {
+                    val hashCount = trimmedLine.takeWhile { it == '#' }.length
+                    val spaceCount = trimmedLine.drop(hashCount).takeWhile { it == ' ' }.length
+                    val prefixLen = hashCount + spaceCount
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 13.sp), actualStart, actualStart + prefixLen)
+                    builder.addStyle(SpanStyle(fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White), actualStart + prefixLen, lineEnd)
                 }
 
                 // Blockquote: "> "
@@ -151,20 +139,15 @@ class AppleNotesVisualTransformation : VisualTransformation {
         }
 
         // 2. Inline Bold: "**text**"
-        val boldRegex = "\\*\\*(.+?)\\*\\*".toRegex()
-        for (match in boldRegex.findAll(raw)) {
+        for (match in BOLD_REGEX.findAll(raw)) {
             val range = match.range
-            // Dim opening **
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
-            // Bold the content
             builder.addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White), range.first + 2, range.last - 1)
-            // Dim closing **
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
         }
 
-        // 3. Inline Italic: "*text*" (not part of **)
-        val italicRegex = "(?<!\\*)\\*([^*\\n]+?)\\*(?!\\*)".toRegex()
-        for (match in italicRegex.findAll(raw)) {
+        // 3. Inline Italic: "*text*"
+        for (match in ITALIC_REGEX.findAll(raw)) {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
             builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic, color = Color.White), range.first + 1, range.last)
@@ -172,8 +155,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
         }
 
         // 4. Inline Strikethrough: "~~text~~"
-        val strikeRegex = "~~(.+?)~~".toRegex()
-        for (match in strikeRegex.findAll(raw)) {
+        for (match in STRIKE_REGEX.findAll(raw)) {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
             builder.addStyle(
@@ -185,8 +167,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
         }
 
         // 5. Inline Code: "`code`"
-        val codeRegex = "`([^`\\n]+)`".toRegex()
-        for (match in codeRegex.findAll(raw)) {
+        for (match in CODE_REGEX.findAll(raw)) {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
             builder.addStyle(
@@ -202,8 +183,7 @@ class AppleNotesVisualTransformation : VisualTransformation {
         }
 
         // 6. Hashtags: "#tag"
-        val tagRegex = "(?:^|\\s)(#[a-zA-Z0-9_\\-]+)".toRegex()
-        for (match in tagRegex.findAll(raw)) {
+        for (match in TAG_REGEX.findAll(raw)) {
             val tagGroup = match.groups[1]
             if (tagGroup != null) {
                 builder.addStyle(
@@ -215,5 +195,13 @@ class AppleNotesVisualTransformation : VisualTransformation {
         }
 
         return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
+    }
+
+    companion object {
+        private val BOLD_REGEX = "\\*\\*(.+?)\\*\\*".toRegex()
+        private val ITALIC_REGEX = "(?<!\\*)\\*([^*\\n]+?)\\*(?!\\*)".toRegex()
+        private val STRIKE_REGEX = "~~(.+?)~~".toRegex()
+        private val CODE_REGEX = "`([^`\\n]+)`".toRegex()
+        private val TAG_REGEX = "(?:^|\\s)(#[a-zA-Z0-9_\\-]+)".toRegex()
     }
 }

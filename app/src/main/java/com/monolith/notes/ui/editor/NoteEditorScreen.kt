@@ -253,6 +253,18 @@ fun NoteEditorScreen(
         val line = text.substring(lineStart, lineEnd)
 
         val (newLine, cursorOffset) = when {
+            targetPrefix.isEmpty() -> {
+                val cleanLine = line
+                    .removePrefix("#### ")
+                    .removePrefix("### ")
+                    .removePrefix("## ")
+                    .removePrefix("# ")
+                    .removePrefix("○ ")
+                    .removePrefix("✓ ")
+                    .removePrefix("• ")
+                    .removePrefix("> ")
+                Pair(cleanLine, cleanLine.length - line.length)
+            }
             line.startsWith(targetPrefix) -> {
                 if (alternatePrefix != null) {
                     val toggled = alternatePrefix + line.removePrefix(targetPrefix)
@@ -268,6 +280,7 @@ fun NoteEditorScreen(
             }
             else -> {
                 val cleanLine = line
+                    .removePrefix("#### ")
                     .removePrefix("### ")
                     .removePrefix("## ")
                     .removePrefix("# ")
@@ -749,6 +762,7 @@ fun NoteEditorScreen(
                                 fontFamily = SFProText
                             ),
                             cursorBrush = SolidColor(iOSYellow),
+                            visualTransformation = remember { AppleNotesVisualTransformation() },
                             keyboardOptions = KeyboardOptions(
                                 capitalization = KeyboardCapitalization.Sentences,
                                 imeAction = ImeAction.Default

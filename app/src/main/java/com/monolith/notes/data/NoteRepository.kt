@@ -145,7 +145,7 @@ class NoteRepository(private val context: Context) {
         val welcomeFile = File(notesDir, "Welcome_to_Notes.md")
         if (welcomeFile.exists()) {
             val raw = try { welcomeFile.readText() } catch (_: Exception) { "" }
-            if (raw.contains("Arthur Morgan") || raw.contains("Apple Notes") || raw.contains("Philosophy\n• File Over App") || !raw.contains("The world moves too fast")) {
+            if (raw.contains("Arthur Morgan") || raw.contains("Apple Notes") || raw.contains("Philosophy\n• File Over App") || !raw.contains("The Foundation")) {
                 try {
                     welcomeFile.writeText(WELCOME_MARKDOWN)
                     val updatedWelcome = parseNoteFromFile(welcomeFile, WELCOME_MARKDOWN)
@@ -456,77 +456,34 @@ class NoteRepository(private val context: Context) {
         private val TAG_REGEX = "(?:^|\\s)#([a-zA-Z0-9_\\-/]+)".toRegex()
 
         val WELCOME_MARKDOWN = """
-            # 📓 Welcome to Monolith
+            # Welcome to Monolith
 
-            *“The world moves too fast, but what you write down... that stays.”*
+            A local-first, distraction-free markdown canvas.
 
-            There is a lot of noise out there.
+            ### The Foundation
+            • **File Over App**: Every note is a plain CommonMark `.md` file stored locally in `Documents/MonolithNotes/`.
+            • **Zero Lock-in**: 100% interoperable with Obsidian, Logseq, and text editors.
+            • **Privacy by Design**: 0 telemetry, 0 cloud dependencies, 100% offline.
 
-            Every modern app wants your attention, wants your credit card, and wants to turn your private thoughts into data to sell back to you. Somewhere along the way, we forgot what writing was actually for.
+            ### Key Capabilities
+            • **Folders**: Tap `< Folders` to organize notes into local subdirectories.
+            • **Biometric Lock**: Protect private thoughts with hardware biometric authentication.
+            • **Recently Deleted**: 30-day soft-delete safety net in `.trash/`.
+            • **Media**: Attach inline photos stored in `attachments/`.
+            • **Speed**: 0ms typing response with fluid gesture navigation.
 
-            Writing isn't about productivity scores or cloud sync accounts. It’s about catching yourself before the day washes everything away. It’s that quiet moment late at night when the world is finally still, and you put down the things you couldn't say out loud to anyone else.
-
-            That’s why I built Monolith.
-
-            Not as another corporate cloud silo, and not as another tool to lock you in. Monolith is just a good, honest ledger. Every word you type is saved directly as a clean, plain CommonMark `.md` file right on your own storage. No subscriptions. No algorithms tracking your keystrokes. No server that can shut off tomorrow and take your memories with it.
-
-            If this software disappears thirty years from now, your words will still be sitting in your files, untouched and unbroken. Plain text is forever.
-
-            ---
-
-            ### 🛠️ The Working Guide
-
-            Here is how you make this space your own:
-
-            #### 1. 📁 Vaults & Notebooks (Folders)
-            • Tap `< Folders` at the top to organize your notes into separate notebooks.
-            • Folders in Monolith are real directories on your storage (`Documents/MonolithNotes/`).
-            • 100% interoperable with Obsidian, Logseq, or whatever tools you use on your computer.
-
-            #### 2. 🔒 Biometric Security
-            • Some things are meant only for your eyes. Turn on **Biometric Lock** in Settings.
-            • Your fingerprint or face is the only key.
-            • The vault shields itself the second you leave the app or turn off your screen.
-
-            #### 3. 🗑️ 30-Day Recovery (Recently Deleted)
-            • We all make mistakes in haste. If you delete a note, don't worry.
-            • Notes rest quietly in `.trash/` for 30 days before they are cleared.
-            • Recover them anytime from **Settings → Recently Deleted**.
-
-            #### 4. 🖼️ Visuals & Attachments
-            • Sometimes words aren't enough. Tap the camera icon on the formatting bar to attach images.
-            • Photos are saved locally into your vault's `attachments/` folder.
-            • Tap any photo in your note to view it full-screen.
-
-            #### 5. ⚡ Tactile Motion & 0ms Response
-            • **Swipe Right** on any note to pin it to the top.
-            • **Swipe Left** to move it to trash.
-            • **Long-Press** for quick actions.
-            • Zero typing latency with fluid physics-based gestures that get out of your way the second you start writing.
+            ### Quick Start
+            - [x] Initialized local vault
+            - [ ] Write your first note
+            - [ ] Create a custom folder in the Folders drawer
+            - [ ] Configure Biometric Lock in Settings
 
             ---
 
-            ### ✍️ First Steps
+            Open source under the MIT License by [Ayush](https://github.com/ayush-rdev).
+            Repository: https://github.com/ayush-rdev/monolith-notes
 
-            - [x] Stepped into a quiet space
-            - [ ] Write down one honest thought today
-            - [ ] Create a folder for what matters to you
-            - [ ] Set your biometric lock so your private notes stay private
-            - [ ] Check out the open-source repository on GitHub: github.com/ayush-rdev/monolith-notes
-
-            ---
-
-            ### 🌐 Open Source & Freedom
-
-            Monolith is 100% free and open-source under the MIT License.
-            Crafted with patience, stubborn care, and respect for your thoughts by **Ayush** ([@ayush-rdev](https://github.com/ayush-rdev)).
-
-            Contribute or star the project on GitHub:
-            👉 **https://github.com/ayush-rdev/monolith-notes**
-
-            *Take care of yourself. Write what is true.*
-
-            #monolith #journal #manifesto #freedom #craft #opensource
+            #welcome #manifesto #notes
         """.trimIndent()
     }
 }

@@ -45,6 +45,7 @@ import java.io.File
 private val INLINE_MARKDOWN_REGEX = "(\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|#[a-zA-Z0-9_\\-/]+)".toRegex()
 private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\t]+.*$)".toRegex(RegexOption.MULTILINE)
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
+private val HEADING_REGEX = "^(#{1,6})\\s*(.*)$".toRegex()
 
 fun parseInlineMarkdown(text: String): AnnotatedString {
     if (text.isEmpty()) return AnnotatedString("")
@@ -179,27 +180,22 @@ fun MarkdownRenderView(
                 continue
             }
 
+            val headingMatch = HEADING_REGEX.find(trimmed)
             when {
-                trimmed.startsWith("# ") -> {
+                headingMatch != null -> {
+                    val level = headingMatch.groupValues[1].length
+                    val headingText = headingMatch.groupValues[2]
+                    val (style, topPadding) = when (level) {
+                        1 -> MonolithTypography.headlineLarge to 12.dp
+                        2 -> MonolithTypography.headlineMedium to 10.dp
+                        3 -> MonolithTypography.titleLarge.copy(fontSize = 19.sp, fontWeight = FontWeight.Bold) to 8.dp
+                        4 -> MonolithTypography.titleLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold) to 6.dp
+                        else -> MonolithTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold) to 4.dp
+                    }
                     Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("# ").trim()),
-                        style = MonolithTypography.headlineLarge,
-                        modifier = Modifier.padding(top = 10.dp, bottom = 2.dp)
-                    )
-                }
-                trimmed.startsWith("## ") -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("## ").trim()),
-                        style = MonolithTypography.headlineMedium,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
-                    )
-                }
-                trimmed.startsWith("### ") -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("### ").trim()),
-                        style = MonolithTypography.titleLarge,
-                        color = iOSYellow,
-                        modifier = Modifier.padding(top = 6.dp)
+                        text = parseInlineMarkdown(headingText.trim()),
+                        style = style.copy(color = Color.White),
+                        modifier = Modifier.padding(top = topPadding, bottom = 2.dp)
                     )
                 }
                 // Circular Apple Notes Task Checkbox (supports both ○/✓ and - [ ]/- [x])
