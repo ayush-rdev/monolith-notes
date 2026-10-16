@@ -237,7 +237,12 @@ fun FoldersScreen(
                 }
             }
 
-            // Monolith Bottom Bar: "New Folder" & "New Note"
+            // Monolith Bottom Bar: "New Folder" & "New Note" (Universal Android 15 Insets)
+            val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+            val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+            val bottomInset = if (imeBottom > 0.dp) 0.dp else maxOf(navBottom, safeBottom, 16.dp)
+
             Surface(
                 color = iOSCardBackground,
                 modifier = Modifier.fillMaxWidth()
@@ -245,12 +250,12 @@ fun FoldersScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
+                        .padding(bottom = bottomInset)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
                             .padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -288,13 +293,13 @@ fun FoldersScreen(
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onNewNoteClick()
                             },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                imageVector = Icons.Default.EditNote,
                                 contentDescription = "New Note",
                                 tint = iOSYellow,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
                     }

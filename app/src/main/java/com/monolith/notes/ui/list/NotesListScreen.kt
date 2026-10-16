@@ -83,6 +83,7 @@ fun NotesListScreen(
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
+    isLoaded: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -316,19 +317,21 @@ fun NotesListScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (searchQuery.isNotBlank()) "No Results for \"$searchQuery\"" else "No Notes",
-                            style = MonolithTypography.titleLarge,
-                            color = iOSTextSecondary
-                        )
-                        if (searchQuery.isBlank()) {
-                            Spacer(modifier = Modifier.height(6.dp))
+                    if (isLoaded) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "Tap the pencil icon to write your first note",
-                                style = MonolithTypography.bodyMedium,
-                                color = iOSTextTertiary
+                                text = if (searchQuery.isNotBlank()) "No Results for \"$searchQuery\"" else "No Notes",
+                                style = MonolithTypography.titleLarge,
+                                color = iOSTextSecondary
                             )
+                            if (searchQuery.isBlank()) {
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Tap the pencil icon to write your first note",
+                                    style = MonolithTypography.bodyMedium,
+                                    color = iOSTextTertiary
+                                )
+                            }
                         }
                     }
                 }
@@ -444,8 +447,12 @@ fun NotesListScreen(
                 }
             }
 
-            // Monolith Notes Bottom Bar with Intelligent Inset Adaptation
-            val isKeyboardVisible = WindowInsets.isImeVisible
+            // Monolith Notes Bottom Bar with Universal Inset Adaptation (Android 15+ & all aspect ratios)
+            val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+            val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+            val bottomInset = if (imeBottom > 0.dp) 0.dp else maxOf(navBottom, safeBottom, 16.dp)
+
             Surface(
                 color = iOSCardBackground,
                 modifier = Modifier.fillMaxWidth()
@@ -453,14 +460,12 @@ fun NotesListScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            if (!isKeyboardVisible) Modifier.navigationBarsPadding() else Modifier
-                        )
+                        .padding(bottom = bottomInset)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
+                            .height(50.dp)
                             .padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -471,7 +476,7 @@ fun NotesListScreen(
                                 performHaptic(HapticFeedbackType.TextHandleMove)
                                 onOpenFolders()
                             },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             BadgedBox(
                                 badge = {
@@ -508,13 +513,13 @@ fun NotesListScreen(
                             color = iOSTextSecondary
                         )
 
-                        // Yellow Compose Button
+                        // Yellow Compose Button (Pencil Icon)
                         IconButton(
                             onClick = {
                                 performHaptic(HapticFeedbackType.LongPress)
                                 onNewNoteClick()
                             },
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,

@@ -891,7 +891,13 @@ fun NoteEditorScreen(
                             )
                         }
 
+                        val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                        val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+                        val editorBottomInset = if (imeBottom > 0.dp) 0.dp else maxOf(navBottom, safeBottom, 12.dp)
+
                         FormattingBar(
+                            modifier = Modifier.padding(bottom = editorBottomInset),
                             isFormatSheetOpen = showFormatSheet,
                             canUndo = canUndo,
                             canRedo = canRedo,
@@ -960,7 +966,9 @@ fun NoteEditorScreen(
                     }
                 }
             } else {
-                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+                val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+                Spacer(modifier = Modifier.height(maxOf(navBottom, safeBottom, 24.dp)))
             }
         }
     }

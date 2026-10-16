@@ -259,9 +259,11 @@ class MainActivity : FragmentActivity() {
                                     val notes by repository.notes.collectAsState()
                                     val folders by repository.folders.collectAsState()
                                     val trashNotes by repository.trashNotes.collectAsState()
+                                    val isLoaded by repository.isLoaded.collectAsState()
 
                                     NotesListScreen(
                                         notes = notes,
+                                        isLoaded = isLoaded,
                                         vaultPath = repository.notesDir.absolutePath,
                                         settings = settings,
                                         currentFolder = selectedFolder,

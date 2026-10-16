@@ -34,8 +34,93 @@ class NoteRepository(private val context: Context) {
     private val _folders = MutableStateFlow<List<String>>(listOf("Notes"))
     val folders: StateFlow<List<String>> = _folders.asStateFlow()
 
+    private val _isLoaded = MutableStateFlow(false)
+    val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
     private var currentSortOrder = NoteSortOrder.DATE_EDITED
     private val noteFileMap = ConcurrentHashMap<String, File>()
+
+    private val fastCacheFile: File by lazy {
+        File(context.cacheDir, "monolith_notes_cache.json")
+    }
+
+    init {
+        loadFastCache()
+    }
+
+    private fun loadFastCache() {
+        try {
+            if (!fastCacheFile.exists()) {
+                val welcomeFile = File(notesDir, "Welcome_to_Notes.md")
+                if (welcomeFile.exists()) {
+                    val raw = try { welcomeFile.readText() } catch (_: Exception) { "" }
+                    if (raw.isNotBlank()) {
+                        val welcomeNote = parseNoteFromFile(welcomeFile, raw)
+                        noteFileMap[welcomeNote.id] = welcomeFile
+                        _notes.value = listOf(welcomeNote)
+                        _isLoaded.value = true
+                    }
+                }
+                return
+            }
+
+            val json = fastCacheFile.readText()
+            if (json.isBlank()) return
+            val array = org.json.JSONArray(json)
+            val list = ArrayList<Note>(array.length())
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                val filePath = obj.optString("file")
+                val targetFile = if (filePath.isNotEmpty()) File(filePath) else null
+                val id = obj.optString("id")
+                val title = obj.optString("title")
+                val content = obj.optString("content")
+                val lastModified = obj.optLong("lastModified", System.currentTimeMillis())
+                val isPinned = obj.optBoolean("isPinned", false)
+                val folder = obj.optString("folder", "Notes")
+
+                val note = Note(
+                    id = id,
+                    file = targetFile,
+                    title = title,
+                    content = content,
+                    tags = TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList(),
+                    lastModified = lastModified,
+                    isPinned = isPinned,
+                    folder = folder
+                )
+                if (targetFile != null) {
+                    noteFileMap[note.id] = targetFile
+                }
+                list.add(note)
+            }
+            if (list.isNotEmpty()) {
+                _notes.value = sortNotesList(list, currentSortOrder)
+                _isLoaded.value = true
+            }
+        } catch (_: Exception) {
+            // Silently fall back to loadNotes
+        }
+    }
+
+    private fun saveFastCache(notesList: List<Note>) {
+        try {
+            val array = org.json.JSONArray()
+            for (note in notesList) {
+                val obj = org.json.JSONObject().apply {
+                    put("id", note.id)
+                    put("file", note.file?.absolutePath ?: "")
+                    put("title", note.title)
+                    put("content", note.content)
+                    put("lastModified", note.lastModified)
+                    put("isPinned", note.isPinned)
+                    put("folder", note.folder)
+                }
+                array.put(obj)
+            }
+            fastCacheFile.writeText(array.toString())
+        } catch (_: Exception) {}
+    }
 
     val trashDir: File by lazy {
         File(notesDir, ".trash").apply { if (!exists()) mkdirs() }
@@ -166,6 +251,8 @@ class NoteRepository(private val context: Context) {
         } else {
             _notes.value = sortNotesList(loaded, currentSortOrder)
         }
+        _isLoaded.value = true
+        saveFastCache(_notes.value)
         loadTrashNotes()
     }
 
@@ -216,6 +303,7 @@ class NoteRepository(private val context: Context) {
             currentList.add(0, updatedNote)
         }
         _notes.value = sortNotesList(currentList, currentSortOrder)
+        saveFastCache(_notes.value)
         refreshFolders()
         updatedNote
     }
@@ -255,6 +343,7 @@ class NoteRepository(private val context: Context) {
             currentList.add(0, updated)
         }
         _notes.value = sortNotesList(currentList, currentSortOrder)
+        saveFastCache(_notes.value)
         refreshFolders()
         updated
     }
@@ -329,6 +418,7 @@ class NoteRepository(private val context: Context) {
         _notes.value = _notes.value.filter {
             it.id != note.id && it.file?.path != fileToDelete?.path
         }
+        saveFastCache(_notes.value)
         loadTrashNotes()
         refreshFolders()
     }
@@ -353,6 +443,7 @@ class NoteRepository(private val context: Context) {
         val currentList = _notes.value.toMutableList()
         currentList.add(0, restored)
         _notes.value = sortNotesList(currentList, currentSortOrder)
+        saveFastCache(_notes.value)
         refreshFolders()
         restored
     }
