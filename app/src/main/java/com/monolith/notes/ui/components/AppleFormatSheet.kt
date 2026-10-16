@@ -45,7 +45,7 @@ fun AppleFormatSheet(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-            .background(Color(0xFF1C1C1E))
+            .background(iOSCardBackground)
             .padding(16.dp)
     ) {
         Column(
@@ -83,7 +83,7 @@ fun AppleFormatSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2C2C2E))
+                    .background(iOSElevatedCard)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -114,7 +114,7 @@ fun AppleFormatSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2C2C2E))
+                    .background(iOSElevatedCard)
                     .padding(vertical = 4.dp, horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
@@ -142,7 +142,7 @@ fun AppleFormatSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF2C2C2E))
+                    .background(iOSElevatedCard)
                     .padding(vertical = 4.dp, horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically

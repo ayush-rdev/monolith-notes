@@ -46,9 +46,7 @@ fun FormattingBar(
     val haptic = LocalHapticFeedback.current
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(iOSCardBackground)
+        modifier = modifier.fillMaxWidth()
     ) {
         HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
 
@@ -129,7 +127,7 @@ fun FormattingBar(
                 onAttachImage()
             }
 
-            // 6. Undo Button
+            // 7. Undo Button
             IOSToolbarButton(
                 icon = Icons.AutoMirrored.Filled.Undo,
                 contentDescription = "Undo",
@@ -140,7 +138,7 @@ fun FormattingBar(
                 onUndo()
             }
 
-            // 7. Redo Button
+            // 8. Redo Button
             IOSToolbarButton(
                 icon = Icons.AutoMirrored.Filled.Redo,
                 contentDescription = "Redo",
@@ -151,7 +149,7 @@ fun FormattingBar(
                 onRedo()
             }
 
-            // 8. Dismiss Keyboard Button
+            // 9. Dismiss Keyboard Button
             IOSToolbarButton(
                 icon = Icons.Default.KeyboardHide,
                 contentDescription = "Hide Keyboard",

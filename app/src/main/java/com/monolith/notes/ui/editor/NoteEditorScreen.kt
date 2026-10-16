@@ -175,9 +175,13 @@ fun NoteEditorScreen(
 
     // Back handler: flush save, clear keyboard, and navigate
     BackHandler {
-        focusManager.clearFocus()
-        flushSave()
-        onBack()
+        if (showFormatSheet) {
+            showFormatSheet = false
+        } else {
+            focusManager.clearFocus()
+            flushSave()
+            onBack()
+        }
     }
 
     val undoStack = remember(note.id) { ArrayDeque<TextFieldValue>() }
@@ -811,11 +815,17 @@ fun NoteEditorScreen(
             }
 
             // Intelligent Bottom Alignment:
-            // - When Editing: Show format accessories wrapped in a solid theme surface.
-            //   If keyboard is closed (e.g. dismissed or hardware keyboard), add navigationBarsPadding so format buttons sit safely above 3-button nav.
-            //   If keyboard is open, imePadding on parent already elevates the bar above the soft keyboard.
+            // - When Editing: Show format accessories wrapped in a solid theme surface extending 100% to the screen bottom edge.
+            //   When keyboard is up, root imePadding elevates the bar above the soft keyboard (bottom inset = 0dp).
+            //   When keyboard is closed, bottom inset provides comfortable clearance above system navigation buttons/pill.
             // - When Viewing: Add a spacer equal to navigationBars inset so the last lines of the note are never obscured behind 3-button nav.
             if (isEditing) {
+                val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+                val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+                val isKeyboardUp = imeBottom > 0.dp || isKeyboardVisible
+                val bottomInset = if (isKeyboardUp) 0.dp else maxOf(navBottom, safeBottom)
+
                 Surface(
                     color = iOSCardBackground,
                     modifier = Modifier.fillMaxWidth()
@@ -823,9 +833,7 @@ fun NoteEditorScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(
-                                if (!isKeyboardVisible) Modifier.navigationBarsPadding() else Modifier
-                            )
+                            .padding(bottom = bottomInset)
                     ) {
                         AnimatedVisibility(
                             visible = showFormatSheet,
@@ -891,13 +899,7 @@ fun NoteEditorScreen(
                             )
                         }
 
-                        val imeBottom = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-                        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                        val safeBottom = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
-                        val editorBottomInset = if (imeBottom > 0.dp) 0.dp else maxOf(navBottom, safeBottom, 12.dp)
-
                         FormattingBar(
-                            modifier = Modifier.padding(bottom = editorBottomInset),
                             isFormatSheetOpen = showFormatSheet,
                             canUndo = canUndo,
                             canRedo = canRedo,
