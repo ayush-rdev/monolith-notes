@@ -124,33 +124,41 @@ fun NotesListScreen(
     val pinnedNotes = remember(filteredNotes) { filteredNotes.filter { it.isPinned } }
     val unpinnedNotes = remember(filteredNotes) { filteredNotes.filter { !it.isPinned } }
 
-    val groupedUnpinnedNotes = remember(unpinnedNotes) {
-        val now = System.currentTimeMillis()
-        val oneDayMs = 24L * 60 * 60 * 1000
-        val sevenDaysMs = 7 * oneDayMs
-        val thirtyDaysMs = 30 * oneDayMs
-
-        val today = mutableListOf<Note>()
-        val prev7 = mutableListOf<Note>()
-        val prev30 = mutableListOf<Note>()
-        val earlier = mutableListOf<Note>()
-
-        unpinnedNotes.forEach { note ->
-            val diff = now - note.lastModified
-            when {
-                diff < oneDayMs -> today.add(note)
-                diff < sevenDaysMs -> prev7.add(note)
-                diff < thirtyDaysMs -> prev30.add(note)
-                else -> earlier.add(note)
+    val groupedUnpinnedNotes = remember(unpinnedNotes, settings.sortOrder) {
+        if (settings.sortOrder == com.monolith.notes.data.NoteSortOrder.TITLE) {
+            val byLetter = unpinnedNotes.groupBy {
+                val firstChar = it.displayTitle.trim().firstOrNull()?.uppercaseChar() ?: '#'
+                if (firstChar in 'A'..'Z') "$firstChar" else "#"
             }
-        }
+            byLetter.entries.sortedBy { it.key }.map { it.key to it.value }
+        } else {
+            val now = System.currentTimeMillis()
+            val oneDayMs = 24L * 60 * 60 * 1000
+            val sevenDaysMs = 7 * oneDayMs
+            val thirtyDaysMs = 30 * oneDayMs
 
-        listOfNotNull(
-            if (today.isNotEmpty()) "TODAY" to today else null,
-            if (prev7.isNotEmpty()) "PREVIOUS 7 DAYS" to prev7 else null,
-            if (prev30.isNotEmpty()) "PREVIOUS 30 DAYS" to prev30 else null,
-            if (earlier.isNotEmpty()) "EARLIER" to earlier else null
-        )
+            val today = mutableListOf<Note>()
+            val prev7 = mutableListOf<Note>()
+            val prev30 = mutableListOf<Note>()
+            val earlier = mutableListOf<Note>()
+
+            unpinnedNotes.forEach { note ->
+                val diff = now - note.lastModified
+                when {
+                    diff < oneDayMs -> today.add(note)
+                    diff < sevenDaysMs -> prev7.add(note)
+                    diff < thirtyDaysMs -> prev30.add(note)
+                    else -> earlier.add(note)
+                }
+            }
+
+            listOfNotNull(
+                if (today.isNotEmpty()) "TODAY" to today else null,
+                if (prev7.isNotEmpty()) "PREVIOUS 7 DAYS" to prev7 else null,
+                if (prev30.isNotEmpty()) "PREVIOUS 30 DAYS" to prev30 else null,
+                if (earlier.isNotEmpty()) "EARLIER" to earlier else null
+            )
+        }
     }
 
     Box(

@@ -50,6 +50,10 @@ private val INLINE_MARKDOWN_REGEX = "(\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.
 private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\t]+.*$)".toRegex(RegexOption.MULTILINE)
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
 private val HEADING_REGEX = "^(#{1,6})\\s+(.+)$".toRegex()
+private val SEPARATOR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
+private val TASK_LINE_REGEX = "^[\\-*]\\s+\\[[ xX]\\].*".toRegex()
+private val TASK_PREFIX_REGEX = "^[\\-*]\\s+\\[[ xX]\\]\\s*".toRegex()
+private val TABLE_DELIM_COL_REGEX = "^:?-{1,}:?$".toRegex()
 
 @Composable
 fun parseInlineMarkdown(text: String): AnnotatedString {
@@ -150,7 +154,7 @@ fun isTableDelimiter(line: String): Boolean {
     if (parts.isEmpty()) return false
     return parts.all { col ->
         val c = col.trim()
-        c.matches("^:?-{1,}:?$".toRegex())
+        c.matches(TABLE_DELIM_COL_REGEX)
     }
 }
 
@@ -377,12 +381,12 @@ fun MarkdownRenderView(
                     )
                 }
                 // Circular Apple Notes Task Checkbox (supports both ○/✓ and - [ ]/- [x])
-                trimmed.startsWith("○ ") || trimmed.startsWith("✓ ") || trimmed.matches("^[\\-*]\\s+\\[[ xX]\\].*".toRegex()) -> {
+                trimmed.startsWith("○ ") || trimmed.startsWith("✓ ") || TASK_LINE_REGEX.matches(trimmed) -> {
                     val isChecked = trimmed.startsWith("✓ ") || trimmed.contains("[x]", ignoreCase = true)
                     val taskText = when {
                         trimmed.startsWith("○ ") -> trimmed.removePrefix("○ ")
                         trimmed.startsWith("✓ ") -> trimmed.removePrefix("✓ ")
-                        else -> trimmed.replace("^[\\-*]\\s+\\[[ xX]\\]\\s*".toRegex(), "")
+                        else -> trimmed.replace(TASK_PREFIX_REGEX, "")
                     }
                     val currentIndex = taskCounter++
 
@@ -459,7 +463,7 @@ fun MarkdownRenderView(
                     }
                 }
                 // Horizontal Rule / Separator: ---, ***, ___, ───, ===, or long separators (------------------)
-                trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> {
+                SEPARATOR_REGEX.matches(trimmed) -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

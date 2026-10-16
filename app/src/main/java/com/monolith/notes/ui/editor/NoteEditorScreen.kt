@@ -151,7 +151,7 @@ fun NoteEditorScreen(
         val currentTitle = titleState.text
         val currentBody = bodyState.text
         if (currentTitle != lastSavedTitle || currentBody != lastSavedBody) {
-            if (currentTitle.isNotBlank() || currentBody.isNotBlank()) {
+            if (currentTitle.isNotBlank() || currentBody.isNotBlank() || currentNote.file != null) {
                 lastSavedTitle = currentTitle
                 lastSavedBody = currentBody
                 val updated = currentNote.copy(
@@ -169,6 +169,13 @@ fun NoteEditorScreen(
     LaunchedEffect(titleState.text, bodyState.text) {
         if (titleState.text != lastSavedTitle || bodyState.text != lastSavedBody) {
             delay(800)
+            flushSave()
+        }
+    }
+
+    // Flush any unsaved keystrokes immediately whenever the editor leaves composition
+    DisposableEffect(Unit) {
+        onDispose {
             flushSave()
         }
     }
@@ -308,8 +315,8 @@ fun NoteEditorScreen(
         pushUndoState(bodyState)
         val current = bodyState
         val text = current.text
-        val start = current.selection.min
-        val end = current.selection.max
+        val start = current.selection.min.coerceIn(0, text.length)
+        val end = current.selection.max.coerceIn(0, text.length)
 
         if (start != end) {
             val selected = text.substring(start, end)
@@ -319,7 +326,7 @@ fun NoteEditorScreen(
                 "$token$selected$token"
             }
             val newText = text.replaceRange(start, end, wrapped)
-            val newCursor = start + wrapped.length
+            val newCursor = (start + wrapped.length).coerceIn(0, newText.length)
             bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
         } else {
             var wordStart = (start - 1).coerceAtLeast(0)
@@ -921,14 +928,14 @@ fun NoteEditorScreen(
                                 pushUndoState(bodyState)
                                 val current = bodyState
                                 val text = current.text
-                                val start = current.selection.min
-                                val end = current.selection.max
+                                val start = current.selection.min.coerceIn(0, text.length)
+                                val end = current.selection.max.coerceIn(0, text.length)
 
                                 if (start != end) {
                                     val selected = text.substring(start, end)
                                     val toggled = if (selected.startsWith("#")) selected.removePrefix("#") else "#$selected"
                                     val newText = text.replaceRange(start, end, toggled)
-                                    val newCursor = start + toggled.length
+                                    val newCursor = (start + toggled.length).coerceIn(0, newText.length)
                                     bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
                                 } else {
                                     var wordStart = (start - 1).coerceAtLeast(0)
@@ -948,7 +955,7 @@ fun NoteEditorScreen(
                                         bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
                                     } else {
                                         val newText = text.replaceRange(start, start, "#")
-                                        val newCursor = start + 1
+                                        val newCursor = (start + 1).coerceIn(0, newText.length)
                                         bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
                                     }
                                 }
@@ -1022,7 +1029,7 @@ private fun handleSmartListContinuation(
                     )
                 } else if (com.monolith.notes.ui.components.isTableDelimiter(prevLine)) {
                     val colCount = cells.size.coerceAtLeast(2)
-                    val newRow = "| " + " | ".repeat(colCount - 1) + " |"
+                    val newRow = List(colCount) { " " }.joinToString(" | ", prefix = "| ", postfix = " |")
                     val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
                     val newCursor = insertPos + 1 + 2
                     return TextFieldValue(
@@ -1031,7 +1038,7 @@ private fun handleSmartListContinuation(
                     )
                 } else {
                     val colCount = cells.size.coerceAtLeast(1)
-                    val newRow = "| " + " | ".repeat(colCount - 1) + " |"
+                    val newRow = List(colCount) { " " }.joinToString(" | ", prefix = "| ", postfix = " |")
                     val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
                     val newCursor = insertPos + 1 + 2
                     return TextFieldValue(

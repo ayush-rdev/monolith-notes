@@ -29,13 +29,25 @@ class QuickCaptureWidgetProvider : AppWidgetProvider() {
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val views = RemoteViews(context.packageName, R.layout.widget_quick_capture)
 
-            // 1. Fetch latest modified note from local vault
+            // 1. Fetch latest modified note from local vault (including subfolders)
             val docsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
             val vaultDir = File(docsDir, "MonolithNotes")
-            val latestNoteFile = if (vaultDir.exists()) {
-                vaultDir.listFiles { file ->
-                    file.isFile && file.extension.equals("md", ignoreCase = true)
-                }?.maxByOrNull { it.lastModified() }
+            val fallbackDir = File(context.getExternalFilesDir(null), "Notes")
+            val targetDir = if (vaultDir.exists()) vaultDir else fallbackDir
+
+            fun getMdFiles(dir: File): List<File> {
+                val list = mutableListOf<File>()
+                val files = dir.listFiles() ?: return list
+                for (f in files) {
+                    if (f.name.startsWith(".")) continue
+                    if (f.isDirectory) list.addAll(getMdFiles(f))
+                    else if (f.isFile && f.extension.equals("md", ignoreCase = true)) list.add(f)
+                }
+                return list
+            }
+
+            val latestNoteFile = if (targetDir.exists()) {
+                getMdFiles(targetDir).maxByOrNull { it.lastModified() }
             } else null
 
             if (latestNoteFile != null && latestNoteFile.exists()) {

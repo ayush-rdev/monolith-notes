@@ -202,27 +202,8 @@ class NoteRepository(private val context: Context) {
             }.awaitAll()
         }
 
-        // Deduplicate any ghost drafts or twin files accidentally created by double saves
         val loaded = mutableListOf<Note>()
-        val seenTitles = mutableMapOf<String, Pair<File, Long>>()
-
         for ((file, parsed) in parsedEntries) {
-            val normalizedTitle = parsed.displayTitle.trim().lowercase()
-
-            if (normalizedTitle.isNotBlank() && !file.name.contains("Copy", ignoreCase = true)) {
-                val existing = seenTitles[normalizedTitle]
-                if (existing != null) {
-                    val (existingFile, existingLength) = existing
-                    val timeDiff = kotlin.math.abs(existingFile.lastModified() - file.lastModified())
-                    // If created within 15 min or identical file length, it's an accidental ghost draft: delete older
-                    if (timeDiff < 15 * 60 * 1000L || existingLength == file.length()) {
-                        try { file.delete() } catch (_: Exception) {}
-                        continue
-                    }
-                } else {
-                    seenTitles[normalizedTitle] = file to file.length()
-                }
-            }
             noteFileMap[parsed.id] = file
             loaded.add(parsed)
         }
@@ -257,7 +238,7 @@ class NoteRepository(private val context: Context) {
     }
 
     suspend fun saveNote(note: Note): Note = withContext(Dispatchers.IO) {
-        if (note.title.isBlank() && note.content.isBlank()) {
+        if (note.title.isBlank() && note.content.isBlank() && note.file == null) {
             return@withContext note
         }
 

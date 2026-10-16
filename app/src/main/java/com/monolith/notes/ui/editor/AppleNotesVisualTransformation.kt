@@ -122,7 +122,7 @@ class AppleNotesVisualTransformation(
                 }
 
                 // Horizontal Rule / Separator: "---", "***", "___", "───", "===", or long lines
-                trimmedLine.matches("^(\\-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> {
+                SEPARATOR_REGEX.matches(trimmedLine) -> {
                     builder.addStyle(
                         SpanStyle(
                             color = ghostSyntaxColor,
@@ -219,5 +219,6 @@ class AppleNotesVisualTransformation(
         private val STRIKE_REGEX = "~~(.+?)~~".toRegex()
         private val CODE_REGEX = "`([^`\\n]+)`".toRegex()
         private val TAG_REGEX = "(?:^|\\s)(#[a-zA-Z0-9_\\-]+)".toRegex()
+        private val SEPARATOR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
     }
 }

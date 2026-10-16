@@ -161,4 +161,20 @@ class MarkdownConverterTest {
         assertTrue(exported.contains("| Milestone | Status | Owner |"))
         assertTrue(exported.contains("| Alpha | Done | Ayush |"))
     }
+
+    @Test
+    fun testEmptyNoteMarkdownSerialization() {
+        val exported = MarkdownConverter.toMarkdown("", "")
+        assertEquals("", exported.trim())
+    }
+
+    @Test
+    fun testCleanTableRowSpacing() {
+        val colCount = 3
+        val newRow = List(colCount) { " " }.joinToString(" | ", prefix = "| ", postfix = " |")
+        assertEquals("|   |   |   |", newRow)
+        val cells = com.monolith.notes.ui.components.splitTableRow(newRow)
+        assertEquals(3, cells.size)
+        assertTrue(cells.all { it.isBlank() })
+    }
 }

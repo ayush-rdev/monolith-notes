@@ -423,6 +423,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onStop() {
         super.onStop()
+        if (isChangingConfigurations) return
         if (settingsManager.settings.value.biometricLockEnabled) {
             isAppUnlocked = false
         }
@@ -468,16 +469,21 @@ class MainActivity : FragmentActivity() {
     private fun checkStoragePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
-                try {
-                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
-                    startActivity(intent)
-                } catch (_: Exception) {
+                val prefs = getSharedPreferences("monolith_settings", MODE_PRIVATE)
+                val hasPrompted = prefs.getBoolean("has_prompted_storage_manager", false)
+                if (!hasPrompted) {
+                    prefs.edit().putBoolean("has_prompted_storage_manager", true).apply()
                     try {
-                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
                         startActivity(intent)
-                    } catch (_: Exception) {}
+                    } catch (_: Exception) {
+                        try {
+                            val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                            startActivity(intent)
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }
