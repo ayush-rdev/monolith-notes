@@ -145,7 +145,7 @@ class NoteRepository(private val context: Context) {
         val welcomeFile = File(notesDir, "Welcome_to_Notes.md")
         if (welcomeFile.exists()) {
             val raw = try { welcomeFile.readText() } catch (_: Exception) { "" }
-            if (!raw.contains("Arthur Morgan") && (raw.contains("Welcome to") || raw.contains("Philosophy") || raw.contains("Monolith"))) {
+            if (raw.contains("Arthur Morgan") || raw.contains("Apple Notes") || raw.contains("Philosophy\n• File Over App") || !raw.contains("The world moves too fast")) {
                 try {
                     welcomeFile.writeText(WELCOME_MARKDOWN)
                     val updatedWelcome = parseNoteFromFile(welcomeFile, WELCOME_MARKDOWN)
@@ -456,80 +456,77 @@ class NoteRepository(private val context: Context) {
         private val TAG_REGEX = "(?:^|\\s)#([a-zA-Z0-9_\\-/]+)".toRegex()
 
         val WELCOME_MARKDOWN = """
-            # 📓 Arthur's Journal (Welcome to Monolith)
+            # 📓 Welcome to Monolith
 
-            *“We’re more ghosts than people, but what we write down... that stays.”*
+            *“The world moves too fast, but what you write down... that stays.”*
 
-            Listen to me, friend.
+            There is a lot of noise out there.
 
-            I ain’t much of a poet, and Lord knows I’ve spent most of my days with blood on my hands, cold wind in my face, and dust in my throat. But whenever the shooting stopped, and the camp fell quiet under the cold Dakota night... I’d reach into my satchel and pull out my journal.
+            Every modern app wants your attention, wants your credit card, and wants to turn your private thoughts into data to sell back to you. Somewhere along the way, we forgot what writing was actually for.
 
-            Just a bit of worn leather, some blank paper, and a scrap of lead pencil.
+            Writing isn't about productivity scores or cloud sync accounts. It’s about catching yourself before the day washes everything away. It’s that quiet moment late at night when the world is finally still, and you put down the things you couldn't say out loud to anyone else.
 
-            It was the only place in this whole cruel world where a man could speak the truth without looking over his shoulder. When everything was falling apart around me, the words and sketches I put down were the only damn thing that were truly mine.
+            That’s why I built Monolith.
 
-            Nowadays, folk tell me people hand their memories over to invisible wires in the sky, paying some fat cat in a fancy suit every month just to look at their own past. That ain't right. A man’s mind ought to belong to him, and him alone.
+            Not as another corporate cloud silo, and not as another tool to lock you in. Monolith is just a good, honest ledger. Every word you type is saved directly as a clean, plain CommonMark `.md` file right on your own storage. No subscriptions. No algorithms tracking your keystrokes. No server that can shut off tomorrow and take your memories with it.
 
-            That’s why my friend **Ayush** ([@ayush-rdev](https://github.com/ayush-rdev)) built this thing. No subscriptions. No snooping Pinkertons. No cloud lock-in. Just honest CommonMark `.md` files sitting right on your machine in `Documents/MonolithNotes/`. If every company in the world burns down tomorrow, your words will still be sitting right here, untouched.
+            If this software disappears thirty years from now, your words will still be sitting in your files, untouched and unbroken. Plain text is forever.
 
             ---
 
-            ### 🐎 A Trail Guide from an Old Outlaw
+            ### 🛠️ The Working Guide
 
-            Here’s how you keep your journal in order out here on the frontier:
+            Here is how you make this space your own:
 
-            #### 1. 📁 The Camp & The Satchel (Folders & Notebooks)
-            • Tap `< Folders` in the top corner to organize your notes into separate ledgers.
-            • Keep your bounties, your maps, and your private thoughts in their own space.
-            • Every folder is a real directory on your storage—syncs 1:1 with Obsidian if that’s your camp.
+            #### 1. 📁 Vaults & Notebooks (Folders)
+            • Tap `< Folders` at the top to organize your notes into separate notebooks.
+            • Folders in Monolith are real directories on your storage (`Documents/MonolithNotes/`).
+            • 100% interoperable with Obsidian, Logseq, or whatever tools you use on your computer.
 
-            #### 2. 🔒 Lock Up Your Secrets (Biometric Privacy)
-            • If lawmen or curious eyes are sniffing around your camp, head into **Settings** and turn on **Biometric Lock**.
-            • Your thumbprint or face is the only key.
-            • The second you put this contraption down or switch screens, it shuts tight like a bank vault.
+            #### 2. 🔒 Biometric Security
+            • Some things are meant only for your eyes. Turn on **Biometric Lock** in Settings.
+            • Your fingerprint or face is the only key.
+            • The vault shields itself the second you leave the app or turn off your screen.
 
-            #### 3. 🗑️ Pulling Notes from the Fire (30-Day Recovery)
-            • We all make mistakes on the trail. If you tear a page out by accident, don’t curse just yet.
-            • Deleted notes sit quietly in `.trash/` for 30 days before they turn to ashes.
+            #### 3. 🗑️ 30-Day Recovery (Recently Deleted)
+            • We all make mistakes in haste. If you delete a note, don't worry.
+            • Notes rest quietly in `.trash/` for 30 days before they are cleared.
             • Recover them anytime from **Settings → Recently Deleted**.
 
-            #### 4. 🖼️ Sketches & Keepsakes (Inline Photos)
-            • I always liked sketching what I saw—deer drinking at the creek, the mountains at dawn, faces I didn't want to forget.
-            • Tap that camera button on your formatting bar to slip pictures right between your words.
-            • Saved into your local `attachments/` folder. Tap any picture to open it up wide.
+            #### 4. 🖼️ Visuals & Attachments
+            • Sometimes words aren't enough. Tap the camera icon on the formatting bar to attach images.
+            • Photos are saved locally into your vault's `attachments/` folder.
+            • Tap any photo in your note to view it full-screen.
 
-            #### 5. ⚡ Fast on the Draw (Apple Spring Physics & 0ms Lag)
-            • **Swipe Right** on a note to pin it to the top of your ledger.
-            • **Swipe Left** to toss it into the trash.
+            #### 5. ⚡ Tactile Motion & 0ms Response
+            • **Swipe Right** on any note to pin it to the top.
+            • **Swipe Left** to move it to trash.
             • **Long-Press** for quick actions.
-            • 0ms typing response. Fast as drawing a cattleman revolver, and smooth as a good horse running downhill.
+            • Zero typing latency with fluid physics-based gestures that get out of your way the second you start writing.
 
             ---
 
-            ### ✍️ Before You Ride Out
+            ### ✍️ First Steps
 
-            - [x] Picked up this old leather journal
-            - [ ] Write down one true thing about yourself today
-            - [ ] Create a folder for the things that matter
-            - [ ] Set your biometric lock so no one pries
-            - [ ] Tip your hat to Ayush on GitHub: github.com/ayush-rdev/monolith-notes
+            - [x] Stepped into a quiet space
+            - [ ] Write down one honest thought today
+            - [ ] Create a folder for what matters to you
+            - [ ] Set your biometric lock so your private notes stay private
+            - [ ] Check out the open-source repository on GitHub: github.com/ayush-rdev/monolith-notes
 
             ---
 
-            ### 🌅 One Last Thing...
+            ### 🌐 Open Source & Freedom
 
-            Take care of yourself, alright? There ain't no shame in looking back, but you've got to keep moving forward. Be a good man. Or at least try your best to be one.
+            Monolith is 100% free and open-source under the MIT License.
+            Crafted with patience, stubborn care, and respect for your thoughts by **Ayush** ([@ayush-rdev](https://github.com/ayush-rdev)).
 
-            This app is 100% free and open-source forever under the MIT License.
-            Crafted with real sweat, soul, and pride by **Ayush** ([@ayush-rdev](https://github.com/ayush-rdev)).
-
-            Star the repository on GitHub:
+            Contribute or star the project on GitHub:
             👉 **https://github.com/ayush-rdev/monolith-notes**
 
-            *“I gave you all I had. I did.”*
-            — **Arthur Morgan**
+            *Take care of yourself. Write what is true.*
 
-            #arthur #journal #redemption #manifesto #freedom #craft
+            #monolith #journal #manifesto #freedom #craft #opensource
         """.trimIndent()
     }
 }
