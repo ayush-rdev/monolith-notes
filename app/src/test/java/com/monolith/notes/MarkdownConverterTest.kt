@@ -78,4 +78,24 @@ class MarkdownConverterTest {
         val toggled2 = toggleMarkdownTask(content, 2)
         assertTrue(toggled2.contains("- [x] Task 3"))
     }
+
+    @Test
+    fun testSeparatorRoundTrip() {
+        val raw = """
+            # Architecture Notes
+            
+            Section 1 content
+            
+            ---
+            
+            Section 2 content
+        """.trimIndent()
+
+        val (title, body, _) = MarkdownConverter.toUi(raw)
+        assertEquals("Architecture Notes", title)
+        assertTrue(body.contains("───"))
+
+        val exported = MarkdownConverter.toMarkdown(title, body)
+        assertTrue(exported.contains("---"))
+    }
 }

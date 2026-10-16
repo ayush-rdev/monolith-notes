@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -278,6 +279,21 @@ fun MarkdownRenderView(
                             alt = altText,
                             path = rawPath,
                             vaultPath = vaultPath
+                        )
+                    }
+                }
+                // Horizontal Rule / Separator: ---, ***, ___, ───, or spaced variants like - - -
+                trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|(-\\s+){2,}-|(\\*\\s+){2,}\\*|(_\\s+){2,}_)$".toRegex()) -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HorizontalDivider(
+                            modifier = Modifier.fillMaxWidth(),
+                            thickness = 1.dp,
+                            color = iOSDivider
                         )
                     }
                 }

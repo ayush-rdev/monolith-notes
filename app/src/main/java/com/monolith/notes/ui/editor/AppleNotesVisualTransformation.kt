@@ -120,6 +120,19 @@ class AppleNotesVisualTransformation(
                         lineEnd
                     )
                 }
+
+                // Horizontal Rule / Separator: "---", "***", "___", "───"
+                trimmedLine.matches("^(\\-{3,}|\\*{3,}|_{3,}|─{3,})$".toRegex()) -> {
+                    builder.addStyle(
+                        SpanStyle(
+                            color = ghostSyntaxColor,
+                            letterSpacing = 6.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        actualStart,
+                        lineEnd
+                    )
+                }
             }
 
             lineStart = lineEnd + 1

@@ -857,6 +857,19 @@ fun NoteEditorScreen(
                                 onToggleQuote = {
                                     toggleLinePrefix("> ")
                                 },
+                                onInsertDivider = {
+                                    pushUndoState(bodyState)
+                                    val current = bodyState
+                                    val cursor = current.selection.start
+                                    val text = current.text
+                                    val needsLeadingNewline = cursor > 0 && text[cursor - 1] != '\n'
+                                    val separatorInsert = (if (needsLeadingNewline) "\n" else "") + "───\n"
+                                    val newText = text.substring(0, cursor) + separatorInsert + text.substring(cursor)
+                                    val newCursor = cursor + separatorInsert.length
+                                    bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                    bodyFocusRequester.requestFocus()
+                                    showFormatSheet = false
+                                },
                                 onDismiss = {
                                     showFormatSheet = false
                                 }
@@ -963,6 +976,13 @@ private fun handleSmartListContinuation(
             }
             val prevLine = newText.substring(prevLineStart, prevLineEnd)
 
+            // 0. Horizontal Rule on Enter: "---", "***", "___"
+            if (prevLine == "---" || prevLine == "***" || prevLine == "___") {
+                val resultText = newText.substring(0, prevLineStart) + "───\n" + newText.substring(insertPos + 1)
+                val newCursor = prevLineStart + 4
+                return TextFieldValue(text = resultText, selection = TextRange(newCursor))
+            }
+
             // 1. Checklist item: "○ " or "✓ "
             if (prevLine.startsWith("○ ") || prevLine.startsWith("✓ ")) {
                 val itemContent = prevLine.substring(2)
@@ -1056,6 +1076,20 @@ private fun handleSmartInput(
             return handleSmartListContinuation(oldValue, newValue)
         }
 
+        if (charInserted == '-' || charInserted == '*' || charInserted == '_') {
+            val lineStart = newText.lastIndexOf('\n', (insertPos - 1).coerceAtLeast(0)).let {
+                if (it == -1) 0 else it + 1
+            }
+            val textBeforeCursor = newText.substring(lineStart, insertPos + 1)
+            if (textBeforeCursor == "---" || textBeforeCursor == "***" || textBeforeCursor == "___") {
+                val lineRest = newText.substring(insertPos + 1)
+                val replacement = "───\n"
+                val resultText = newText.substring(0, lineStart) + replacement + lineRest
+                val newCursor = lineStart + replacement.length
+                return TextFieldValue(text = resultText, selection = TextRange(newCursor))
+            }
+        }
+
         if (charInserted == ' ') {
             val lineStart = newText.lastIndexOf('\n', (insertPos - 1).coerceAtLeast(0)).let {
                 if (it == -1) 0 else it + 1
@@ -1066,7 +1100,7 @@ private fun handleSmartInput(
                 "[] ", "() ", "- [ ] " -> "○ "
                 "* " -> "• "
                 "- " -> "• "
-                "--- " -> "───\n"
+                "--- ", "*** ", "___ " -> "───\n"
                 else -> null
             }
 
