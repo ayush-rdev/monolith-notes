@@ -46,6 +46,7 @@ object GoogleDriveSyncEngine {
 
             val passphrase = config.encryptionKey.ifBlank { "MonolithGDrive:" + config.email }
             val journal = SyncJournal(context)
+            val initialJournalRecords = journal.getAllRecords()
 
             var uploaded = 0
             var downloaded = 0
@@ -208,16 +209,23 @@ object GoogleDriveSyncEngine {
                 if (remoteMatch != null) {
                     GoogleDriveClient.updateExistingFile(token, remoteMatch.id, encryptedBytes)
                     journal.setRecord(baseName, FileSyncRecord(currentLocalHash, remoteMatch.id, System.currentTimeMillis(), localFile.lastModified()))
+                    remoteMap[baseName.lowercase()] = GoogleDriveFile(remoteMatch.id, remoteEncName, System.currentTimeMillis(), encryptedBytes.size.toLong())
                 } else {
                     val newId = GoogleDriveClient.uploadNewFile(token, remoteEncName, encryptedBytes)
                     journal.setRecord(baseName, FileSyncRecord(currentLocalHash, newId, System.currentTimeMillis(), localFile.lastModified()))
+                    remoteMap[baseName.lowercase()] = GoogleDriveFile(newId, remoteEncName, System.currentTimeMillis(), encryptedBytes.size.toLong())
                 }
                 uploaded++
             }
 
             // 6. Detect Remote Deletions on Local Device
-            // If tracked in journal, but completely gone from Google Drive and not modified locally:
-            for ((trackedName, record) in journal.getAllRecords()) {
+            // ONLY consider files that:
+            // 1. Were tracked in the journal BEFORE this sync session started (initialJournalRecords)
+            // 2. Had a confirmed remoteFileId
+            // 3. Are absent from remoteMap (confirmed deleted from Google Drive)
+            // 4. Exist locally and have not been modified locally since last sync
+            for ((trackedName, record) in initialJournalRecords) {
+                if (record.remoteFileId.isBlank()) continue
                 val localFile = localMap[trackedName.lowercase()]
                 val inRemote = remoteMap.containsKey(trackedName.lowercase())
 
@@ -229,6 +237,7 @@ object GoogleDriveSyncEngine {
                         val trashTarget = File(trashDir, localFile.name)
                         localFile.renameTo(trashTarget)
                         journal.addTombstone(trackedName)
+                        journal.removeRecord(trackedName)
                         deletedCount++
                     }
                 }

@@ -101,6 +101,12 @@ class SyncJournal(private val context: Context) {
     }
 
     @Synchronized
+    fun removeRecord(fileName: String) {
+        val key = fileName.lowercase()
+        records.remove(key)
+    }
+
+    @Synchronized
     fun addTombstone(fileName: String) {
         val key = fileName.lowercase()
         tombstones[key] = System.currentTimeMillis()

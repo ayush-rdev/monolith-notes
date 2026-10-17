@@ -11,8 +11,8 @@ android {
         applicationId = "com.monolith.notes"
         minSdk = 26
         targetSdk = 34
-        versionCode = 14
-        versionName = "2.0.3"
+        versionCode = 15
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -73,5 +73,10 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("com.google.android.gms:play-services-auth:21.0.0")
+    implementation("org.commonmark:commonmark:0.21.0")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.21.0")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.21.0")
+    implementation("org.commonmark:commonmark-ext-autolink:0.21.0")
+    implementation("org.commonmark:commonmark-ext-task-list-items:0.21.0")
     testImplementation("junit:junit:4.13.2")
 }
