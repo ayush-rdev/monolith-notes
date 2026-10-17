@@ -613,7 +613,7 @@ class NoteRepository(private val context: Context) {
     }
 
     suspend fun getOrCreateNote(title: String, folder: String = "Notes"): Note = withContext(Dispatchers.IO) {
-        val cleanTitle = title.trim()
+        val cleanTitle = title.trim().removePrefix("[[").removeSuffix("]]").trim().ifBlank { "Untitled" }
         val existing = _notes.value.firstOrNull { note ->
             note.displayTitle.equals(cleanTitle, ignoreCase = true) ||
             (note.file != null && note.file.nameWithoutExtension.equals(cleanTitle, ignoreCase = true))

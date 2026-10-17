@@ -231,17 +231,21 @@ private fun AnnotatedString.Builder.appendPlainTextWithObsidianExtensions(text: 
                 val target = if (pipeIdx != -1) inner.substring(0, pipeIdx).trim() else inner.trim()
                 val label = if (pipeIdx != -1) inner.substring(pipeIdx + 1).trim() else inner.trim()
 
-                pushStringAnnotation(tag = "WIKILINK", annotation = target)
-                pushStyle(
-                    SpanStyle(
-                        color = accentColor,
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
+                if (target.isNotBlank()) {
+                    pushStringAnnotation(tag = "WIKILINK", annotation = target)
+                    pushStyle(
+                        SpanStyle(
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline
+                        )
                     )
-                )
-                append(label)
-                pop()
-                pop()
+                    append(label.ifBlank { target })
+                    pop()
+                    pop()
+                } else {
+                    append(matchValue)
+                }
             }
             // Highlight: ==text==
             matchValue.startsWith("==") && matchValue.endsWith("==") && matchValue.length >= 4 -> {

@@ -232,18 +232,9 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    BackHandler(enabled = currentScreen != Screen.Folders) {
+                    BackHandler(enabled = currentScreen != Screen.Folders && currentScreen !is Screen.Editor) {
                         when (currentScreen) {
-                            is Screen.Editor -> {
-                                triggerAutoSync(debounceMs = 0L)
-                                if (editorBackStack.isNotEmpty()) {
-                                    val prevNote = editorBackStack.removeLast()
-                                    val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
-                                    currentScreen = Screen.Editor(freshNote)
-                                } else {
-                                    currentScreen = Screen.List
-                                }
-                            }
+                            is Screen.Editor -> { /* Handled directly inside NoteEditorScreen */ }
                             is Screen.Graph -> {
                                 currentScreen = Screen.List
                             }
@@ -644,20 +635,50 @@ class MainActivity : FragmentActivity() {
                                                 currentScreen = Screen.List
                                             }
                                         },
-                                        onNavigateToNote = { targetTitle ->
-                                            val cleanTarget = targetTitle.trim()
+                                        onNavigateToNote = onNav@{ targetTitle ->
+                                            val cleanTarget = targetTitle.trim().removePrefix("[[").removeSuffix("]]").trim()
+                                            if (cleanTarget.isBlank()) return@onNav
+
+                                            val currentNoteSnapshot = repository.notes.value.firstOrNull { it.id == screen.note.id } ?: screen.note
+
+                                            // 1. Prevent self-link loop (clicking link to current note)
+                                            if (cleanTarget.equals(currentNoteSnapshot.displayTitle, ignoreCase = true) ||
+                                                (currentNoteSnapshot.file != null && cleanTarget.equals(currentNoteSnapshot.file.nameWithoutExtension, ignoreCase = true))
+                                            ) {
+                                                return@onNav
+                                            }
+
                                             val existing = notes.firstOrNull { noteItem ->
                                                 noteItem.displayTitle.equals(cleanTarget, ignoreCase = true) ||
                                                 (noteItem.file != null && noteItem.file.nameWithoutExtension.equals(cleanTarget, ignoreCase = true))
                                             }
-                                            val currentNoteSnapshot = repository.notes.value.firstOrNull { it.id == screen.note.id } ?: screen.note
+
+                                            // 2. Prevent cyclic navigation loops: if target note is already in backstack, pop back up to it!
+                                            val targetId = existing?.id
+                                            if (targetId != null) {
+                                                val existingStackIndex = editorBackStack.indexOfFirst { it.id == targetId }
+                                                if (existingStackIndex >= 0) {
+                                                    val targetNote = editorBackStack[existingStackIndex]
+                                                    while (editorBackStack.size > existingStackIndex) {
+                                                        editorBackStack.removeLast()
+                                                    }
+                                                    val freshNote = repository.notes.value.firstOrNull { it.id == targetNote.id } ?: targetNote
+                                                    currentScreen = Screen.Editor(freshNote)
+                                                    return@onNav
+                                                }
+                                            }
+
+                                            // 3. Normal navigation: push current note snapshot (bounded to 25 notes)
+                                            if (editorBackStack.size >= 25) {
+                                                editorBackStack.removeFirst()
+                                            }
+                                            editorBackStack.add(currentNoteSnapshot)
+
                                             if (existing != null) {
-                                                editorBackStack.add(currentNoteSnapshot)
                                                 currentScreen = Screen.Editor(existing)
                                             } else {
                                                 scope.launch {
                                                     val created = repository.getOrCreateNote(cleanTarget, selectedFolder ?: "Notes")
-                                                    editorBackStack.add(currentNoteSnapshot)
                                                     currentScreen = Screen.Editor(created)
                                                 }
                                             }
@@ -676,6 +697,7 @@ class MainActivity : FragmentActivity() {
                                         onDelete = { noteToDelete ->
                                             scope.launch {
                                                 repository.deleteNote(noteToDelete)
+                                                editorBackStack.removeAll { it.id == noteToDelete.id }
                                                 QuickCaptureWidgetProvider.updateAllWidgets(applicationContext)
                                                 triggerAutoSync(debounceMs = 0L)
                                                 if (editorBackStack.isNotEmpty()) {

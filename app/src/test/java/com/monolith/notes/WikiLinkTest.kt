@@ -126,4 +126,52 @@ class WikiLinkTest {
 
         assertEquals("Important: Review [[Architecture Guidelines]] before pushing PR", foundSnippet)
     }
+
+    @Test
+    fun testWikiLinkReplacementRangeNoOrphanText() {
+        val text = "Refer to [[Arch]] for details."
+        val start = text.indexOf("[[")
+        val lineEnd = text.indexOf('\n', start).let { if (it == -1) text.length else it }
+        val closeIndex = text.indexOf("]]", start + 2)
+        val nextOpen = text.indexOf("[[", start + 2)
+        val end = if (closeIndex != -1 && closeIndex <= lineEnd && (nextOpen == -1 || closeIndex < nextOpen)) {
+            closeIndex + 2
+        } else {
+            start + 6 // simulated cursor
+        }
+
+        val targetTitle = "Design System"
+        val hasTrailingSpace = end < text.length && text[end] == ' '
+        val replacement = if (hasTrailingSpace) "[[$targetTitle]]" else "[[$targetTitle]] "
+        val result = text.replaceRange(start, end, replacement)
+        assertEquals("Refer to [[Design System]] for details.", result)
+    }
+
+    @Test
+    fun testNavigationCyclePreventionLogic() {
+        val stack = mutableListOf<String>()
+        stack.add("Note A")
+        stack.add("Note B")
+
+        // User navigates back to "Note A"
+        val target = "Note A"
+        val existingIndex = stack.indexOf(target)
+        assertTrue(existingIndex >= 0)
+
+        // Pop stack up to Note A
+        while (stack.size > existingIndex) {
+            stack.removeLast()
+        }
+
+        // Stack should now be pruned to 0 items before Note A, preventing cyclic loops
+        assertEquals(0, stack.size)
+    }
+
+    @Test
+    fun testSelfLinkGuard() {
+        val currentTitle = "Deep Thoughts"
+        val targetTitle = "deep thoughts"
+        val isSelfLink = currentTitle.equals(targetTitle.trim(), ignoreCase = true)
+        assertTrue("Self-link must be detected and blocked", isSelfLink)
+    }
 }

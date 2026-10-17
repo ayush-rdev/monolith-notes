@@ -82,7 +82,6 @@ fun SettingsSheet(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var showThemeChooser by remember { mutableStateOf(false) }
 
     fun performHaptic(type: HapticFeedbackType) {
         if (settings.hapticsEnabled) {
@@ -105,24 +104,13 @@ fun SettingsSheet(
             )
         }
     ) {
-        if (showThemeChooser) {
-            ThemeChooserPage(
-                currentTheme = settings.theme,
-                onSelectTheme = { theme ->
-                    performHaptic(HapticFeedbackType.TextHandleMove)
-                    onUpdateTheme(theme)
-                },
-                onBack = { showThemeChooser = false },
-                onDone = onDismiss
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+        ) {
                 // Header
                 Row(
                     modifier = Modifier
@@ -160,11 +148,10 @@ fun SettingsSheet(
                         icon = Icons.Default.Palette,
                         iconTint = iOSYellow,
                         title = "Theme",
-                        value = settings.theme.displayName,
-                        trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        value = "Obsidian Minimal",
                         onClick = {
                             performHaptic(HapticFeedbackType.TextHandleMove)
-                            showThemeChooser = true
+                            Toast.makeText(context, "Obsidian Minimal (Pure Black & Violet) active", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -745,7 +732,6 @@ fun SettingsSheet(
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
-}
 }
 
 @Composable

@@ -39,6 +39,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
@@ -121,8 +122,8 @@ fun NoteEditorScreen(
     val titleFocusRequester = remember { FocusRequester() }
     val bodyFocusRequester = remember { FocusRequester() }
 
-    // Start in editing mode only if it's a brand new empty note
-    val isNewNote = remember(note.id) { note.title.isEmpty() && note.content.isEmpty() }
+    // Start in editing mode if it's a new note or has empty content (e.g. created via WikiLink)
+    val isNewNote = remember(note.id) { note.content.isEmpty() }
     var isEditing by remember(note.id) { mutableStateOf(isNewNote) }
 
     val scrollState = rememberScrollState()
@@ -347,18 +348,30 @@ fun NoteEditorScreen(
             val text = current.text
             val cursor = current.selection.start
             val start = match.first
-            // If cursor is followed immediately by "]]", consume them as well
-            val end = if (cursor + 1 < text.length && text.substring(cursor, cursor + 2) == "]]") {
+            // Replace full link: if there is a closing "]]" on this line after 'start + 2', consume it
+            val lineEnd = text.indexOf('\n', start).let { if (it == -1) text.length else it }
+            val closeIndex = text.indexOf("]]", start + 2)
+            val nextOpen = text.indexOf("[[", start + 2)
+            val end = if (closeIndex != -1 && closeIndex <= lineEnd && (nextOpen == -1 || closeIndex < nextOpen)) {
+                closeIndex + 2
+            } else if (cursor + 1 < text.length && text.substring(cursor, cursor + 2) == "]]") {
                 cursor + 2
             } else {
                 cursor
             }
-            val replacement = "[[$targetTitle]] "
+            val hasTrailingSpace = end < text.length && text[end] == ' '
+            val replacement = if (hasTrailingSpace) "[[$targetTitle]]" else "[[$targetTitle]] "
             val newText = text.replaceRange(start, end, replacement)
-            val newCursor = start + replacement.length
+            val newCursor = start + replacement.length + (if (hasTrailingSpace) 1 else 0)
             bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
             bodyFocusRequester.requestFocus()
         }
+    }
+
+    val onCreateAndOpenWikiLink: (String) -> Unit = { targetTitle ->
+        onSelectWikiLink(targetTitle)
+        flushSave()
+        onNavigateToNote?.invoke(targetTitle)
     }
 
     // Auto-focus on new note AFTER slide transition finishes (respects user settings)
@@ -366,7 +379,10 @@ fun NoteEditorScreen(
         if (isNewNote) {
             delay(350)
             try {
-                if (settings.newNoteStartStyle == NewNoteStartStyle.BODY) {
+                if (titleState.text.isNotBlank()) {
+                    // Pre-filled title (e.g. created from WikiLink), focus directly on body!
+                    bodyFocusRequester.requestFocus()
+                } else if (settings.newNoteStartStyle == NewNoteStartStyle.BODY) {
                     bodyFocusRequester.requestFocus()
                 } else {
                     titleFocusRequester.requestFocus()
@@ -1204,7 +1220,8 @@ fun NoteEditorScreen(
                                 WikiLinkAutocompleteBar(
                                     query = wikiLinkMatch.second,
                                     suggestions = wikiLinkSuggestions,
-                                    onSelect = onSelectWikiLink
+                                    onSelect = onSelectWikiLink,
+                                    onCreateAndOpen = onCreateAndOpenWikiLink
                                 )
                             }
                         }
@@ -1576,7 +1593,8 @@ fun detectWikiLinkQuery(text: String, cursor: Int): Pair<Int, String>? {
 private fun WikiLinkAutocompleteBar(
     query: String,
     suggestions: List<Note>,
-    onSelect: (String) -> Unit
+    onSelect: (String) -> Unit,
+    onCreateAndOpen: (String) -> Unit
 ) {
     Surface(
         color = iOSBackground,
@@ -1638,9 +1656,67 @@ private fun WikiLinkAutocompleteBar(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Create \"$trimmedQuery\"",
+                                    text = "Link \"$trimmedQuery\"",
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.SemiBold,
+                                    color = iOSYellow
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        Surface(
+                            shape = CircleShape,
+                            color = iOSYellow,
+                            modifier = Modifier.clickable {
+                                onCreateAndOpen(trimmedQuery)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Create & Open",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                    }
+                } else if (trimmedQuery.isNotEmpty() && exactMatch) {
+                    item {
+                        Surface(
+                            shape = CircleShape,
+                            color = iOSYellow.copy(alpha = 0.2f),
+                            modifier = Modifier.clickable {
+                                onCreateAndOpen(trimmedQuery)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = null,
+                                    tint = iOSYellow,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Open \"$trimmedQuery\"",
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = iOSYellow
                                 )
                             }
