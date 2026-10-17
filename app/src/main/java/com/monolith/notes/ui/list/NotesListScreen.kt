@@ -87,6 +87,8 @@ fun NotesListScreen(
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
+    onUpdateGoogleDriveUri: (String?) -> Unit = {},
+    onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
     onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     isLoaded: Boolean = true,
@@ -971,6 +973,8 @@ fun NotesListScreen(
                 onOpenTrash = onOpenTrash,
                 onUpdateBiometricLock = onUpdateBiometricLock,
                 onUpdateTheme = onUpdateTheme,
+                onUpdateGoogleDriveUri = onUpdateGoogleDriveUri,
+                onPerformGoogleDriveSync = onPerformGoogleDriveSync,
                 onUpdateWebDavConfig = onUpdateWebDavConfig,
                 onPerformSync = onPerformSync
             )

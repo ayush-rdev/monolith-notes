@@ -37,6 +37,7 @@ data class AppSettings(
     val biometricLockEnabled: Boolean = false,
     val theme: AppTheme = AppTheme.OBSIDIAN,
     val webDavConfig: WebDavConfig = WebDavConfig(),
+    val googleDriveUri: String? = null,
     val lastSyncTimestamp: Long = 0L
 )
 
@@ -77,6 +78,8 @@ class SettingsManager(context: Context) {
             autoSyncOnLaunch = webDavAutoSync
         )
 
+        val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
+
         return AppSettings(
             hapticsEnabled = haptics,
             newNoteStartStyle = startStyle,
@@ -87,6 +90,7 @@ class SettingsManager(context: Context) {
             biometricLockEnabled = biometricLock,
             theme = theme,
             webDavConfig = webDavConfig,
+            googleDriveUri = gDriveUri,
             lastSyncTimestamp = lastSync
         )
     }
@@ -143,6 +147,15 @@ class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(webDavConfig = config)
     }
 
+    fun setGoogleDriveUri(uri: String?) {
+        if (uri != null) {
+            prefs.edit().putString(KEY_GDRIVE_URI, uri).apply()
+        } else {
+            prefs.edit().remove(KEY_GDRIVE_URI).apply()
+        }
+        _settings.value = _settings.value.copy(googleDriveUri = uri)
+    }
+
     fun setLastSyncTimestamp(timestamp: Long) {
         prefs.edit().putLong(KEY_LAST_SYNC_TIME, timestamp).apply()
         _settings.value = _settings.value.copy(lastSyncTimestamp = timestamp)
@@ -157,6 +170,7 @@ class SettingsManager(context: Context) {
         private const val KEY_SORT_ORDER = "key_sort_order"
         private const val KEY_BIOMETRIC_LOCK = "key_biometric_lock"
         private const val KEY_APP_THEME = "key_app_theme"
+        private const val KEY_GDRIVE_URI = "key_gdrive_uri"
         private const val KEY_WEBDAV_URL = "key_webdav_url"
         private const val KEY_WEBDAV_USER = "key_webdav_user"
         private const val KEY_WEBDAV_PASS = "key_webdav_pass"

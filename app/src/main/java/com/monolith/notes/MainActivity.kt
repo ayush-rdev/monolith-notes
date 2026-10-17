@@ -36,6 +36,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.monolith.notes.data.NoteRepository
 import com.monolith.notes.data.SettingsManager
+import com.monolith.notes.data.sync.GoogleDriveSyncEngine
 import com.monolith.notes.data.sync.SyncResult
 import com.monolith.notes.data.sync.WebDavSyncEngine
 import com.monolith.notes.model.Note
@@ -144,6 +145,23 @@ class MainActivity : FragmentActivity() {
                                         repository.loadTrashNotes()
                                     }
                                 }
+                            }
+                        }
+
+                        // Auto-sync Google Drive if connected
+                        if (!settings.googleDriveUri.isNullOrBlank()) {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    val gDriveUri = Uri.parse(settings.googleDriveUri)
+                                    val result = GoogleDriveSyncEngine.sync(repository.notesDir, gDriveUri, this@MainActivity)
+                                    if (result.isSuccess) {
+                                        settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                                        if (result.downloadedCount > 0) {
+                                            repository.loadNotes()
+                                            repository.loadTrashNotes()
+                                        }
+                                    }
+                                } catch (_: Exception) {}
                             }
                         }
                     }
@@ -459,6 +477,24 @@ class MainActivity : FragmentActivity() {
                                                         ).show()
                                                     }
                                                 }
+                                            }
+                                        },
+                                        onUpdateGoogleDriveUri = { uri ->
+                                            settingsManager.setGoogleDriveUri(uri)
+                                        },
+                                        onPerformGoogleDriveSync = {
+                                            val uriStr = settings.googleDriveUri
+                                            if (!uriStr.isNullOrBlank()) {
+                                                val uri = Uri.parse(uriStr)
+                                                val result = GoogleDriveSyncEngine.sync(repository.notesDir, uri, this@MainActivity)
+                                                if (result.isSuccess) {
+                                                    settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                                                    repository.loadNotes()
+                                                    repository.loadTrashNotes()
+                                                }
+                                                result
+                                            } else {
+                                                SyncResult(false, message = "Google Drive is not connected")
                                             }
                                         },
                                         onUpdateWebDavConfig = { config ->

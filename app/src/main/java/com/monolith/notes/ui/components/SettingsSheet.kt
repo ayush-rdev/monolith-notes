@@ -3,6 +3,8 @@ package com.monolith.notes.ui.components
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -65,6 +67,8 @@ fun SettingsSheet(
     onOpenTrash: () -> Unit = {},
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
+    onUpdateGoogleDriveUri: (String?) -> Unit = {},
+    onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
     onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") }
 ) {
@@ -273,13 +277,32 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 2B: Cloud & WebDAV Vault Sync
+            // Section 2B: Cloud Vault Sync (Google Drive 1-Tap & WebDAV)
             var showWebDavDialog by remember { mutableStateOf(false) }
-            var isSyncing by remember { mutableStateOf(false) }
-            var syncStatusMessage by remember { mutableStateOf<String?>(null) }
+            var isWebDavSyncing by remember { mutableStateOf(false) }
+            var webDavSyncStatusMessage by remember { mutableStateOf<String?>(null) }
+
+            var isGDriveSyncing by remember { mutableStateOf(false) }
+            var gDriveSyncStatusMessage by remember { mutableStateOf<String?>(null) }
             val coroutineScope = rememberCoroutineScope()
 
-            SettingsSectionHeader(title = "CLOUD & WEBDAV VAULT SYNC")
+            val gDrivePickerLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocumentTree()
+            ) { uri: Uri? ->
+                if (uri != null) {
+                    try {
+                        val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+                        onUpdateGoogleDriveUri(uri.toString())
+                        performHaptic(HapticFeedbackType.LongPress)
+                        Toast.makeText(context, "Google Drive linked! Ready to sync.", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+
+            SettingsSectionHeader(title = "CLOUD VAULT SYNC")
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -287,10 +310,69 @@ fun SettingsSheet(
                     .background(iOSCardBackground)
             ) {
                 Column {
+                    // 1. Google Drive (1-Tap Zero-Config)
+                    val isGDriveLinked = !settings.googleDriveUri.isNullOrBlank()
+                    val gDriveSubtitle = when {
+                        isGDriveSyncing -> gDriveSyncStatusMessage ?: "Syncing with Google Drive..."
+                        !isGDriveLinked -> "1-Tap seamless sync with your Google account"
+                        gDriveSyncStatusMessage != null -> gDriveSyncStatusMessage!!
+                        settings.lastSyncTimestamp > 0L -> "Linked • Synced ${formatTimeAgo(settings.lastSyncTimestamp)}"
+                        else -> "Linked to Google Drive • Ready to sync"
+                    }
+
+                    SettingsDetailRow(
+                        icon = if (isGDriveLinked) Icons.Default.CloudDone else Icons.Default.CloudQueue,
+                        iconTint = if (isGDriveLinked) Color(0xFF4285F4) else iOSYellow,
+                        title = "Google Drive (1-Tap)",
+                        subtitle = gDriveSubtitle,
+                        actionLabel = when {
+                            isGDriveSyncing -> "SYNCING..."
+                            isGDriveLinked -> "SYNC NOW"
+                            else -> "CONNECT"
+                        },
+                        trailingIcon = if (isGDriveLinked) Icons.Default.Sync else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            if (!isGDriveLinked) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                gDrivePickerLauncher.launch(null)
+                            } else if (!isGDriveSyncing) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                isGDriveSyncing = true
+                                gDriveSyncStatusMessage = "Syncing with Google Drive..."
+                                coroutineScope.launch {
+                                    val result = onPerformGoogleDriveSync()
+                                    isGDriveSyncing = false
+                                    gDriveSyncStatusMessage = result.message
+                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    )
+
+                    if (isGDriveLinked) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+                        SettingsDetailRow(
+                            icon = Icons.Default.LinkOff,
+                            iconTint = Color(0xFFFF453A),
+                            title = "Disconnect Google Drive",
+                            subtitle = "Unlink cloud folder from this device",
+                            actionLabel = "DISCONNECT",
+                            onClick = {
+                                performHaptic(HapticFeedbackType.LongPress)
+                                onUpdateGoogleDriveUri(null)
+                                gDriveSyncStatusMessage = null
+                                Toast.makeText(context, "Google Drive disconnected", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+
+                    // 2. WebDAV / Nextcloud
                     val isConfigured = settings.webDavConfig.isConfigured
                     val syncSubtitle = when {
-                        !isConfigured -> "Connect Nextcloud, ownCloud, or custom server"
-                        syncStatusMessage != null -> syncStatusMessage!!
+                        !isConfigured -> "Custom server (Nextcloud/ownCloud/E2EE AES-256)"
+                        webDavSyncStatusMessage != null -> webDavSyncStatusMessage!!
                         settings.lastSyncTimestamp > 0L -> {
                             val timeAgo = formatTimeAgo(settings.lastSyncTimestamp)
                             val mode = if (settings.webDavConfig.e2eeEnabled) "E2EE AES-256" else "Markdown"
@@ -302,22 +384,22 @@ fun SettingsSheet(
                     SettingsDetailRow(
                         icon = Icons.Default.CloudSync,
                         iconTint = if (isConfigured) iOSYellow else iOSTextSecondary,
-                        title = "WebDAV Cloud Vault",
+                        title = "WebDAV / Nextcloud",
                         subtitle = syncSubtitle,
-                        actionLabel = if (isSyncing) "SYNCING..." else if (isConfigured) "SYNC NOW" else "SETUP",
+                        actionLabel = if (isWebDavSyncing) "SYNCING..." else if (isConfigured) "SYNC NOW" else "SETUP",
                         trailingIcon = Icons.Default.Tune,
                         onClick = {
                             if (!isConfigured) {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
                                 showWebDavDialog = true
-                            } else if (!isSyncing) {
+                            } else if (!isWebDavSyncing) {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
-                                isSyncing = true
-                                syncStatusMessage = "Syncing in progress..."
+                                isWebDavSyncing = true
+                                webDavSyncStatusMessage = "Syncing in progress..."
                                 coroutineScope.launch {
                                     val result = onPerformSync()
-                                    isSyncing = false
-                                    syncStatusMessage = result.message
+                                    isWebDavSyncing = false
+                                    webDavSyncStatusMessage = result.message
                                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
                                 }
                             }
