@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Document Body Gradient -->
+    <linearGradient id="doc-body" x1="20%" y1="10%" x2="75%" y2="85%">
+      <stop offset="0%" stop-color="#1c1b20" />
+      <stop offset="100%" stop-color="#0b0b0e" />
+    </linearGradient>
+
+    <!-- Folded Flap Gradient -->
+    <linearGradient id="flap-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#09090b" />
+      <stop offset="55%" stop-color="#221f17" />
+      <stop offset="100%" stop-color="#eab308" stop-opacity="0.45" />
+    </linearGradient>
+
+    <!-- Note Line Gradient -->
+    <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#eab308" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#fde047" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#fef08a" stop-opacity="0.95" />
+    </linearGradient>
+
+    <!-- Crystal Facet Gradients -->
+    <linearGradient id="facet-bright" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="45%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#422006" />
+    </linearGradient>
+
+    <linearGradient id="facet-mid" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#facc15" />
+      <stop offset="55%" stop-color="#854d0e" />
+      <stop offset="100%" stop-color="#14110b" />
+    </linearGradient>
+
+    <linearGradient id="facet-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#713f12" />
+      <stop offset="50%" stop-color="#1f1608" />
+      <stop offset="100%" stop-color="#090807" />
+    </linearGradient>
+
+    <linearGradient id="facet-obsidian" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#08080a" />
+      <stop offset="70%" stop-color="#18161b" />
+      <stop offset="100%" stop-color="#713f12" stop-opacity="0.6" />
+    </linearGradient>
+
+    <linearGradient id="facet-glass" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
+      <stop offset="40%" stop-color="#fde047" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#09090b" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Glow & Shadow Filters -->
+    <filter id="logo-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="-8" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.9" />
+    </filter>
+
+    <filter id="crystal-glow" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="22" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="glint-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5" result="blur1" />
+      <feGaussianBlur stdDeviation="12" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 1. Ambient Crystal Backlight -->
+  <g id="layer-ambient-glow" opacity="0.6">
+    <circle cx="670" cy="560" r="145" fill="#eab308" filter="url(#crystal-glow)" opacity="0.4" />
+    <ellipse cx="520" cy="735" rx="160" ry="32" fill="#facc15" filter="url(#crystal-glow)" opacity="0.5" />
+  </g>
+
+  <!-- 2. Core Monolith Note + Crystal Mark -->
+  <g id="layer-mark" filter="url(#logo-shadow)">
+    <!-- 2A. Document Sheet Base -->
+    <g id="doc-group">
+      <!-- Main Page Polygon -->
+      <path d="M 406 266 L 604 266 L 604 680 L 292 736 L 292 384 Z" 
+            fill="url(#doc-body)" 
+            stroke="url(#line-grad)" 
+            stroke-width="2.5" 
+            stroke-linejoin="round" />
+
+      <!-- Horizontal Note Lines -->
+      <g id="note-lines" stroke="url(#line-grad)" stroke-width="3" stroke-linecap="round" opacity="0.85">
+        <line x1="338" y1="432" x2="578" y2="432" />
+        <line x1="338" y1="478" x2="548" y2="478" />
+        <line x1="338" y1="524" x2="502" y2="524" />
+        <line x1="338" y1="570" x2="455" y2="570" />
+        <line x1="338" y1="616" x2="408" y2="616" />
+        <line x1="338" y1="662" x2="365" y2="662" />
+        <line x1="338" y1="704" x2="338" y2="704" />
+      </g>
+
+      <!-- Folded Top-Left Corner Shadow -->
+      <path d="M 292 384 L 382 384 Q 406 384 406 360 L 406 266 Z" 
+            fill="#000000" opacity="0.65" transform="translate(4, 10)" filter="url(#glint-glow)" />
+
+      <!-- Folded Top-Left Flap -->
+      <path d="M 292 384 L 374 384 Q 406 384 406 352 L 406 266 Z" 
+            fill="url(#flap-grad)" 
+            stroke="url(#line-grad)" 
+            stroke-width="2.5" 
+            stroke-linejoin="round" />
+    </g>
+
+    <!-- 2B. 3D Low-Poly Crystal Monolith Structure -->
+    <g id="crystal-mesh" stroke-linejoin="round" stroke-linecap="round">
+      <!-- Upper Apex Shards -->
+      <polygon points="604,266 644,344 604,422" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="604,266 720,362 644,344" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="644,344 720,362 604,422" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Upper-Mid Transition Shards -->
+      <polygon points="604,422 720,362 644,492" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="604,422 644,492 595,502" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="518,512 604,422 595,502" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Right Wing Shards -->
+      <polygon points="720,362 680,508 644,492" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="720,362 728,554 680,508" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="680,508 728,554 622,608" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="728,554 726,736 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Central Heart Facets -->
+      <polygon points="518,512 595,502 496,618" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="595,502 644,492 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="595,502 622,608 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="644,492 680,508 622,608" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Diagonal Left Spine Shards -->
+      <polygon points="424,604 518,512 496,618" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="292,736 424,604 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Bottom Base Facets -->
+      <polygon points="292,736 496,618 504,694" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="292,736 504,694 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.8" />
+      <polygon points="496,618 604,672 504,694" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="496,618 622,608 604,672" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="504,694 604,672 634,736" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="622,608 726,736 604,672" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+      <polygon points="604,672 726,736 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+      <!-- Sharp Outer Diagonal Rim Highlight -->
+      <polyline points="292,736 424,604 518,512 604,422 604,266" 
+                fill="none" stroke="url(#line-grad)" stroke-width="3" opacity="0.9" />
+    </g>
+
+    <!-- 2C. Specular Vertex Glints -->
+    <g id="vertex-glints" filter="url(#glint-glow)">
+      <!-- Right-Mid Primary Glint -->
+      <g transform="translate(680, 508)">
+        <circle cx="0" cy="0" r="4" fill="#ffffff" />
+        <path d="M -22 0 L 22 0 M 0 -22 L 0 22" stroke="#fef08a" stroke-width="2" stroke-linecap="round" />
+      </g>
+      <!-- Bottom-Mid Glint -->
+      <g transform="translate(504, 694)">
+        <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
+        <path d="M -18 0 L 18 0 M 0 -18 L 0 18" stroke="#fef08a" stroke-width="1.8" stroke-linecap="round" />
+      </g>
+      <!-- Lower-Right Glint -->
+      <g transform="translate(652, 698)">
+        <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+        <path d="M -12 0 L 12 0 M 0 -12 L 0 12" stroke="#fef08a" stroke-width="1.5" stroke-linecap="round" />
+      </g>
+    </g>
+  </g>
+</svg>

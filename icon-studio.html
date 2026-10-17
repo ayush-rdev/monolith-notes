@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monolith — Vector Icon Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #070709;
+      color: #f4f4f6;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .checkerboard {
+      background-image: 
+        linear-gradient(45deg, #121216 25%, transparent 25%), 
+        linear-gradient(-45deg, #121216 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #121216 75%), 
+        linear-gradient(-45deg, transparent 75%, #121216 75%);
+      background-size: 24px 24px;
+      background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+      background-color: #09090c;
+    }
+    input[type="range"] {
+      accent-color: #facc15;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col lg:flex-row overflow-x-hidden">
+
+  <!-- Left / Center Canvas Preview -->
+  <main class="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative checkerboard min-h-[520px]">
+    <!-- Top Status Pill -->
+    <div class="absolute top-6 left-6 flex items-center gap-3 bg-zinc-900/90 border border-zinc-800 px-4 py-2 rounded-full backdrop-blur-md">
+      <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+      <span class="text-xs font-medium tracking-wider uppercase text-zinc-300">Monolith Vector Engine</span>
+      <span class="text-xs mono text-zinc-500">1024×1024 SVG</span>
+    </div>
+
+    <!-- Live SVG Container -->
+    <div id="preview-wrapper" class="w-full max-w-[460px] aspect-square flex items-center justify-center transition-transform duration-300">
+      <svg id="monolith-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="100%" height="100%">
+        <defs id="svg-defs">
+          <!-- Ambient Backdrop Gradient -->
+          <radialGradient id="bg-radial" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stop-color="#17150c" id="bg-stop-1" />
+            <stop offset="100%" stop-color="#070709" id="bg-stop-2" />
+          </radialGradient>
+
+          <!-- Squircle Base Gradient -->
+          <linearGradient id="squircle-grad" x1="15%" y1="10%" x2="85%" y2="90%">
+            <stop offset="0%" stop-color="#26252a" />
+            <stop offset="45%" stop-color="#121215" />
+            <stop offset="100%" stop-color="#08080a" />
+          </linearGradient>
+
+          <!-- Squircle Metallic Rim Gradient -->
+          <linearGradient id="squircle-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a" stop-opacity="0.55" class="accent-light" />
+            <stop offset="35%" stop-color="#ca8a04" stop-opacity="0.2" class="accent-mid" />
+            <stop offset="70%" stop-color="#ca8a04" stop-opacity="0.15" class="accent-mid" />
+            <stop offset="100%" stop-color="#facc15" stop-opacity="0.6" class="accent-bright" />
+          </linearGradient>
+
+          <!-- Document Body Gradient -->
+          <linearGradient id="doc-body" x1="20%" y1="10%" x2="75%" y2="85%">
+            <stop offset="0%" stop-color="#1c1b20" />
+            <stop offset="100%" stop-color="#0b0b0e" />
+          </linearGradient>
+
+          <!-- Folded Flap Gradient -->
+          <linearGradient id="flap-grad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#09090b" />
+            <stop offset="55%" stop-color="#221f17" id="flap-mid" />
+            <stop offset="100%" stop-color="#eab308" stop-opacity="0.45" class="accent-mid" />
+          </linearGradient>
+
+          <!-- Note Line Gradient -->
+          <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#eab308" stop-opacity="0.35" class="accent-mid" />
+            <stop offset="60%" stop-color="#fde047" stop-opacity="0.85" class="accent-bright" />
+            <stop offset="100%" stop-color="#fef08a" stop-opacity="0.95" class="accent-light" />
+          </linearGradient>
+
+          <!-- Crystal Facet Gradients (Dynamically Updated via JS) -->
+          <linearGradient id="facet-bright" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a" class="c-spec" />
+            <stop offset="45%" stop-color="#eab308" class="c-primary" />
+            <stop offset="100%" stop-color="#422006" class="c-deep" />
+          </linearGradient>
+
+          <linearGradient id="facet-mid" x1="100%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#facc15" class="c-primary" />
+            <stop offset="55%" stop-color="#854d0e" class="c-mid" />
+            <stop offset="100%" stop-color="#14110b" class="c-dark" />
+          </linearGradient>
+
+          <linearGradient id="facet-deep" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#713f12" class="c-mid" />
+            <stop offset="50%" stop-color="#1f1608" class="c-deep" />
+            <stop offset="100%" stop-color="#090807" class="c-dark" />
+          </linearGradient>
+
+          <linearGradient id="facet-obsidian" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#08080a" />
+            <stop offset="70%" stop-color="#18161b" />
+            <stop offset="100%" stop-color="#713f12" stop-opacity="0.6" class="c-mid" />
+          </linearGradient>
+
+          <linearGradient id="facet-glass" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
+            <stop offset="40%" stop-color="#fde047" stop-opacity="0.25" class="c-spec" />
+            <stop offset="100%" stop-color="#09090b" stop-opacity="0.9" />
+          </linearGradient>
+
+          <!-- Glow & Shadow Filters -->
+          <filter id="squircle-shadow" x="-20%" y="-20%" width="140%" height="145%">
+            <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#000000" flood-opacity="0.85" />
+          </filter>
+
+          <filter id="logo-shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="-8" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.9" />
+          </filter>
+
+          <filter id="crystal-glow" x="-35%" y="-35%" width="170%" height="170%">
+            <feGaussianBlur stdDeviation="22" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          <filter id="glint-glow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="5" result="blur1" />
+            <feGaussianBlur stdDeviation="12" result="blur2" />
+            <feMerge>
+              <feMergeNode in="blur2" />
+              <feMergeNode in="blur1" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <!-- 1. Optional Full Canvas Wallpaper -->
+        <rect id="layer-wallpaper" width="1024" height="1024" fill="url(#bg-radial)" />
+
+        <!-- 2. Squircle App Icon Container -->
+        <g id="layer-squircle">
+          <!-- Outer Metallic Bezel -->
+          <rect x="166" y="166" width="692" height="692" rx="164" fill="#0c0c0f" stroke="url(#squircle-rim)" stroke-width="4" filter="url(#squircle-shadow)" />
+          <!-- Inner Matte Surface -->
+          <rect x="182" y="182" width="660" height="660" rx="150" fill="url(#squircle-grad)" stroke="url(#squircle-rim)" stroke-width="2" />
+        </g>
+
+        <!-- 3. Ambient Crystal Backlight -->
+        <g id="layer-ambient-glow" opacity="0.55">
+          <circle cx="670" cy="560" r="145" fill="#eab308" class="c-primary-fill" filter="url(#crystal-glow)" opacity="0.35" />
+          <ellipse cx="520" cy="735" rx="160" ry="32" fill="#facc15" class="c-spec-fill" filter="url(#crystal-glow)" opacity="0.45" />
+        </g>
+
+        <!-- 4. Core Monolith Note + Crystal Mark -->
+        <g id="layer-mark" filter="url(#logo-shadow)">
+          
+          <!-- 4A. Document Sheet Base -->
+          <g id="doc-group">
+            <!-- Main Page Polygon -->
+            <path d="M 406 266 L 604 266 L 604 680 L 292 736 L 292 384 Z" 
+                  fill="url(#doc-body)" 
+                  stroke="url(#line-grad)" 
+                  stroke-width="2.5" 
+                  stroke-linejoin="round" />
+
+            <!-- Horizontal Note Lines (Clipped nicely before the crystal edge) -->
+            <g id="note-lines" stroke="url(#line-grad)" stroke-width="3" stroke-linecap="round" opacity="0.85">
+              <line x1="338" y1="432" x2="578" y2="432" />
+              <line x1="338" y1="478" x2="548" y2="478" />
+              <line x1="338" y1="524" x2="502" y2="524" />
+              <line x1="338" y1="570" x2="455" y2="570" />
+              <line x1="338" y1="616" x2="408" y2="616" />
+              <line x1="338" y1="662" x2="365" y2="662" />
+              <line x1="338" y1="704" x2="338" y2="704" />
+            </g>
+
+            <!-- Folded Top-Left Corner Shadow -->
+            <path d="M 292 384 L 382 384 Q 406 384 406 360 L 406 266 Z" 
+                  fill="#000000" opacity="0.65" transform="translate(4, 10)" filter="url(#glint-glow)" />
+
+            <!-- Folded Top-Left Flap -->
+            <path d="M 292 384 L 374 384 Q 406 384 406 352 L 406 266 Z" 
+                  fill="url(#flap-grad)" 
+                  stroke="url(#line-grad)" 
+                  stroke-width="2.5" 
+                  stroke-linejoin="round" />
+          </g>
+
+          <!-- 4B. 3D Low-Poly Crystal Monolith Structure -->
+          <g id="crystal-mesh" stroke-linejoin="round" stroke-linecap="round">
+            <!-- Upper Apex Shards -->
+            <polygon points="604,266 644,344 604,422" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="604,266 720,362 644,344" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="644,344 720,362 604,422" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Upper-Mid Transition Shards -->
+            <polygon points="604,422 720,362 644,492" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="604,422 644,492 595,502" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="518,512 604,422 595,502" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Right Wing Shards -->
+            <polygon points="720,362 680,508 644,492" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="720,362 728,554 680,508" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="680,508 728,554 622,608" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="728,554 726,736 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Central Heart Facets -->
+            <polygon points="518,512 595,502 496,618" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="595,502 644,492 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="595,502 622,608 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="644,492 680,508 622,608" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Diagonal Left Spine Shards -->
+            <polygon points="424,604 518,512 496,618" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="292,736 424,604 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Bottom Base Facets -->
+            <polygon points="292,736 496,618 504,694" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="292,736 504,694 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.8" />
+            <polygon points="496,618 604,672 504,694" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="496,618 622,608 604,672" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="504,694 604,672 634,736" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="622,608 726,736 604,672" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
+            <polygon points="604,672 726,736 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
+
+            <!-- Sharp Outer Diagonal Rim Highlight -->
+            <polyline points="292,736 424,604 518,512 604,422 604,266" 
+                      fill="none" stroke="url(#line-grad)" stroke-width="3" opacity="0.9" />
+          </g>
+
+          <!-- 4C. Specular Vertex Glints (Optical Polish) -->
+          <g id="vertex-glints" filter="url(#glint-glow)">
+            <!-- Right-Mid Primary Glint -->
+            <g transform="translate(680, 508)">
+              <circle cx="0" cy="0" r="4" fill="#ffffff" />
+              <path d="M -22 0 L 22 0 M 0 -22 L 0 22" stroke="#fef08a" class="c-spec-stroke" stroke-width="2" stroke-linecap="round" />
+            </g>
+            <!-- Bottom-Mid Glint -->
+            <g transform="translate(504, 694)">
+              <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
+              <path d="M -18 0 L 18 0 M 0 -18 L 0 18" stroke="#fef08a" class="c-spec-stroke" stroke-width="1.8" stroke-linecap="round" />
+            </g>
+            <!-- Lower-Right Glint -->
+            <g transform="translate(652, 698)">
+              <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+              <path d="M -12 0 L 12 0 M 0 -12 L 0 12" stroke="#fef08a" class="c-spec-stroke" stroke-width="1.5" stroke-linecap="round" />
+            </g>
+          </g>
+
+        </g>
+      </svg>
+    </div>
+  </main>
+
+  <!-- Right Control & Export Sidebar -->
+  <aside class="w-full lg:w-[420px] bg-zinc-950 border-t lg:border-t-0 lg:border-l border-zinc-800/80 p-6 lg:p-8 flex flex-col justify-between gap-8">
+    <div class="space-y-7">
+      <!-- Header -->
+      <div>
+        <h1 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2.5">
+          Monolith Icon Studio
+          <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">PRO</span>
+        </h1>
+        <p class="text-xs text-zinc-400 mt-1">Customize color physics, toggle background layers, and extract production-ready assets.</p>
+      </div>
+
+      <!-- Color Theme Presets -->
+      <div class="space-y-2.5">
+        <label class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Color Presets</label>
+        <div class="grid grid-cols-2 gap-2.5">
+          <button onclick="applyPreset(48, 96, 53)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-yellow-500/40 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_#facc15]"></span>
+            <span class="text-xs font-medium text-zinc-200">Solar Yellow</span>
+          </button>
+          <button onclick="applyPreset(38, 95, 50)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]"></span>
+            <span class="text-xs font-medium text-zinc-200">Imperial Gold</span>
+          </button>
+          <button onclick="applyPreset(56, 100, 55)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-lime-300 shadow-[0_0_10px_#fde047]"></span>
+            <span class="text-xs font-medium text-zinc-200">Cyber Canary</span>
+          </button>
+          <button onclick="applyPreset(272, 85, 60)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]"></span>
+            <span class="text-xs font-medium text-zinc-200">Original Obsidian</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Fine-Tune Sliders -->
+      <div class="space-y-4 pt-2 border-t border-zinc-900">
+        <div>
+          <div class="flex justify-between text-xs mb-1.5">
+            <span class="text-zinc-300 font-medium">Accent Hue (Yellow ↔ Gold)</span>
+            <span id="hue-val" class="mono text-yellow-400">48°</span>
+          </div>
+          <input id="slider-hue" type="range" min="0" max="360" value="48" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateColors()" />
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1.5">
+            <span class="text-zinc-300 font-medium">Saturation Intensity</span>
+            <span id="sat-val" class="mono text-yellow-400">96%</span>
+          </div>
+          <input id="slider-sat" type="range" min="0" max="100" value="96" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateColors()" />
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1.5">
+            <span class="text-zinc-300 font-medium">Crystal Glow & Glints</span>
+            <span id="glow-val" class="mono text-yellow-400">75%</span>
+          </div>
+          <input id="slider-glow" type="range" min="0" max="100" value="75" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateGlow()" />
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs mb-1.5">
+            <span class="text-zinc-300 font-medium">Note Lines Opacity</span>
+            <span id="lines-val" class="mono text-yellow-400">85%</span>
+          </div>
+          <input id="slider-lines" type="range" min="0" max="100" value="85" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateLines()" />
+        </div>
+      </div>
+
+      <!-- Extraction Layer Toggles -->
+      <div class="space-y-3 pt-2 border-t border-zinc-900">
+        <label class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Extraction Mode</label>
+        
+        <label class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/70 border border-zinc-800/80 cursor-pointer">
+          <div>
+            <div class="text-xs font-medium text-zinc-200">Logo Mark Only (Transparent)</div>
+            <div class="text-[11px] text-zinc-500">Hides squircle & backdrop for raw logo extraction</div>
+          </div>
+          <input id="toggle-mark-only" type="checkbox" class="w-4 h-4 accent-yellow-400 rounded cursor-pointer" onchange="updateLayers()" />
+        </label>
+
+        <label class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/70 border border-zinc-800/80 cursor-pointer">
+          <div>
+            <div class="text-xs font-medium text-zinc-200">Include Outer Wallpaper</div>
+            <div class="text-[11px] text-zinc-500">Uncheck for transparent-background app icon</div>
+          </div>
+          <input id="toggle-wallpaper" type="checkbox" class="w-4 h-4 accent-yellow-400 rounded cursor-pointer" onchange="updateLayers()" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Export Actions -->
+    <div class="space-y-3 pt-4 border-t border-zinc-900">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-xs text-zinc-400 font-medium">PNG Resolution</span>
+        <select id="export-size" class="bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 rounded-md px-2.5 py-1.5 mono focus:outline-none focus:border-yellow-500">
+          <option value="2048">2048 × 2048 px (Ultra)</option>
+          <option value="1024" selected>1024 × 1024 px (App Store)</option>
+          <option value="512">512 × 512 px (Desktop)</option>
+          <option value="256">256 × 256 px (Web Icon)</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <button onclick="downloadSVG()" class="py-2.5 px-4 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-xs transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.25)]">
+          Download .SVG
+        </button>
+        <button onclick="downloadPNG()" class="py-2.5 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs border border-zinc-700 transition flex items-center justify-center gap-2">
+          Download .PNG
+        </button>
+      </div>
+
+      <button id="btn-copy-svg" onclick="copySVGCode()" class="w-full py-2 px-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-800 transition">
+        Copy Raw SVG Code
+      </button>
+    </div>
+  </aside>
+
+  <script>
+    function hslToHex(h, s, l) {
+      l /= 100;
+      const a = s * Math.min(l, 1 - l) / 100;
+      const f = n => {
+        const k = (n + h / 30) % 12;
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+    }
+
+    function applyPreset(h, s, glow = 75) {
+      document.getElementById('slider-hue').value = h;
+      document.getElementById('slider-sat').value = s;
+      document.getElementById('slider-glow').value = glow;
+      updateColors();
+      updateGlow();
+    }
+
+    function updateColors() {
+      const h = parseInt(document.getElementById('slider-hue').value, 10);
+      const s = parseInt(document.getElementById('slider-sat').value, 10);
+
+      document.getElementById('hue-val').textContent = `${h}°`;
+      document.getElementById('sat-val').textContent = `${s}%`;
+
+      const specColor = hslToHex(h, Math.min(100, s + 5), 82);
+      const brightColor = hslToHex(h, s, 60);
+      const primaryColor = hslToHex(Math.max(0, h - 5), s, 48);
+      const midColor = hslToHex(Math.max(0, h - 10), Math.max(20, s - 15), 26);
+      const deepColor = hslToHex(Math.max(0, h - 12), Math.max(15, s - 25), 11);
+      const darkColor = hslToHex(h, Math.min(30, s), 4);
+
+      document.querySelectorAll('.c-spec, .accent-light').forEach(el => el.setAttribute('stop-color', specColor));
+      document.querySelectorAll('.accent-bright').forEach(el => el.setAttribute('stop-color', brightColor));
+      document.querySelectorAll('.c-primary, .accent-mid').forEach(el => el.setAttribute('stop-color', primaryColor));
+      document.querySelectorAll('.c-mid').forEach(el => el.setAttribute('stop-color', midColor));
+      document.querySelectorAll('.c-deep').forEach(el => el.setAttribute('stop-color', deepColor));
+      document.querySelectorAll('.c-dark').forEach(el => el.setAttribute('stop-color', darkColor));
+
+      document.querySelectorAll('.c-primary-fill').forEach(el => el.setAttribute('fill', primaryColor));
+      document.querySelectorAll('.c-spec-fill').forEach(el => el.setAttribute('fill', brightColor));
+      document.querySelectorAll('.c-spec-stroke').forEach(el => el.setAttribute('stroke', specColor));
+
+      document.getElementById('bg-stop-1').setAttribute('stop-color', hslToHex(h, Math.min(45, s), 7));
+      document.getElementById('flap-mid').setAttribute('stop-color', hslToHex(h, Math.min(35, s), 11));
+    }
+
+    function updateGlow() {
+      const val = parseInt(document.getElementById('slider-glow').value, 10);
+      document.getElementById('glow-val').textContent = `${val}%`;
+      document.getElementById('layer-ambient-glow').setAttribute('opacity', (val / 100) * 0.85);
+      document.getElementById('vertex-glints').setAttribute('opacity', val / 100);
+    }
+
+    function updateLines() {
+      const val = parseInt(document.getElementById('slider-lines').value, 10);
+      document.getElementById('lines-val').textContent = `${val}%`;
+      document.getElementById('note-lines').setAttribute('opacity', val / 100);
+    }
+
+    function updateLayers() {
+      const markOnly = document.getElementById('toggle-mark-only').checked;
+      const wallpaper = document.getElementById('toggle-wallpaper').checked;
+
+      const squircle = document.getElementById('layer-squircle');
+      const bg = document.getElementById('layer-wallpaper');
+
+      if (markOnly) {
+        squircle.style.display = 'none';
+        bg.style.display = 'none';
+      } else {
+        squircle.style.display = 'inline';
+        bg.style.display = wallpaper ? 'inline' : 'none';
+      }
+    }
+
+    function getCleanSVGString() {
+      const svgEl = document.getElementById('monolith-svg');
+      const clone = svgEl.cloneNode(true);
+      // Remove hidden layers from exported SVG
+      ['layer-wallpaper', 'layer-squircle'].forEach(id => {
+        const orig = document.getElementById(id);
+        const clonedNode = clone.querySelector(`#${id}`);
+        if (orig.style.display === 'none' && clonedNode) {
+          clonedNode.remove();
+        }
+      });
+      return new XMLSerializer().serializeToString(clone);
+    }
+
+    function downloadSVG() {
+      const svgData = getCleanSVGString();
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'monolith-icon.svg';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadPNG() {
+      const size = parseInt(document.getElementById('export-size').value, 10);
+      const svgData = getCleanSVGString();
+      const img = new Image();
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      img.onload = function () {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(blob => {
+          const pngUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = pngUrl;
+          a.download = `monolith-icon-${size}px.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(pngUrl);
+        }, 'image/png');
+      };
+      img.src = url;
+    }
+
+    function copySVGCode() {
+      const svgData = getCleanSVGString();
+      navigator.clipboard.writeText(svgData).then(() => {
+        const btn = document.getElementById('btn-copy-svg');
+        const original = btn.textContent;
+        btn.textContent = 'Copied SVG to Clipboard!';
+        btn.classList.add('text-yellow-400', 'border-yellow-500/40');
+        setTimeout(() => {
+          btn.textContent = original;
+          btn.classList.remove('text-yellow-400', 'border-yellow-500/40');
+        }, 2000);
+      });
+    }
+
+    // Initialize with transparent outer wallpaper by default so the squircle pops
+    document.getElementById('toggle-wallpaper').checked = false;
+    updateLayers();
+    updateColors();
+  </script>
+</body>
+</html>

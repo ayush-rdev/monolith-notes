@@ -4,7 +4,7 @@
 
 ### A Tactile, Distraction-Free Markdown Journal for Android with Pure Local-First File Sovereignty.
 
-[![Download APK](https://img.shields.io/badge/Download_APK-v1.4.0_Release-34C759?style=for-the-badge&logo=android&logoColor=white)](https://github.com/ayush-rdev/monolith-notes/releases/download/v1.4.0/Monolith-Notes.apk)
+[![Download APK](https://img.shields.io/badge/Download_APK-v1.5.1_Release-34C759?style=for-the-badge&logo=android&logoColor=white)](https://github.com/ayush-rdev/monolith-notes/releases/latest/download/Monolith-Notes-v1.5.1.apk)
 [![Android](https://img.shields.io/badge/Platform-Android_8.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://android.com)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose_BOM-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Markdown](https://img.shields.io/badge/Storage-Pure_CommonMark_Vault-000000?style=for-the-badge&logo=markdown&logoColor=white)](https://commonmark.org)
@@ -16,7 +16,7 @@
 
 > *"The world moves too fast, but what you write down... that stays."*
 
-[⬇️ **Download Monolith APK**](https://github.com/ayush-rdev/monolith-notes/releases/download/v1.4.0/Monolith-Notes.apk) • [Releases](https://github.com/ayush-rdev/monolith-notes/releases) • [Features](#-the-four-pillars) • [Architecture](#%EF%B8%8F-technology-stack) • [Building](#-building--installation) • [Author](#-creator--author)
+[⬇️ **Download Monolith APK (v1.5.1)**](https://github.com/ayush-rdev/monolith-notes/releases/latest/download/Monolith-Notes-v1.5.1.apk) • [Releases](https://github.com/ayush-rdev/monolith-notes/releases) • [Features](#-the-four-pillars) • [Architecture](#%EF%B8%8F-technology-stack) • [Building](#-building--installation) • [Author](#-creator--author)
 
 </div>
 
