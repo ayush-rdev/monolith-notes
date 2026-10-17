@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
@@ -13,7 +14,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -897,34 +901,40 @@ fun iOSChecklistRow(
     onToggle: () -> Unit,
     onNavigateToNote: ((String) -> Unit)? = null
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     val checkboxBg by animateColorAsState(
         targetValue = if (checked) iOSYellow else Color.Transparent,
-        animationSpec = spring(dampingRatio = 0.78f, stiffness = 650f),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 850f),
         label = "iosCheckColor"
     )
 
     val circleBounce by animateFloatAsState(
-        targetValue = if (checked) 1.15f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (checked) 1.12f else 1f,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 850f),
         label = "iosCircleBounce"
     )
 
     val checkScale by animateFloatAsState(
         targetValue = if (checked) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 780f),
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 950f),
         label = "iosCheckScale"
     )
 
     val textColor by animateColorAsState(
         targetValue = if (checked) iOSTextTertiary else iOSTextPrimary,
-        animationSpec = androidx.compose.animation.core.tween(160),
+        animationSpec = androidx.compose.animation.core.tween(120),
         label = "iosTextColor"
     )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onToggle
+            )
             .padding(vertical = 6.dp, horizontal = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1095,19 +1105,11 @@ fun ImageLightboxDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    var scale by remember { mutableFloatStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-
-    val animatedScale by animateFloatAsState(
-        targetValue = scale,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
-        label = "lightboxScale"
-    )
-    val animatedOffset by animateOffsetAsState(
-        targetValue = offset,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
-        label = "lightboxOffset"
-    )
+    val coroutineScope = rememberCoroutineScope()
+    val animScale = remember { Animatable(1f) }
+    val animOffsetX = remember { Animatable(0f) }
+    val animOffsetY = remember { Animatable(0f) }
+    val iosSnapSpring = remember { spring<Float>(dampingRatio = 0.85f, stiffness = 850f) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1123,15 +1125,18 @@ fun ImageLightboxDialog(
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = {
-                            if (scale > 1.05f) {
-                                scale = 1f
-                                offset = Offset.Zero
-                            } else {
-                                scale = 2.5f
+                            coroutineScope.launch {
+                                if (animScale.value > 1.05f) {
+                                    launch { animScale.animateTo(1f, iosSnapSpring) }
+                                    launch { animOffsetX.animateTo(0f, iosSnapSpring) }
+                                    launch { animOffsetY.animateTo(0f, iosSnapSpring) }
+                                } else {
+                                    launch { animScale.animateTo(2.5f, iosSnapSpring) }
+                                }
                             }
                         },
                         onTap = {
-                            if (scale <= 1.05f) {
+                            if (animScale.value <= 1.05f) {
                                 onDismiss()
                             }
                         }
@@ -1139,16 +1144,21 @@ fun ImageLightboxDialog(
                 }
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoom, _ ->
-                        val newScale = (scale * zoom).coerceIn(1f, 5f)
-                        scale = newScale
-                        if (newScale > 1f) {
-                            val maxOffsetX = (size.width * (newScale - 1f)) / 2f
-                            val maxOffsetY = (size.height * (newScale - 1f)) / 2f
-                            val newX = (offset.x + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
-                            val newY = (offset.y + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
-                            offset = Offset(newX, newY)
-                        } else {
-                            offset = Offset.Zero
+                        val currentScale = animScale.value
+                        val newScale = (currentScale * zoom).coerceIn(1f, 5f)
+                        coroutineScope.launch {
+                            animScale.snapTo(newScale)
+                            if (newScale > 1f) {
+                                val maxOffsetX = (size.width * (newScale - 1f)) / 2f
+                                val maxOffsetY = (size.height * (newScale - 1f)) / 2f
+                                val newX = (animOffsetX.value + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
+                                val newY = (animOffsetY.value + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                                animOffsetX.snapTo(newX)
+                                animOffsetY.snapTo(newY)
+                            } else {
+                                animOffsetX.snapTo(0f)
+                                animOffsetY.snapTo(0f)
+                            }
                         }
                     }
                 },
@@ -1166,10 +1176,10 @@ fun ImageLightboxDialog(
                     .fillMaxSize()
                     .padding(16.dp)
                     .graphicsLayer {
-                        scaleX = animatedScale
-                        scaleY = animatedScale
-                        translationX = animatedOffset.x
-                        translationY = animatedOffset.y
+                        scaleX = animScale.value
+                        scaleY = animScale.value
+                        translationX = animOffsetX.value
+                        translationY = animOffsetY.value
                     }
             )
 
@@ -1189,7 +1199,10 @@ fun ImageLightboxDialog(
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
-                        .clickable { onDismiss() },
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onDismiss() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -1205,19 +1218,26 @@ fun ImageLightboxDialog(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
-                        .clickable {
-                            scale = 1f
-                            offset = Offset.Zero
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            coroutineScope.launch {
+                                launch { animScale.animateTo(1f, iosSnapSpring) }
+                                launch { animOffsetX.animateTo(0f, iosSnapSpring) }
+                                launch { animOffsetY.animateTo(0f, iosSnapSpring) }
+                            }
                         }
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
+                    val currentScale = animScale.value
                     Text(
-                        text = "${(scale * 100).toInt()}%",
+                        text = "${(currentScale * 100).toInt()}%",
                         style = MonolithTypography.labelSmall.copy(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = if (scale > 1.05f) iOSYellow else Color.White
+                        color = if (currentScale > 1.05f) iOSYellow else Color.White
                     )
                 }
 
@@ -1227,7 +1247,10 @@ fun ImageLightboxDialog(
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
-                        .clickable {
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
                             try {
                                 val shareIntent = Intent().apply {
                                     action = Intent.ACTION_SEND

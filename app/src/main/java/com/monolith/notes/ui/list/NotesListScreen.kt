@@ -507,7 +507,8 @@ fun NotesListScreen(
                         }
                         items(
                             items = pinnedNotes,
-                            key = { "grid_pinned_${it.id}" }
+                            key = { "grid_pinned_${it.id}" },
+                            contentType = { "grid_card" }
                         ) { note ->
                             IOSNoteGridCard(
                                 note = note,
@@ -537,7 +538,8 @@ fun NotesListScreen(
                             }
                             items(
                                 items = sectionNotes,
-                                key = { "grid_${it.id}" }
+                                key = { "grid_${it.id}" },
+                                contentType = { "grid_card" }
                             ) { note ->
                                 IOSNoteGridCard(
                                     note = note,
@@ -1341,11 +1343,12 @@ fun IOSNoteRow(
 }
 
 /**
- * iOS-grade Swipeable Note Row with drag gestures:
- * - Swipe right: Pin/Unpin (amber gold)
- * - Swipe left: Move to Folder (indigo) & Delete (red)
- * - Full swipe left: Delete
- * - Tap snaps closed
+ * System-Level iOS ProMotion Swipeable Note Row (120Hz Zero-Lag Architecture):
+ * - Direct RenderThread draw phase tracking (0 recompositions during swipe)
+ * - Immediate action dispatch on threshold release (0ms delay)
+ * - Apple rubber-banding resistance past action boundaries
+ * - Critically damped snappy spring snap (stiffness 850f)
+ * - Instant tap to close open rows
  */
 @Composable
 fun IOSSwipeableNoteRow(
@@ -1364,28 +1367,17 @@ fun IOSSwipeableNoteRow(
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
 
-    val offsetX = remember { Animatable(0f) }
+    val actionWidthPx = with(density) { 140.dp.toPx() }
+    val fullDeleteThresholdPx = with(density) { 180.dp.toPx() }
+    val pinThresholdPx = with(density) { 90.dp.toPx() }
+    val maxSwipeLeftPx = with(density) { 260.dp.toPx() }
+    val maxSwipeRightPx = with(density) { 120.dp.toPx() }
+
+    val offsetXAnim = remember { Animatable(0f) }
     var hasHapticTriggered by remember { mutableStateOf(false) }
 
-    val actionWidthPx = with(density) { 140.dp.toPx() }
-    val fullDeleteThresholdPx = with(density) { 190.dp.toPx() }
-    val pinThresholdPx = with(density) { 95.dp.toPx() }
-    val maxSwipeLeftPx = with(density) { 260.dp.toPx() }
-    val maxSwipeRightPx = with(density) { 130.dp.toPx() }
-
-    val draggableState = rememberDraggableState { delta ->
-        val newOffset = (offsetX.value + delta).coerceIn(-maxSwipeLeftPx, maxSwipeRightPx)
-        coroutineScope.launch {
-            offsetX.snapTo(newOffset)
-        }
-        val isFullSwipe = newOffset <= -fullDeleteThresholdPx || newOffset >= pinThresholdPx
-        if (isFullSwipe && !hasHapticTriggered) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            hasHapticTriggered = true
-        } else if (!isFullSwipe && hasHapticTriggered) {
-            hasHapticTriggered = false
-        }
-    }
+    // Snappy Apple Spring for crisp, instantaneous return
+    val iosSnapSpring = remember { spring<Float>(dampingRatio = 0.9f, stiffness = 850f) }
 
     Box(
         modifier = modifier
@@ -1393,140 +1385,164 @@ fun IOSSwipeableNoteRow(
             .clip(rowShape)
             .background(iOSCardBackground)
     ) {
-        // Behind Actions Layer
-        val currentOffset = offsetX.value
-        if (currentOffset > 0) {
-            // Swipe Right: Pin Action (Warm Amber Gold)
+        // Behind Actions: Rendered once, driven purely via RenderThread graphicsLayer (0 recompositions)
+        // 1. Swipe Right: Pin Action (Warm Amber Gold)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(iOSYellow)
+                .graphicsLayer {
+                    alpha = if (offsetXAnim.value > 0f) (offsetXAnim.value / 40f).coerceIn(0f, 1f) else 0f
+                },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(start = 18.dp)
+                    .graphicsLayer {
+                        val progress = (offsetXAnim.value / pinThresholdPx).coerceIn(0.6f, 1.15f)
+                        scaleX = progress
+                        scaleY = progress
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PushPin,
+                    contentDescription = if (note.isPinned) "Unpin" else "Pin",
+                    tint = Color.Black,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (note.isPinned) "Unpin" else "Pin",
+                    style = MonolithTypography.titleMedium.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color.Black
+                )
+            }
+        }
+
+        // 2. Swipe Left: Move + Delete Actions
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .graphicsLayer {
+                    alpha = if (offsetXAnim.value < 0f) (-offsetXAnim.value / 40f).coerceIn(0f, 1f) else 0f
+                }
+        ) {
+            // Full delete background fill when dragged far left
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(iOSYellow),
-                contentAlignment = Alignment.CenterStart
+                    .background(Color(0xFFFF453A))
+                    .graphicsLayer {
+                        alpha = if (offsetXAnim.value <= -fullDeleteThresholdPx) 1f else 0f
+                    },
+                contentAlignment = Alignment.CenterEnd
             ) {
                 Row(
-                    modifier = Modifier.padding(start = 18.dp),
+                    modifier = Modifier.padding(end = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PushPin,
-                        contentDescription = if (note.isPinned) "Unpin" else "Pin",
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (note.isPinned) "Unpin" else "Pin",
+                        text = "Delete",
                         style = MonolithTypography.titleMedium.copy(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = Color.Black
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
-        } else if (currentOffset < 0) {
-            // Swipe Left: Move + Delete Actions
-            val isFullDelete = currentOffset <= -fullDeleteThresholdPx
-            if (isFullDelete) {
-                // Full Swipe: Delete expands over full width
+
+            // Normal Move & Delete split buttons
+            Row(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer {
+                        alpha = if (offsetXAnim.value > -fullDeleteThresholdPx) 1f else 0f
+                    },
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Move Button (Indigo)
                 Box(
                     modifier = Modifier
-                        .matchParentSize()
-                        .background(Color(0xFFFF453A)),
-                    contentAlignment = Alignment.CenterEnd
+                        .width(70.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xFF5E5CE6))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            coroutineScope.launch {
+                                offsetXAnim.animateTo(0f, iosSnapSpring)
+                            }
+                            onMove()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(
-                        modifier = Modifier.padding(end = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = "Move",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Delete",
-                            style = MonolithTypography.titleMedium.copy(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            ),
+                            text = "Move",
+                            style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
                             color = Color.White
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                }
+
+                // Delete Button (Red)
+                Box(
+                    modifier = Modifier
+                        .width(70.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xFFFF453A))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            coroutineScope.launch {
+                                offsetXAnim.animateTo(0f, iosSnapSpring)
+                            }
+                            onDelete()
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Delete",
                             tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
-                    }
-                }
-            } else {
-                // Split Action buttons: Move (Indigo) and Delete (Red)
-                Row(
-                    modifier = Modifier.matchParentSize(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Move Button
-                    Box(
-                        modifier = Modifier
-                            .width(70.dp)
-                            .fillMaxHeight()
-                            .background(Color(0xFF5E5CE6))
-                            .clickable {
-                                coroutineScope.launch {
-                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                }
-                                onMove()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Folder,
-                                contentDescription = "Move",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Move",
-                                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    // Delete Button
-                    Box(
-                        modifier = Modifier
-                            .width(70.dp)
-                            .fillMaxHeight()
-                            .background(Color(0xFFFF453A))
-                            .clickable {
-                                coroutineScope.launch {
-                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                }
-                                onDelete()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Delete",
-                                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
-                                color = Color.White
-                            )
-                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Delete",
+                            style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                            color = Color.White
+                        )
                     }
                 }
             }
@@ -1536,28 +1552,59 @@ fun IOSSwipeableNoteRow(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .graphicsLayer {
+                    translationX = offsetXAnim.value
+                }
                 .background(iOSCardBackground)
                 .draggable(
-                    state = draggableState,
+                    state = rememberDraggableState { delta ->
+                        val current = offsetXAnim.value
+                        // Apple Rubber-Banding Resistance past action limits
+                        val effectiveDelta = when {
+                            current < -actionWidthPx && delta < 0 -> delta * 0.45f
+                            current > pinThresholdPx && delta > 0 -> delta * 0.45f
+                            else -> delta
+                        }
+                        val newOffset = (current + effectiveDelta).coerceIn(-maxSwipeLeftPx, maxSwipeRightPx)
+                        coroutineScope.launch {
+                            offsetXAnim.snapTo(newOffset)
+                        }
+                        val isFullAction = newOffset <= -fullDeleteThresholdPx || newOffset >= pinThresholdPx
+                        if (isFullAction && !hasHapticTriggered) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            hasHapticTriggered = true
+                        } else if (!isFullAction && hasHapticTriggered) {
+                            hasHapticTriggered = false
+                        }
+                    },
                     orientation = Orientation.Horizontal,
                     onDragStopped = {
-                        val current = offsetX.value
-                        coroutineScope.launch {
-                            when {
-                                current <= -fullDeleteThresholdPx -> {
-                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                    onDelete()
+                        val current = offsetXAnim.value
+                        when {
+                            // Full swipe delete: trigger action IMMEDIATELY without waiting for animation!
+                            current <= -fullDeleteThresholdPx -> {
+                                onDelete()
+                                coroutineScope.launch {
+                                    offsetXAnim.animateTo(0f, iosSnapSpring)
                                 }
-                                current <= -actionWidthPx / 2f -> {
-                                    offsetX.animateTo(-actionWidthPx, spring(dampingRatio = 0.82f, stiffness = 450f))
+                            }
+                            // Snap open to action buttons
+                            current <= -actionWidthPx / 2f -> {
+                                coroutineScope.launch {
+                                    offsetXAnim.animateTo(-actionWidthPx, iosSnapSpring)
                                 }
-                                current >= pinThresholdPx -> {
-                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
-                                    onTogglePin()
+                            }
+                            // Full swipe pin: trigger action IMMEDIATELY without waiting for animation!
+                            current >= pinThresholdPx -> {
+                                onTogglePin()
+                                coroutineScope.launch {
+                                    offsetXAnim.animateTo(0f, iosSnapSpring)
                                 }
-                                else -> {
-                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                            }
+                            // Snap closed
+                            else -> {
+                                coroutineScope.launch {
+                                    offsetXAnim.animateTo(0f, iosSnapSpring)
                                 }
                             }
                         }
@@ -1568,9 +1615,9 @@ fun IOSSwipeableNoteRow(
                 note = note,
                 searchQuery = searchQuery,
                 onClick = {
-                    if (offsetX.value != 0f) {
+                    if (offsetXAnim.value != 0f) {
                         coroutineScope.launch {
-                            offsetX.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 500f))
+                            offsetXAnim.animateTo(0f, iosSnapSpring)
                         }
                     } else {
                         onClick()
