@@ -2,6 +2,7 @@ package com.monolith.notes.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +35,9 @@ data class AppSettings(
     val autoContinueChecklists: Boolean = true,
     val sortOrder: NoteSortOrder = NoteSortOrder.DATE_EDITED,
     val biometricLockEnabled: Boolean = false,
-    val theme: AppTheme = AppTheme.OBSIDIAN
+    val theme: AppTheme = AppTheme.OBSIDIAN,
+    val webDavConfig: WebDavConfig = WebDavConfig(),
+    val lastSyncTimestamp: Long = 0L
 )
 
 class SettingsManager(context: Context) {
@@ -57,6 +60,23 @@ class SettingsManager(context: Context) {
         val themeId = prefs.getString(KEY_APP_THEME, AppTheme.OBSIDIAN.id) ?: AppTheme.OBSIDIAN.id
         val theme = AppTheme.fromId(themeId)
 
+        val webDavUrl = prefs.getString(KEY_WEBDAV_URL, "") ?: ""
+        val webDavUser = prefs.getString(KEY_WEBDAV_USER, "") ?: ""
+        val webDavPass = prefs.getString(KEY_WEBDAV_PASS, "") ?: ""
+        val webDavE2ee = prefs.getBoolean(KEY_WEBDAV_E2EE, false)
+        val webDavPassphrase = prefs.getString(KEY_WEBDAV_PASSPHRASE, "") ?: ""
+        val webDavAutoSync = prefs.getBoolean(KEY_WEBDAV_AUTOSYNC, false)
+        val lastSync = prefs.getLong(KEY_LAST_SYNC_TIME, 0L)
+
+        val webDavConfig = WebDavConfig(
+            serverUrl = webDavUrl,
+            username = webDavUser,
+            password = webDavPass,
+            e2eeEnabled = webDavE2ee,
+            encryptionPassphrase = webDavPassphrase,
+            autoSyncOnLaunch = webDavAutoSync
+        )
+
         return AppSettings(
             hapticsEnabled = haptics,
             newNoteStartStyle = startStyle,
@@ -65,7 +85,9 @@ class SettingsManager(context: Context) {
             autoContinueChecklists = autoChecklist,
             sortOrder = sortOrder,
             biometricLockEnabled = biometricLock,
-            theme = theme
+            theme = theme,
+            webDavConfig = webDavConfig,
+            lastSyncTimestamp = lastSync
         )
     }
 
@@ -109,6 +131,23 @@ class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(theme = theme)
     }
 
+    fun setWebDavConfig(config: WebDavConfig) {
+        prefs.edit()
+            .putString(KEY_WEBDAV_URL, config.serverUrl)
+            .putString(KEY_WEBDAV_USER, config.username)
+            .putString(KEY_WEBDAV_PASS, config.password)
+            .putBoolean(KEY_WEBDAV_E2EE, config.e2eeEnabled)
+            .putString(KEY_WEBDAV_PASSPHRASE, config.encryptionPassphrase)
+            .putBoolean(KEY_WEBDAV_AUTOSYNC, config.autoSyncOnLaunch)
+            .apply()
+        _settings.value = _settings.value.copy(webDavConfig = config)
+    }
+
+    fun setLastSyncTimestamp(timestamp: Long) {
+        prefs.edit().putLong(KEY_LAST_SYNC_TIME, timestamp).apply()
+        _settings.value = _settings.value.copy(lastSyncTimestamp = timestamp)
+    }
+
     companion object {
         private const val KEY_HAPTICS = "key_haptics"
         private const val KEY_START_STYLE = "key_start_style"
@@ -118,5 +157,12 @@ class SettingsManager(context: Context) {
         private const val KEY_SORT_ORDER = "key_sort_order"
         private const val KEY_BIOMETRIC_LOCK = "key_biometric_lock"
         private const val KEY_APP_THEME = "key_app_theme"
+        private const val KEY_WEBDAV_URL = "key_webdav_url"
+        private const val KEY_WEBDAV_USER = "key_webdav_user"
+        private const val KEY_WEBDAV_PASS = "key_webdav_pass"
+        private const val KEY_WEBDAV_E2EE = "key_webdav_e2ee"
+        private const val KEY_WEBDAV_PASSPHRASE = "key_webdav_passphrase"
+        private const val KEY_WEBDAV_AUTOSYNC = "key_webdav_autosync"
+        private const val KEY_LAST_SYNC_TIME = "key_last_sync_time"
     }
 }

@@ -51,6 +51,8 @@ import com.monolith.notes.data.AppSettings
 import com.monolith.notes.data.EditorFontSize
 import com.monolith.notes.data.NewNoteStartStyle
 import com.monolith.notes.data.NoteSortOrder
+import com.monolith.notes.data.sync.SyncResult
+import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.components.SettingsSheet
 import com.monolith.notes.ui.theme.*
@@ -85,6 +87,8 @@ fun NotesListScreen(
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
+    onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
+    onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     isLoaded: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -966,7 +970,9 @@ fun NotesListScreen(
                 trashNotesCount = trashNotesCount,
                 onOpenTrash = onOpenTrash,
                 onUpdateBiometricLock = onUpdateBiometricLock,
-                onUpdateTheme = onUpdateTheme
+                onUpdateTheme = onUpdateTheme,
+                onUpdateWebDavConfig = onUpdateWebDavConfig,
+                onPerformSync = onPerformSync
             )
         }
     }

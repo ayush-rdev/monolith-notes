@@ -36,6 +36,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.monolith.notes.data.NoteRepository
 import com.monolith.notes.data.SettingsManager
+import com.monolith.notes.data.sync.SyncResult
+import com.monolith.notes.data.sync.WebDavSyncEngine
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.editor.NoteEditorScreen
 import com.monolith.notes.ui.folders.FoldersScreen
@@ -125,11 +127,25 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    // Sync sort order and load both active and trash notes on launch
+                    // Sync sort order, load notes, and execute background auto-sync on launch
                     LaunchedEffect(Unit) {
                         repository.setSortOrder(settings.sortOrder)
                         repository.loadNotes()
                         repository.loadTrashNotes()
+
+                        // Auto-sync WebDAV if enabled
+                        if (settings.webDavConfig.autoSyncOnLaunch && settings.webDavConfig.isConfigured) {
+                            withContext(Dispatchers.IO) {
+                                val result = WebDavSyncEngine.sync(repository.notesDir, settings.webDavConfig)
+                                if (result.isSuccess) {
+                                    settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                                    if (result.downloadedCount > 0) {
+                                        repository.loadNotes()
+                                        repository.loadTrashNotes()
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // Process incoming Intent capture triggers (Widget, Quick Note Tile, Share Target)
@@ -444,6 +460,18 @@ class MainActivity : FragmentActivity() {
                                                     }
                                                 }
                                             }
+                                        },
+                                        onUpdateWebDavConfig = { config ->
+                                            settingsManager.setWebDavConfig(config)
+                                        },
+                                        onPerformSync = {
+                                            val result = WebDavSyncEngine.sync(repository.notesDir, settings.webDavConfig)
+                                            if (result.isSuccess) {
+                                                settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                                                repository.loadNotes()
+                                                repository.loadTrashNotes()
+                                            }
+                                            result
                                         }
                                     )
                                 }

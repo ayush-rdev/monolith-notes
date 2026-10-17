@@ -3,6 +3,7 @@ package com.monolith.notes.ui.components
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +42,8 @@ import com.monolith.notes.data.AppSettings
 import com.monolith.notes.data.EditorFontSize
 import com.monolith.notes.data.NewNoteStartStyle
 import com.monolith.notes.data.NoteSortOrder
+import com.monolith.notes.data.sync.SyncResult
+import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,7 +64,9 @@ fun SettingsSheet(
     trashNotesCount: Int = 0,
     onOpenTrash: () -> Unit = {},
     onUpdateBiometricLock: (Boolean) -> Unit = {},
-    onUpdateTheme: (AppTheme) -> Unit = {}
+    onUpdateTheme: (AppTheme) -> Unit = {},
+    onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
+    onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") }
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -264,6 +269,87 @@ fun SettingsSheet(
                         }
                     )
                 }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section 2B: Cloud & WebDAV Vault Sync
+            var showWebDavDialog by remember { mutableStateOf(false) }
+            var isSyncing by remember { mutableStateOf(false) }
+            var syncStatusMessage by remember { mutableStateOf<String?>(null) }
+            val coroutineScope = rememberCoroutineScope()
+
+            SettingsSectionHeader(title = "CLOUD & WEBDAV VAULT SYNC")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iOSCardBackground)
+            ) {
+                Column {
+                    val isConfigured = settings.webDavConfig.isConfigured
+                    val syncSubtitle = when {
+                        !isConfigured -> "Connect Nextcloud, ownCloud, or custom server"
+                        syncStatusMessage != null -> syncStatusMessage!!
+                        settings.lastSyncTimestamp > 0L -> {
+                            val timeAgo = formatTimeAgo(settings.lastSyncTimestamp)
+                            val mode = if (settings.webDavConfig.e2eeEnabled) "E2EE AES-256" else "Markdown"
+                            "Synced $timeAgo • $mode"
+                        }
+                        else -> "Configured (${settings.webDavConfig.username}) • Ready to sync"
+                    }
+
+                    SettingsDetailRow(
+                        icon = Icons.Default.CloudSync,
+                        iconTint = if (isConfigured) iOSYellow else iOSTextSecondary,
+                        title = "WebDAV Cloud Vault",
+                        subtitle = syncSubtitle,
+                        actionLabel = if (isSyncing) "SYNCING..." else if (isConfigured) "SYNC NOW" else "SETUP",
+                        trailingIcon = Icons.Default.Tune,
+                        onClick = {
+                            if (!isConfigured) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                showWebDavDialog = true
+                            } else if (!isSyncing) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                isSyncing = true
+                                syncStatusMessage = "Syncing in progress..."
+                                coroutineScope.launch {
+                                    val result = onPerformSync()
+                                    isSyncing = false
+                                    syncStatusMessage = result.message
+                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    )
+
+                    if (isConfigured) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+                        SettingsDetailRow(
+                            icon = Icons.Default.Settings,
+                            iconTint = iOSTextSecondary,
+                            title = "Server Configuration",
+                            subtitle = settings.webDavConfig.serverUrl.take(35) + if (settings.webDavConfig.serverUrl.length > 35) "..." else "",
+                            actionLabel = "EDIT",
+                            onClick = {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                showWebDavDialog = true
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (showWebDavDialog) {
+                WebDavConfigDialog(
+                    initialConfig = settings.webDavConfig,
+                    onSave = { newConfig ->
+                        showWebDavDialog = false
+                        onUpdateWebDavConfig(newConfig)
+                    },
+                    onDismiss = { showWebDavDialog = false }
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -772,3 +858,16 @@ private fun ThemeCard(
     }
 }
 
+private fun formatTimeAgo(timeMillis: Long): String {
+    if (timeMillis <= 0L) return "Never"
+    val diff = System.currentTimeMillis() - timeMillis
+    val minutes = diff / (60 * 1000)
+    val hours = minutes / 60
+    val days = hours / 24
+    return when {
+        minutes < 1 -> "Just now"
+        minutes < 60 -> "${minutes}m ago"
+        hours < 24 -> "${hours}h ago"
+        else -> "${days}d ago"
+    }
+}
