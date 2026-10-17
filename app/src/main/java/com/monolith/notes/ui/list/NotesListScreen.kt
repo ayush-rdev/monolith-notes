@@ -345,7 +345,7 @@ fun NotesListScreen(
 
             // Large Title below navigation bar:
             Text(
-                text = currentFolder ?: "Notes",
+                text = currentFolder ?: "All Notes",
                 style = MonolithTypography.displayLarge,
                 color = iOSTextPrimary,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)

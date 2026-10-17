@@ -37,13 +37,11 @@ fun FoldersScreen(
     notes: List<Note>,
     folders: List<String>,
     trashCount: Int,
-    selectedFolder: String?, // null means "All Monolith"
+    selectedFolder: String?, // null means "All Notes"
     onSelectFolder: (String?) -> Unit,
     onOpenTrash: () -> Unit,
     onCreateFolder: (String) -> Unit,
-    onDeleteFolder: (String) -> Unit,
-    onNewNoteClick: () -> Unit,
-    onBackToNotes: () -> Unit
+    onDeleteFolder: (String) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     var isEditing by remember { mutableStateOf(false) }
@@ -51,10 +49,6 @@ fun FoldersScreen(
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
-
-    BackHandler {
-        onBackToNotes()
-    }
 
     val totalNotesCount = notes.size
     val rootNotesCount = notes.count { it.folderName == "Notes" }
@@ -83,25 +77,9 @@ fun FoldersScreen(
                     .fillMaxWidth()
                     .height(48.dp)
                     .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Done button (leads back to notes list)
-                TextButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onBackToNotes()
-                    },
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Notes",
-                        color = iOSYellow,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
                 // Edit button
                 TextButton(
                     onClick = {
@@ -155,9 +133,9 @@ fun FoldersScreen(
                             .background(iOSCardBackground)
                     ) {
                         Column {
-                            // "All Monolith"
+                            // "All Notes"
                             FolderRow(
-                                title = "All Monolith",
+                                title = "All Notes",
                                 icon = Icons.Default.FolderSpecial,
                                 iconTint = iOSYellow,
                                 count = totalNotesCount,
@@ -258,7 +236,7 @@ fun FoldersScreen(
                             .fillMaxWidth()
                             .height(46.dp)
                             .padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // New Folder button
@@ -285,22 +263,6 @@ fun FoldersScreen(
                                 color = iOSYellow,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        // New Note button
-                        IconButton(
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onNewNoteClick()
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.EditNote,
-                                contentDescription = "New Note",
-                                tint = iOSYellow,
-                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }

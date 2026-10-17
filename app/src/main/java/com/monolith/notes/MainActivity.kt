@@ -65,7 +65,7 @@ sealed class Screen {
     fun depth(): Int = when (this) {
         Folders -> 0
         List -> 1
-        Trash -> 2
+        Trash -> 1
         Graph -> 2
         is Editor -> 3
     }
@@ -199,7 +199,7 @@ class MainActivity : FragmentActivity() {
                     color = settings.theme.background
                 ) {
                     val scope = rememberCoroutineScope()
-                    var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
+                    var currentScreen by remember { mutableStateOf<Screen>(Screen.Folders) }
                     var selectedFolder by remember { mutableStateOf<String?>(null) }
                     val editorBackStack = remember { mutableStateListOf<Note>() }
                     var showGoogleCloudSetupDialog by remember { mutableStateOf(false) }
@@ -229,7 +229,7 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    BackHandler(enabled = currentScreen != Screen.List) {
+                    BackHandler(enabled = currentScreen != Screen.Folders) {
                         when (currentScreen) {
                             is Screen.Editor -> {
                                 triggerAutoSync(debounceMs = 0L)
@@ -241,10 +241,13 @@ class MainActivity : FragmentActivity() {
                                     currentScreen = Screen.List
                                 }
                             }
-                            is Screen.Graph, is Screen.Folders, is Screen.Trash -> {
+                            is Screen.Graph -> {
                                 currentScreen = Screen.List
                             }
-                            is Screen.List -> { /* no-op */ }
+                            is Screen.List, is Screen.Trash -> {
+                                currentScreen = Screen.Folders
+                            }
+                            is Screen.Folders -> { /* no-op, root */ }
                         }
                     }
 
@@ -442,19 +445,6 @@ class MainActivity : FragmentActivity() {
                                                     selectedFolder = null
                                                 }
                                             }
-                                        },
-                                        onNewNoteClick = {
-                                            editorBackStack.clear()
-                                            val newNote = Note(
-                                                title = "",
-                                                content = "",
-                                                lastModified = System.currentTimeMillis(),
-                                                folder = selectedFolder ?: "Notes"
-                                            )
-                                            currentScreen = Screen.Editor(newNote)
-                                        },
-                                        onBackToNotes = {
-                                            currentScreen = Screen.List
                                         }
                                     )
                                 }
@@ -694,7 +684,7 @@ class MainActivity : FragmentActivity() {
                                     TrashScreen(
                                         trashNotes = trashNotes,
                                         onBack = {
-                                            currentScreen = Screen.List
+                                            currentScreen = Screen.Folders
                                         },
                                         onRestoreNote = { noteToRestore ->
                                             scope.launch {

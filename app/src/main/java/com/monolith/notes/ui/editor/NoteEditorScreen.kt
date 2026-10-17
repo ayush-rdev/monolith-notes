@@ -533,7 +533,7 @@ fun NoteEditorScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Notes",
+                        text = if (note.folderName.isNotBlank()) note.folderName else "Notes",
                         color = iOSYellow,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Medium

@@ -103,7 +103,7 @@ fun TrashScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Notes",
+                        text = "Folders",
                         color = iOSYellow,
                         style = MonolithTypography.titleMedium.copy(fontSize = 17.sp)
                     )
