@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.biometric.BiometricManager
@@ -38,6 +39,7 @@ import com.monolith.notes.data.SettingsManager
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.editor.NoteEditorScreen
 import com.monolith.notes.ui.folders.FoldersScreen
+import com.monolith.notes.ui.graph.KnowledgeGraphScreen
 import com.monolith.notes.ui.list.NotesListScreen
 import com.monolith.notes.ui.trash.TrashScreen
 import com.monolith.notes.ui.theme.*
@@ -52,11 +54,13 @@ sealed class Screen {
     data object List : Screen()
     data class Editor(val note: Note) : Screen()
     data object Trash : Screen()
+    data object Graph : Screen()
 
     fun depth(): Int = when (this) {
         Folders -> 0
         List -> 1
         Trash -> 2
+        Graph -> 2
         is Editor -> 3
     }
 }
@@ -102,6 +106,24 @@ class MainActivity : FragmentActivity() {
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
                     var selectedFolder by remember { mutableStateOf<String?>(null) }
                     val editorBackStack = remember { mutableStateListOf<Note>() }
+
+                    BackHandler(enabled = currentScreen != Screen.List) {
+                        when (currentScreen) {
+                            is Screen.Editor -> {
+                                if (editorBackStack.isNotEmpty()) {
+                                    val prevNote = editorBackStack.removeLast()
+                                    val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
+                                    currentScreen = Screen.Editor(freshNote)
+                                } else {
+                                    currentScreen = Screen.List
+                                }
+                            }
+                            is Screen.Graph, is Screen.Folders, is Screen.Trash -> {
+                                currentScreen = Screen.List
+                            }
+                            is Screen.List -> { /* no-op */ }
+                        }
+                    }
 
                     // Sync sort order and load both active and trash notes on launch
                     LaunchedEffect(Unit) {
@@ -329,6 +351,9 @@ class MainActivity : FragmentActivity() {
                                         onOpenFolders = {
                                             currentScreen = Screen.Folders
                                         },
+                                        onOpenGraph = {
+                                            currentScreen = Screen.Graph
+                                        },
                                         onOpenTrash = {
                                             currentScreen = Screen.Trash
                                         },
@@ -500,6 +525,19 @@ class MainActivity : FragmentActivity() {
                                             scope.launch {
                                                 repository.emptyTrash()
                                             }
+                                        }
+                                    )
+                                }
+                                is Screen.Graph -> {
+                                    val notes by repository.notes.collectAsState()
+                                    KnowledgeGraphScreen(
+                                        notes = notes,
+                                        onBack = {
+                                            currentScreen = Screen.List
+                                        },
+                                        onNavigateToNote = { note ->
+                                            editorBackStack.clear()
+                                            currentScreen = Screen.Editor(note)
                                         }
                                     )
                                 }

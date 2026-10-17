@@ -81,6 +81,7 @@ fun NotesListScreen(
     currentFolder: String? = null,
     folders: List<String> = emptyList(),
     onOpenFolders: () -> Unit = {},
+    onOpenGraph: () -> Unit = {},
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
@@ -207,20 +208,37 @@ fun NotesListScreen(
                     )
                 }
 
-                // Settings Button
-                IconButton(
-                    onClick = {
-                        performHaptic(HapticFeedbackType.TextHandleMove)
-                        showSettings = true
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = iOSYellow,
-                        modifier = Modifier.size(22.dp)
-                    )
+                // Right action buttons: Knowledge Graph & Settings
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            onOpenGraph()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Hub,
+                            contentDescription = "Knowledge Graph",
+                            tint = iOSYellow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            showSettings = true
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = iOSYellow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
 
