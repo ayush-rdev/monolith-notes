@@ -250,4 +250,64 @@ class MarkdownConverterTest {
         assertTrue(toggled.contains("○ Top level"))
         assertTrue(toggled.contains("    ○ Nested 4 spaces"))
     }
+
+    @Test
+    fun testNormalizeContentForMarkdownParser() {
+        val input = """
+            Notes intro
+            ○ Buy milk
+            ○ Eggs
+            ✓ Bread
+            • Bananas
+        """.trimIndent()
+
+        val normalized = com.monolith.notes.ui.components.normalizeContentForMarkdownParser(input)
+        assertTrue(normalized.contains("- [ ] Buy milk"))
+        assertTrue(normalized.contains("- [ ] Eggs"))
+        assertTrue(normalized.contains("- [x] Bread"))
+        assertTrue(normalized.contains("- Bananas"))
+
+        // Verify CommonMark parses normalized text into BulletList with TaskListItemMarkers
+        val doc = com.monolith.notes.ui.components.CommonMarkParser.parse(normalized)
+        var bulletListFound = false
+        var taskCount = 0
+
+        var node = doc.firstChild
+        while (node != null) {
+            if (node is org.commonmark.node.BulletList) {
+                bulletListFound = true
+                var item = node.firstChild
+                while (item != null) {
+                    if (item is org.commonmark.node.ListItem) {
+                        var isTask = false
+                        var ch = item.firstChild
+                        while (ch != null) {
+                            if (ch is org.commonmark.ext.task.list.items.TaskListItemMarker) {
+                                isTask = true
+                                break
+                            }
+                            if (ch is org.commonmark.node.Paragraph) {
+                                var inl = ch.firstChild
+                                while (inl != null) {
+                                    if (inl is org.commonmark.ext.task.list.items.TaskListItemMarker) {
+                                        isTask = true
+                                        break
+                                    }
+                                    inl = inl.next
+                                }
+                            }
+                            ch = ch.next
+                        }
+                        if (isTask) taskCount++
+                    }
+                    item = item.next
+                }
+            }
+            node = node.next
+        }
+
+        assertTrue("Must parse as CommonMark BulletList", bulletListFound)
+        assertEquals("Must parse exactly 3 task items", 3, taskCount)
+    }
 }
+

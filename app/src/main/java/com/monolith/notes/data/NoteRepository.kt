@@ -208,7 +208,28 @@ class NoteRepository(private val context: Context) {
     suspend fun loadNotes() = withContext(Dispatchers.IO) {
         refreshFolders()
         val allFiles = collectMarkdownFiles(notesDir)
-        val sortedFiles = allFiles.sortedByDescending { it.lastModified() }
+
+        // Ghost draft cleanup: if multiple files share the same _[a-fA-F0-9]{8}.md shortId, keep newest and delete older ghosts
+        val shortIdRegex = "_([a-fA-F0-9]{8})\\.md$".toRegex()
+        val validFiles = mutableListOf<File>()
+        val groupedByShortId = allFiles.groupBy { file ->
+            shortIdRegex.find(file.name)?.value
+        }
+        for ((shortIdSuffix, files) in groupedByShortId) {
+            if (shortIdSuffix != null && files.size > 1) {
+                val newest = files.maxByOrNull { it.lastModified() } ?: files.first()
+                validFiles.add(newest)
+                for (older in files) {
+                    if (older.absolutePath != newest.absolutePath) {
+                        try { older.delete() } catch (_: Exception) {}
+                    }
+                }
+            } else {
+                validFiles.addAll(files)
+            }
+        }
+
+        val sortedFiles = validFiles.sortedByDescending { it.lastModified() }
 
         // Multi-threaded parallel I/O: read and parse files concurrently across CPU cores
         val parsedEntries = coroutineScope {
@@ -254,11 +275,12 @@ class NoteRepository(private val context: Context) {
                 }
             } else {
                 // Merge loaded notes with any recent in-memory edits to prevent overwriting user typing
-                val currentMap = _notes.value.associateBy { it.id }
+                val currentByPath = _notes.value.associateBy { it.file?.absolutePath }
+                val currentById = _notes.value.associateBy { it.id }
                 val merged = loaded.map { diskNote ->
-                    val memNote = currentMap[diskNote.id]
+                    val memNote = currentByPath[diskNote.file?.absolutePath] ?: currentById[diskNote.id]
                     if (memNote != null && memNote.lastModified > diskNote.lastModified) {
-                        memNote
+                        memNote.copy(id = diskNote.id, file = diskNote.file)
                     } else {
                         diskNote
                     }
@@ -283,14 +305,38 @@ class NoteRepository(private val context: Context) {
                 notesDir
             }
 
-            // Resolves target file: check note.file first, then noteFileMap by note.id, then create new file
-            val targetFile = note.file ?: noteFileMap[note.id] ?: run {
-                val safeTitle = note.title.ifBlank { "Note" }
-                    .replace("[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex(), "_")
-                    .trim()
-                    .take(40)
-                val shortId = note.id.replace("-", "").take(8)
-                File(targetFolderDir, "${safeTitle}_$shortId.md")
+            val shortId = note.id.replace("-", "").take(8)
+            val safeTitle = note.title.ifBlank { "Note" }
+                .replace("[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex(), "_")
+                .trim()
+                .take(40)
+            val expectedFileName = "${safeTitle}_$shortId.md"
+
+            // Resolves target file: check note.file first, then noteFileMap by note.id,
+            // then scan folder for an existing file with the same shortId suffix, or create new
+            var targetFile = note.file
+                ?: noteFileMap[note.id]
+                ?: targetFolderDir.listFiles()?.firstOrNull { file ->
+                    file.isFile && file.name.endsWith("_$shortId.md")
+                }
+                ?: File(targetFolderDir, expectedFileName)
+
+            // If the note title has changed, rename the existing shortId-based file to the new title
+            if (targetFile.exists() && targetFile.name.endsWith("_$shortId.md") && targetFile.name != expectedFileName) {
+                val renamedFile = File(targetFile.parentFile ?: targetFolderDir, expectedFileName)
+                if (targetFile.absolutePath != renamedFile.absolutePath) {
+                    if (targetFile.renameTo(renamedFile)) {
+                        noteFileMap.remove(targetFile.absolutePath)
+                        targetFile = renamedFile
+                    }
+                }
+            }
+
+            // Clean up any other ghost draft files sharing this shortId
+            targetFolderDir.listFiles()?.forEach { file ->
+                if (file.isFile && file.name.endsWith("_$shortId.md") && file.absolutePath != targetFile.absolutePath) {
+                    try { file.delete() } catch (_: Exception) {}
+                }
             }
 
             // Anchor the mapping so any subsequent or concurrent save to this note ID writes to the SAME file
@@ -316,14 +362,13 @@ class NoteRepository(private val context: Context) {
             val updatedNote = parsed.copy(id = note.id, file = targetFile, folder = parsed.folder)
 
             val currentList = _notes.value.toMutableList()
-            val index = currentList.indexOfFirst {
-                it.id == note.id || it.id == targetFile.absolutePath || it.file?.path == targetFile.path
+            currentList.removeAll {
+                it.id == note.id ||
+                it.id == targetFile.absolutePath ||
+                it.file?.absolutePath == targetFile.absolutePath ||
+                (it.file?.name?.endsWith("_$shortId.md") == true)
             }
-            if (index >= 0) {
-                currentList[index] = updatedNote
-            } else {
-                currentList.add(0, updatedNote)
-            }
+            currentList.add(0, updatedNote)
             _notes.value = sortNotesList(currentList, currentSortOrder)
             saveFastCache(_notes.value)
             refreshFolders()
@@ -691,7 +736,7 @@ class NoteRepository(private val context: Context) {
             • **Bi-directional WikiLinks**: Type `[[` to instantly link thoughts, autocomplete vault notes, and explore backlinks.
             • **Folders**: Tap `< Folders` to organize notes into local subdirectories.
             • **Biometric Lock**: Protect private thoughts with hardware biometric authentication.
-            • **Recently Deleted**: 30-day soft-delete safety net in `.trash/`.
+            • **Recycle Bin**: 30-day soft-delete safety net in `.trash/`.
             • **Media**: Attach inline photos stored in `attachments/`.
             • **Speed**: 0ms typing response with fluid gesture navigation.
 

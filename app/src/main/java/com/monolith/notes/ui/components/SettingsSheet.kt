@@ -544,7 +544,7 @@ fun SettingsSheet(
                     SettingsDetailRow(
                         icon = Icons.Default.DeleteOutline,
                         iconTint = Color(0xFFFF453A),
-                        title = "Recently Deleted",
+                        title = "Recycle Bin",
                         subtitle = "Review and recover notes deleted within 30 days",
                         actionLabel = if (trashNotesCount > 0) "$trashNotesCount" else null,
                         trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,

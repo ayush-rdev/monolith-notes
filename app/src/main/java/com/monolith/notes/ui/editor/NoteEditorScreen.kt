@@ -102,7 +102,7 @@ fun NoteEditorScreen(
     vaultPath: String = "/sdcard/Documents/MonolithNotes",
     settings: AppSettings = AppSettings(),
     onBack: () -> Unit,
-    onSave: (Note) -> Unit,
+    onSave: (Note, (Note) -> Unit) -> Unit = { _, _ -> },
     onNavigateToNote: ((String) -> Unit)? = null,
     onSaveAttachment: (suspend (Uri) -> String?)? = null,
     onDelete: ((Note) -> Unit)? = null,
@@ -194,7 +194,9 @@ fun NoteEditorScreen(
                     lastModified = System.currentTimeMillis()
                 )
                 currentNote = updated
-                onSave(updated)
+                onSave(updated) { persisted ->
+                    currentNote = persisted
+                }
             }
         }
     }

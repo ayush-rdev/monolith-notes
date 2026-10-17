@@ -967,7 +967,7 @@ fun NotesListScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Are you sure you want to delete '${targetNote.displayTitle}'? It will be moved to Recently Deleted and kept for 30 days.",
+                                    text = "Are you sure you want to delete '${targetNote.displayTitle}'? It will be moved to Recycle Bin and kept for 30 days.",
                                     style = MonolithTypography.bodyMedium.copy(fontSize = 13.sp),
                                     color = iOSTextSecondary,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center

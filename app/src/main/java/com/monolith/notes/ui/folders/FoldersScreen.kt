@@ -185,10 +185,10 @@ fun FoldersScreen(
                     }
                 }
 
-                // Inset Group 2: RECENTLY DELETED
+                // Inset Group 2: RECYCLE BIN
                 item {
                     Text(
-                        text = "SAFETY NET",
+                        text = "RECYCLE BIN",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = iOSTextSecondary,
@@ -202,7 +202,7 @@ fun FoldersScreen(
                             .background(iOSCardBackground)
                     ) {
                         FolderRow(
-                            title = "Recently Deleted",
+                            title = "Recycle Bin",
                             icon = Icons.Default.DeleteOutline,
                             iconTint = Color(0xFFFF453A),
                             count = trashCount,
@@ -361,7 +361,7 @@ fun FoldersScreen(
                 },
                 text = {
                     Text(
-                        text = "Deleting this folder will move all notes inside it to Recently Deleted. You can restore them within 30 days.",
+                        text = "Deleting this folder will move all notes inside it to Recycle Bin. You can restore them within 30 days.",
                         style = MonolithTypography.bodyMedium.copy(fontSize = 13.sp),
                         color = iOSTextSecondary,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center

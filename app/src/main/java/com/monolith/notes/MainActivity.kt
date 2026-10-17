@@ -653,9 +653,10 @@ class MainActivity : FragmentActivity() {
                                                 }
                                             }
                                         },
-                                        onSave = { updatedNote ->
+                                        onSave = { updatedNote, onPersisted ->
                                             scope.launch {
-                                                repository.saveNote(updatedNote)
+                                                val persisted = repository.saveNote(updatedNote)
+                                                onPersisted(persisted)
                                                 QuickCaptureWidgetProvider.updateAllWidgets(applicationContext)
                                                 triggerAutoSync(debounceMs = 2500L)
                                             }

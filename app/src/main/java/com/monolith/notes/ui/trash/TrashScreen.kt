@@ -134,7 +134,7 @@ fun TrashScreen(
                     .padding(horizontal = 20.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Recently Deleted",
+                    text = "Recycle Bin",
                     style = MonolithTypography.displayLarge,
                     color = iOSTextPrimary
                 )
@@ -168,7 +168,7 @@ fun TrashScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "No Recently Deleted Notes",
+                            text = "Recycle Bin is Empty",
                             style = MonolithTypography.titleLarge,
                             color = iOSTextSecondary,
                             textAlign = TextAlign.Center
@@ -349,14 +349,14 @@ fun TrashScreen(
                 containerColor = iOSCardBackground,
                 title = {
                     Text(
-                        text = "Empty Recently Deleted?",
+                        text = "Empty Recycle Bin?",
                         style = MonolithTypography.titleLarge,
                         color = Color.White
                     )
                 },
                 text = {
                     Text(
-                        text = "All ${trashNotes.size} ${if (trashNotes.size == 1) "note" else "notes"} in Recently Deleted will be permanently erased. This action cannot be undone.",
+                        text = "All ${trashNotes.size} ${if (trashNotes.size == 1) "note" else "notes"} in Recycle Bin will be permanently erased. This action cannot be undone.",
                         style = MonolithTypography.bodyMedium,
                         color = iOSTextSecondary
                     )
@@ -367,7 +367,7 @@ fun TrashScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             showEmptyTrashConfirm = false
                             onEmptyTrash()
-                            Toast.makeText(context, "Recently Deleted emptied", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Recycle Bin emptied", Toast.LENGTH_SHORT).show()
                         }
                     ) {
                         Text(

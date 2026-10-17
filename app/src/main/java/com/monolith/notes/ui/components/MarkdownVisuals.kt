@@ -439,6 +439,81 @@ fun MarkdownClickableText(
 }
 
 /**
+ * Normalizes Monolith UI Apple Notes syntax (○ / ✓ checklists, • bullets) into standard
+ * Markdown task items (- [ ] / - [x] / - ) so CommonMark AST treats each item as a distinct list element.
+ */
+fun normalizeContentForMarkdownParser(raw: String): String {
+    if (!raw.contains("○") && !raw.contains("✓") && !raw.contains("•") && !raw.contains("- [")) {
+        return raw
+    }
+    val lines = raw.lines()
+    val sb = StringBuilder(raw.length + 64)
+    var inCodeBlock = false
+    var prevWasTaskOrBullet = false
+
+    for (i in lines.indices) {
+        val line = lines[i]
+        val trimmed = line.trimStart()
+        if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+            inCodeBlock = !inCodeBlock
+            sb.append(line)
+            prevWasTaskOrBullet = false
+        } else if (inCodeBlock) {
+            sb.append(line)
+            prevWasTaskOrBullet = false
+        } else {
+            val indent = line.takeWhile { it == ' ' || it == '\t' }
+            val isTask = trimmed.startsWith("○ ") || trimmed == "○" ||
+                         trimmed.startsWith("✓ ") || trimmed == "✓" ||
+                         trimmed.startsWith("- [ ] ") || trimmed.startsWith("- [x] ") || trimmed.startsWith("- [X] ")
+            val isBullet = trimmed.startsWith("• ") || trimmed == "•"
+
+            // Ensure clean blank line separation before starting a list from a regular paragraph
+            if ((isTask || isBullet) && !prevWasTaskOrBullet && i > 0 && lines[i - 1].isNotBlank()) {
+                sb.append('\n')
+            } else if (!isTask && !isBullet && prevWasTaskOrBullet && line.isNotBlank()) {
+                sb.append('\n')
+            }
+
+            when {
+                trimmed.startsWith("○ ") -> {
+                    sb.append(indent).append("- [ ] ").append(trimmed.substring(2))
+                    prevWasTaskOrBullet = true
+                }
+                trimmed == "○" -> {
+                    sb.append(indent).append("- [ ] ")
+                    prevWasTaskOrBullet = true
+                }
+                trimmed.startsWith("✓ ") -> {
+                    sb.append(indent).append("- [x] ").append(trimmed.substring(2))
+                    prevWasTaskOrBullet = true
+                }
+                trimmed == "✓" -> {
+                    sb.append(indent).append("- [x] ")
+                    prevWasTaskOrBullet = true
+                }
+                trimmed.startsWith("• ") -> {
+                    sb.append(indent).append("- ").append(trimmed.substring(2))
+                    prevWasTaskOrBullet = true
+                }
+                trimmed == "•" -> {
+                    sb.append(indent).append("- ")
+                    prevWasTaskOrBullet = true
+                }
+                else -> {
+                    sb.append(line)
+                    prevWasTaskOrBullet = isTask || isBullet
+                }
+            }
+        }
+        if (i < lines.size - 1) {
+            sb.append('\n')
+        }
+    }
+    return sb.toString()
+}
+
+/**
  * Master CommonMark + GFM Markdown Render View.
  * Parses arbitrary markdown documents into native Compose components at 120 FPS.
  */
@@ -452,7 +527,8 @@ fun MarkdownRenderView(
 ) {
     val haptic = LocalHapticFeedback.current
     val document = remember(content) {
-        CommonMarkParser.parse(content)
+        val normalized = normalizeContentForMarkdownParser(content)
+        CommonMarkParser.parse(normalized)
     }
 
     Column(
@@ -494,20 +570,33 @@ fun MarkdownRenderView(
                     } else {
                         // Check for standalone Apple checklist circle ○ / ✓ in paragraph
                         val paragraphText = buildAnnotatedStringFromNodes(node.firstChild)
-                        val rawString = paragraphText.text.trimStart()
-                        if (rawString.startsWith("○ ") || rawString.startsWith("✓ ")) {
-                            val isChecked = rawString.startsWith("✓ ")
-                            val taskText = rawString.substring(2)
-                            val currentIndex = taskCounter++
-                            iOSChecklistRow(
-                                checked = isChecked,
-                                text = taskText,
-                                onToggle = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onTaskToggled?.invoke(currentIndex)
-                                },
-                                onNavigateToNote = onNavigateToNote
-                            )
+                        val rawString = paragraphText.text
+                        if (rawString.contains("○ ") || rawString.contains("✓ ")) {
+                            val lines = rawString.lines()
+                            for (line in lines) {
+                                val trimmed = line.trim()
+                                if (trimmed.startsWith("○ ") || trimmed.startsWith("✓ ")) {
+                                    val isChecked = trimmed.startsWith("✓ ")
+                                    val taskText = trimmed.substring(2)
+                                    val currentIndex = taskCounter++
+                                    iOSChecklistRow(
+                                        checked = isChecked,
+                                        text = taskText,
+                                        onToggle = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onTaskToggled?.invoke(currentIndex)
+                                        },
+                                        onNavigateToNote = onNavigateToNote
+                                    )
+                                } else if (trimmed.isNotBlank()) {
+                                    MarkdownClickableText(
+                                        text = parseInlineMarkdown(trimmed),
+                                        style = MonolithTypography.bodyLarge,
+                                        lineHeight = 26.sp,
+                                        onNavigateToNote = onNavigateToNote
+                                    )
+                                }
+                            }
                         } else {
                             MarkdownClickableText(
                                 text = paragraphText,
@@ -644,24 +733,35 @@ private fun RenderCommonMarkList(
             val firstBlock = currentListItem.firstChild
             var isTask = false
             var isChecked = false
+            var textParagraph: Paragraph? = null
 
-            if (firstBlock is Paragraph) {
-                var inlineNode = firstBlock.firstChild
-                while (inlineNode != null) {
-                    if (inlineNode is TaskListItemMarker) {
-                        isTask = true
-                        isChecked = inlineNode.isChecked
-                        break
+            var child = currentListItem.firstChild
+            while (child != null) {
+                if (child is TaskListItemMarker) {
+                    isTask = true
+                    isChecked = child.isChecked
+                } else if (child is Paragraph) {
+                    if (textParagraph == null) {
+                        textParagraph = child
                     }
-                    inlineNode = inlineNode.next
+                    var inlineNode = child.firstChild
+                    while (inlineNode != null) {
+                        if (inlineNode is TaskListItemMarker) {
+                            isTask = true
+                            isChecked = inlineNode.isChecked
+                            break
+                        }
+                        inlineNode = inlineNode.next
+                    }
                 }
+                child = child.next
             }
 
             val indentPadding = (indentLevel * 18).dp
 
             if (isTask) {
                 val currentIndex = getTaskIndex()
-                val taskAnnotated = buildAnnotatedStringFromNodes(firstBlock?.firstChild)
+                val taskAnnotated = buildAnnotatedStringFromNodes(textParagraph?.firstChild)
                 iOSChecklistRow(
                     checked = isChecked,
                     text = taskAnnotated.text.trim(),
@@ -672,6 +772,34 @@ private fun RenderCommonMarkList(
                     },
                     onNavigateToNote = onNavigateToNote
                 )
+                var nextBlock = firstBlock?.next
+                while (nextBlock != null) {
+                    when (nextBlock) {
+                        is BulletList -> {
+                            RenderCommonMarkList(
+                                listBlock = nextBlock,
+                                isOrdered = false,
+                                vaultPath = vaultPath,
+                                getTaskIndex = getTaskIndex,
+                                indentLevel = indentLevel + 1,
+                                onTaskToggled = onTaskToggled,
+                                onNavigateToNote = onNavigateToNote
+                            )
+                        }
+                        is OrderedList -> {
+                            RenderCommonMarkList(
+                                listBlock = nextBlock,
+                                isOrdered = true,
+                                vaultPath = vaultPath,
+                                getTaskIndex = getTaskIndex,
+                                indentLevel = indentLevel + 1,
+                                onTaskToggled = onTaskToggled,
+                                onNavigateToNote = onNavigateToNote
+                            )
+                        }
+                    }
+                    nextBlock = nextBlock.next
+                }
             } else {
                 Row(
                     modifier = Modifier
@@ -929,6 +1057,7 @@ fun iOSChecklistRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = 24.dp)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
