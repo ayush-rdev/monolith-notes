@@ -1,0 +1,251 @@
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/fonts/sf_pro_display_semibold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro Display';
+  src: url('/fonts/sf_pro_display_bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf_pro_text_regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf_pro_text_medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf_pro_display_semibold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro Text';
+  src: url('/fonts/sf_pro_display_bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Pro Rounded';
+  src: url('/fonts/sf_pro_rounded_bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SF Mono';
+  src: url('/fonts/sf_mono_regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+:root {
+  --font-brand: 'Bricolage Grotesque', sans-serif;
+  --font-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-text: 'SF Pro Text', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+
+  /* Theme variables (Defaults to Obsidian) */
+  --bg-primary: #000000;
+  --bg-gap: #000000;
+  --bg-card: #18181B;
+  --bg-elevated: #27272A;
+  --bg-search: #18181B;
+  --accent: #E5A93C;
+  --accent-container: rgba(229, 169, 60, 0.2);
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+  --divider: #27272A;
+  --emerald: #34C759;
+  --danger: #FF453A;
+  --blue: #0A84FF;
+  font-synthesis: style weight;
+}
+
+em, i {
+  font-style: italic;
+}
+
+/* 5 Exact Monolith Theme Palettes */
+body[data-theme="obsidian"] {
+  --bg-primary: #000000;
+  --bg-gap: #000000;
+  --bg-card: #18181B;
+  --bg-elevated: #27272A;
+  --bg-search: #18181B;
+  --accent: #E5A93C;
+  --accent-container: rgba(229, 169, 60, 0.2);
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  --text-tertiary: #71717A;
+  --divider: #27272A;
+}
+
+body[data-theme="titanium"] {
+  --bg-primary: #0C0D10;
+  --bg-gap: #050608;
+  --bg-card: #16181D;
+  --bg-elevated: #22252C;
+  --bg-search: #16181D;
+  --accent: #E2E8F0;
+  --accent-container: rgba(226, 232, 240, 0.2);
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --divider: #22252C;
+}
+
+body[data-theme="nocturne"] {
+  --bg-primary: #070B09;
+  --bg-gap: #030604;
+  --bg-card: #101814;
+  --bg-elevated: #1A2620;
+  --bg-search: #101814;
+  --accent: #34D399;
+  --accent-container: rgba(52, 211, 153, 0.2);
+  --text-primary: #F0FDF4;
+  --text-secondary: #86EFAC;
+  --text-tertiary: #4ADE80;
+  --divider: #1A2620;
+}
+
+body[data-theme="kanso"] {
+  --bg-primary: #0F0D0C;
+  --bg-gap: #070605;
+  --bg-card: #1C1916;
+  --bg-elevated: #2A2522;
+  --bg-search: #1C1916;
+  --accent: #E6BA82;
+  --accent-container: rgba(230, 186, 130, 0.2);
+  --text-primary: #FAF7F5;
+  --text-secondary: #B5A99F;
+  --text-tertiary: #786E65;
+  --divider: #2A2522;
+}
+
+body[data-theme="midnight"] {
+  --bg-primary: #060911;
+  --bg-gap: #020409;
+  --bg-card: #0E1424;
+  --bg-elevated: #18223B;
+  --bg-search: #0E1424;
+  --accent: #38BDF8;
+  --accent-container: rgba(56, 189, 248, 0.2);
+  --text-primary: #F0F9FF;
+  --text-secondary: #93C5FD;
+  --text-tertiary: #60A5FA;
+  --divider: #18223B;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-text);
+  font-size: 15px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--divider);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Text selections matching Monolith dynamic accent */
+::selection {
+  background-color: var(--accent-container);
+  color: var(--accent);
+}
+
+/* Visual editor textarea: text is transparent (overlay provides visuals).
+   Selection must also keep text transparent so the styled overlay shows through. */
+.visual-editor-ta {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  scrollbar-width: none;
+}
+.visual-editor-ta::-webkit-scrollbar {
+  display: none;
+}
+.visual-editor-ta::selection {
+  background-color: var(--accent-container) !important;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+input, textarea {
+  user-select: text;
+}
+
+/* Editor overlay line blocks — must have zero margin/padding to stay pixel-perfect
+   with the underlying textarea character grid */
+.editor-line {
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+.visual-editor-ta,
+.editor-line,
+.editor-line * {
+  font-feature-settings: "kern" 0;
+  font-variant-ligatures: none;
+  letter-spacing: 0px !important;
+  word-spacing: 0px !important;
+}
+
+.editor-line code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  letter-spacing: inherit !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: inherit !important;
+}
+
+.editor-line em,
+.editor-line i,
+em, i {
+  font-style: italic !important;
+  font-synthesis: style !important;
+}
