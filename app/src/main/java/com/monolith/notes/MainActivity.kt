@@ -188,6 +188,9 @@ class MainActivity : FragmentActivity() {
         // If biometric lock is disabled, unlock immediately
         isAppUnlocked = !settingsManager.settings.value.biometricLockEnabled
 
+        // Enforce initial window security flags
+        applyScreenSecurity(settingsManager.settings.value.screenSecurityEnabled)
+
         // Request MANAGE_EXTERNAL_STORAGE for seamless Obsidian vault access if needed
         checkStoragePermissions()
 
@@ -249,6 +252,11 @@ class MainActivity : FragmentActivity() {
                             }
                             is Screen.Folders -> { /* no-op, root */ }
                         }
+                    }
+
+                    // Dynamically apply window security flags when user toggles screen security
+                    LaunchedEffect(settings.screenSecurityEnabled) {
+                        applyScreenSecurity(settings.screenSecurityEnabled)
                     }
 
                     // Sync sort order, load notes, and execute background auto-sync on launch
@@ -498,6 +506,7 @@ class MainActivity : FragmentActivity() {
                                                 )
                                             }
                                         },
+                                        onUpdateScreenSecurity = { settingsManager.setScreenSecurityEnabled(it) },
                                         onUpdateHaptics = { settingsManager.setHapticsEnabled(it) },
                                         onUpdateStartStyle = { settingsManager.setNewNoteStartStyle(it) },
                                         onUpdateFontSize = { settingsManager.setEditorFontSize(it) },
@@ -755,9 +764,8 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (settingsManager.settings.value.biometricLockEnabled) {
+    private fun applyScreenSecurity(screenSecurity: Boolean) {
+        if (screenSecurity) {
             window.setFlags(
                 android.view.WindowManager.LayoutParams.FLAG_SECURE,
                 android.view.WindowManager.LayoutParams.FLAG_SECURE
@@ -765,6 +773,11 @@ class MainActivity : FragmentActivity() {
         } else {
             window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyScreenSecurity(settingsManager.settings.value.screenSecurityEnabled)
         triggerAutoSync(debounceMs = 600L)
     }
 
@@ -773,11 +786,8 @@ class MainActivity : FragmentActivity() {
         if (isChangingConfigurations) return
         if (settingsManager.settings.value.biometricLockEnabled) {
             isAppUnlocked = false
-            window.setFlags(
-                android.view.WindowManager.LayoutParams.FLAG_SECURE,
-                android.view.WindowManager.LayoutParams.FLAG_SECURE
-            )
         }
+        applyScreenSecurity(settingsManager.settings.value.screenSecurityEnabled)
         triggerAutoSync(debounceMs = 0L)
     }
 

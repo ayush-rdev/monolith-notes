@@ -67,6 +67,7 @@ fun SettingsSheet(
     trashNotesCount: Int = 0,
     onOpenTrash: () -> Unit = {},
     onUpdateBiometricLock: (Boolean) -> Unit = {},
+    onUpdateScreenSecurity: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
     onUpdateCloudConfig: (MonolithCloudConfig) -> Unit = {},
     onPerformCloudSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
@@ -81,7 +82,7 @@ fun SettingsSheet(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var showThemeDialog by remember { mutableStateOf(false) }
+    var showThemeChooser by remember { mutableStateOf(false) }
 
     fun performHaptic(type: HapticFeedbackType) {
         if (settings.hapticsEnabled) {
@@ -104,58 +105,69 @@ fun SettingsSheet(
             )
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        ) {
-            // Header
-            Row(
+        if (showThemeChooser) {
+            ThemeChooserPage(
+                currentTheme = settings.theme,
+                onSelectTheme = { theme ->
+                    performHaptic(HapticFeedbackType.TextHandleMove)
+                    onUpdateTheme(theme)
+                },
+                onBack = { showThemeChooser = false },
+                onDone = onDismiss
+            )
+        } else {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                Text(
-                    text = "Settings",
-                    style = MonolithTypography.headlineLarge,
-                    color = iOSTextPrimary
-                )
-                TextButton(onClick = onDismiss) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Done",
-                        color = iOSYellow,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
+                        text = "Settings",
+                        style = MonolithTypography.headlineLarge,
+                        color = iOSTextPrimary
+                    )
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = "Done",
+                            color = iOSYellow,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Section 0: Appearance / Theme
+                SettingsSectionHeader(title = "APPEARANCE")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(iOSCardBackground)
+                ) {
+                    SettingsRow(
+                        icon = Icons.Default.Palette,
+                        iconTint = iOSYellow,
+                        title = "Theme",
+                        value = settings.theme.displayName,
+                        trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            showThemeChooser = true
+                        }
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Section 0: Appearance / Theme (Clean & minimal, like Google Notes)
-            SettingsSectionHeader(title = "APPEARANCE")
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(iOSCardBackground)
-            ) {
-                SettingsRow(
-                    icon = Icons.Default.Palette,
-                    iconTint = iOSYellow,
-                    title = "Theme",
-                    value = settings.theme.displayName,
-                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    onClick = {
-                        performHaptic(HapticFeedbackType.TextHandleMove)
-                        showThemeDialog = true
-                    }
-                )
-            }
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -276,6 +288,25 @@ fun SettingsSheet(
                         onCheckedChange = {
                             performHaptic(HapticFeedbackType.TextHandleMove)
                             onUpdateBiometricLock(it)
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+
+                    SettingsToggleRow(
+                        icon = if (settings.screenSecurityEnabled) Icons.Default.Security else Icons.Default.NoEncryption,
+                        iconTint = if (settings.screenSecurityEnabled) Color(0xFF34C759) else Color(0xFFFF9500),
+                        title = "Screen Security",
+                        subtitle = if (settings.screenSecurityEnabled) {
+                            "Screenshots & recordings blocked"
+                        } else {
+                            "Off — screenshots & recordings allowed"
+                        },
+                        checked = settings.screenSecurityEnabled,
+                        onCheckedChange = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            onUpdateScreenSecurity(it)
+                            val msg = if (it) "Screen security enabled (screenshots blocked)" else "Screen security disabled (screenshots allowed)"
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -714,105 +745,7 @@ fun SettingsSheet(
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
-
-    if (showThemeDialog) {
-        AlertDialog(
-            onDismissRequest = { showThemeDialog = false },
-            containerColor = iOSCardBackground,
-            title = {
-                Text(
-                    text = "Choose theme",
-                    style = MonolithTypography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
-                    color = iOSTextPrimary
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    ThemeCategory.entries.forEach { category ->
-                        val categoryThemes = AppTheme.entries.filter { it.category == category }
-                        if (categoryThemes.isNotEmpty()) {
-                            Text(
-                                text = category.displayName.uppercase(),
-                                style = MonolithTypography.labelSmall.copy(
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 0.8.sp
-                                ),
-                                color = iOSYellow,
-                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
-                            )
-                            categoryThemes.forEach { themeOption ->
-                                val isSelected = settings.theme == themeOption
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable {
-                                            performHaptic(HapticFeedbackType.TextHandleMove)
-                                            onUpdateTheme(themeOption)
-                                            showThemeDialog = false
-                                        }
-                                        .padding(vertical = 10.dp, horizontal = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = isSelected,
-                                        onClick = {
-                                            performHaptic(HapticFeedbackType.TextHandleMove)
-                                            onUpdateTheme(themeOption)
-                                            showThemeDialog = false
-                                        },
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = iOSYellow,
-                                            unselectedColor = iOSTextTertiary
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .clip(CircleShape)
-                                            .background(themeOption.accent)
-                                            .border(
-                                                width = 0.5.dp,
-                                                color = themeOption.divider.copy(alpha = 0.6f),
-                                                shape = CircleShape
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = themeOption.displayName,
-                                            style = MonolithTypography.bodyLarge.copy(
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                fontSize = 15.sp
-                                            ),
-                                            color = iOSTextPrimary
-                                        )
-                                        Text(
-                                            text = themeOption.subtitle,
-                                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
-                                            color = iOSTextSecondary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showThemeDialog = false }) {
-                    Text("Cancel", color = iOSYellow, fontWeight = FontWeight.SemiBold)
-                }
-            }
-        )
-    }
+}
 }
 
 @Composable
@@ -999,13 +932,14 @@ private fun SettingsToggleRow(
     iconTint: Color,
     title: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(horizontal = 16.dp, vertical = if (subtitle != null) 8.dp else 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1030,17 +964,34 @@ private fun SettingsToggleRow(
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            Text(
-                text = title,
-                style = MonolithTypography.bodyLarge.copy(
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Normal
-                ),
-                color = iOSTextPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MonolithTypography.bodyLarge.copy(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    color = iOSTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MonolithTypography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        ),
+                        color = iOSTextSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         Switch(
             checked = checked,

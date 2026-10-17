@@ -46,6 +46,7 @@ data class AppSettings(
     val autoContinueChecklists: Boolean = true,
     val sortOrder: NoteSortOrder = NoteSortOrder.DATE_EDITED,
     val biometricLockEnabled: Boolean = false,
+    val screenSecurityEnabled: Boolean = false,
     val theme: AppTheme = AppTheme.OBSIDIAN,
     val cloudConfig: MonolithCloudConfig = MonolithCloudConfig(),
     val googleDriveConfig: GoogleDriveConfig = GoogleDriveConfig(),
@@ -72,6 +73,7 @@ class SettingsManager(context: Context) {
         val sortOrderStr = prefs.getString(KEY_SORT_ORDER, NoteSortOrder.DATE_EDITED.name) ?: NoteSortOrder.DATE_EDITED.name
         val sortOrder = try { NoteSortOrder.valueOf(sortOrderStr) } catch (_: Exception) { NoteSortOrder.DATE_EDITED }
         val biometricLock = prefs.getBoolean(KEY_BIOMETRIC_LOCK, false)
+        val screenSecurity = prefs.getBoolean(KEY_SCREEN_SECURITY, false)
         val themeId = prefs.getString(KEY_APP_THEME, AppTheme.OBSIDIAN.id) ?: AppTheme.OBSIDIAN.id
         val theme = AppTheme.fromId(themeId)
 
@@ -132,6 +134,7 @@ class SettingsManager(context: Context) {
             autoContinueChecklists = autoChecklist,
             sortOrder = sortOrder,
             biometricLockEnabled = biometricLock,
+            screenSecurityEnabled = screenSecurity,
             theme = theme,
             cloudConfig = cloudConfig,
             googleDriveConfig = googleDriveConfig,
@@ -180,6 +183,11 @@ class SettingsManager(context: Context) {
     fun setBiometricLockEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_BIOMETRIC_LOCK, enabled).apply()
         _settings.value = _settings.value.copy(biometricLockEnabled = enabled)
+    }
+
+    fun setScreenSecurityEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SCREEN_SECURITY, enabled).apply()
+        _settings.value = _settings.value.copy(screenSecurityEnabled = enabled)
     }
 
     fun setTheme(theme: AppTheme) {
@@ -265,6 +273,7 @@ class SettingsManager(context: Context) {
         private const val KEY_AUTO_CHECKLIST = "key_auto_checklist"
         private const val KEY_SORT_ORDER = "key_sort_order"
         private const val KEY_BIOMETRIC_LOCK = "key_biometric_lock"
+        private const val KEY_SCREEN_SECURITY = "key_screen_security"
         private const val KEY_APP_THEME = "key_app_theme"
         private const val KEY_CLOUD_SERVER = "key_cloud_server"
         private const val KEY_CLOUD_EMAIL = "key_cloud_email"

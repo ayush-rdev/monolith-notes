@@ -75,4 +75,32 @@ class ThemeSystemTest {
             assertNotEquals("Background and accent must not match in ${theme.name}", theme.background, theme.accent)
         }
     }
+
+    @Test
+    fun testScreenSecurityDefaultAndToggle() {
+        val defaultSettings = com.monolith.notes.data.AppSettings()
+        // Screen security must be disabled by default so screenshots and screen recordings can be performed
+        assertFalse("Screen security should be false by default to allow screenshots and screen recording", defaultSettings.screenSecurityEnabled)
+
+        // When toggled on, screen security enables window protection
+        val securedSettings = defaultSettings.copy(screenSecurityEnabled = true)
+        assertTrue("Screen security should be true when enabled", securedSettings.screenSecurityEnabled)
+
+        // When toggled off, screen security turns off window protection
+        val unsecuredSettings = securedSettings.copy(screenSecurityEnabled = false)
+        assertFalse("Screen security should be false when turned off", unsecuredSettings.screenSecurityEnabled)
+    }
+
+    @Test
+    fun testAll23ThemesHaveUniqueIdsAndValidPalettes() {
+        val ids = mutableSetOf<String>()
+        for (theme in AppTheme.entries) {
+            assertTrue("Theme ID must not be blank", theme.id.isNotBlank())
+            assertTrue("Theme ID '${theme.id}' must be unique", ids.add(theme.id))
+            assertNotNull("Theme category must not be null", theme.category)
+            assertTrue("Theme display name must not be blank", theme.displayName.isNotBlank())
+            assertTrue("Theme subtitle must not be blank", theme.subtitle.isNotBlank())
+        }
+        assertEquals(23, ids.size)
+    }
 }
