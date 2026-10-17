@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
@@ -221,10 +222,10 @@ fun NotesListScreen(
                         .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "Folders",
                         tint = iOSYellow,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -513,6 +514,7 @@ fun NotesListScreen(
                             IOSNoteGridCard(
                                 note = note,
                                 searchQuery = searchQuery,
+                                showFolderBadge = (currentFolder == null),
                                 onClick = {
                                     performHaptic(HapticFeedbackType.TextHandleMove)
                                     onNoteClick(note)
@@ -544,6 +546,7 @@ fun NotesListScreen(
                                 IOSNoteGridCard(
                                     note = note,
                                     searchQuery = searchQuery,
+                                    showFolderBadge = (currentFolder == null),
                                     onClick = {
                                         performHaptic(HapticFeedbackType.TextHandleMove)
                                         onNoteClick(note)
@@ -574,7 +577,7 @@ fun NotesListScreen(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = iOSTextSecondary,
-                                modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 6.dp)
+                                modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp)
                             )
                         }
                         itemsIndexed(
@@ -589,6 +592,7 @@ fun NotesListScreen(
                                 note = note,
                                 rowShape = rowShape,
                                 searchQuery = searchQuery,
+                                showFolderBadge = (currentFolder == null),
                                 onClick = {
                                     performHaptic(HapticFeedbackType.TextHandleMove)
                                     onNoteClick(note)
@@ -623,7 +627,7 @@ fun NotesListScreen(
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = iOSTextSecondary,
-                                    modifier = Modifier.padding(start = 12.dp, top = 16.dp, bottom = 6.dp)
+                                    modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 6.dp)
                                 )
                             }
                             itemsIndexed(
@@ -638,6 +642,7 @@ fun NotesListScreen(
                                     note = note,
                                     rowShape = rowShape,
                                     searchQuery = searchQuery,
+                                    showFolderBadge = (currentFolder == null),
                                     onClick = {
                                         performHaptic(HapticFeedbackType.TextHandleMove)
                                         onNoteClick(note)
@@ -689,21 +694,8 @@ fun NotesListScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Folders navigation button (clean Apple Notes aesthetic)
-                        IconButton(
-                            onClick = {
-                                performHaptic(HapticFeedbackType.TextHandleMove)
-                                onOpenFolders()
-                            },
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Folder,
-                                contentDescription = "Folders",
-                                tint = iOSYellow,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                        // Balance spacer for centered count label (Folders navigation is already prominent at top-left)
+                        Box(modifier = Modifier.size(40.dp))
                         val countLabel = if (searchQuery.isNotBlank()) {
                             "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"
                         } else {
@@ -1213,6 +1205,7 @@ fun IOSTagChip(
 fun IOSNoteRow(
     note: Note,
     searchQuery: String = "",
+    showFolderBadge: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -1317,7 +1310,7 @@ fun IOSNoteRow(
                     fontWeight = FontWeight.Medium
                 )
 
-                if (note.folderName != "Notes") {
+                if (showFolderBadge && note.folderName != "Notes") {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "📁 ${note.folderName}",
@@ -1355,6 +1348,7 @@ fun IOSSwipeableNoteRow(
     note: Note,
     rowShape: RoundedCornerShape,
     searchQuery: String = "",
+    showFolderBadge: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onTogglePin: () -> Unit,
@@ -1578,33 +1572,33 @@ fun IOSSwipeableNoteRow(
                         }
                     },
                     orientation = Orientation.Horizontal,
-                    onDragStopped = {
+                    onDragStopped = { velocity ->
                         val current = offsetXAnim.value
                         when {
                             // Full swipe delete: trigger action IMMEDIATELY without waiting for animation!
-                            current <= -fullDeleteThresholdPx -> {
+                            current <= -fullDeleteThresholdPx || (current < -actionWidthPx / 2f && velocity < -1600f) -> {
                                 onDelete()
                                 coroutineScope.launch {
-                                    offsetXAnim.animateTo(0f, iosSnapSpring)
+                                    offsetXAnim.animateTo(0f, iosSnapSpring, initialVelocity = velocity)
                                 }
                             }
-                            // Snap open to action buttons
-                            current <= -actionWidthPx / 2f -> {
+                            // Snap open to action buttons (or flick left)
+                            current <= -actionWidthPx / 2f || (current < 0f && velocity < -500f) -> {
                                 coroutineScope.launch {
-                                    offsetXAnim.animateTo(-actionWidthPx, iosSnapSpring)
+                                    offsetXAnim.animateTo(-actionWidthPx, iosSnapSpring, initialVelocity = velocity)
                                 }
                             }
-                            // Full swipe pin: trigger action IMMEDIATELY without waiting for animation!
-                            current >= pinThresholdPx -> {
+                            // Full swipe pin: trigger action IMMEDIATELY without waiting for animation! (or flick right)
+                            current >= pinThresholdPx || (current > 0f && velocity > 600f) -> {
                                 onTogglePin()
                                 coroutineScope.launch {
-                                    offsetXAnim.animateTo(0f, iosSnapSpring)
+                                    offsetXAnim.animateTo(0f, iosSnapSpring, initialVelocity = velocity)
                                 }
                             }
                             // Snap closed
                             else -> {
                                 coroutineScope.launch {
-                                    offsetXAnim.animateTo(0f, iosSnapSpring)
+                                    offsetXAnim.animateTo(0f, iosSnapSpring, initialVelocity = velocity)
                                 }
                             }
                         }
@@ -1614,6 +1608,7 @@ fun IOSSwipeableNoteRow(
             IOSNoteRow(
                 note = note,
                 searchQuery = searchQuery,
+                showFolderBadge = showFolderBadge,
                 onClick = {
                     if (offsetXAnim.value != 0f) {
                         coroutineScope.launch {
@@ -1644,6 +1639,7 @@ fun IOSSwipeableNoteRow(
 fun IOSNoteGridCard(
     note: Note,
     searchQuery: String = "",
+    showFolderBadge: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -1669,7 +1665,7 @@ fun IOSNoteGridCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = iOSCardBackground,
         border = BorderStroke(0.5.dp, Color(0xFF2C2C2E)),
         modifier = modifier
@@ -1711,7 +1707,7 @@ fun IOSNoteGridCard(
                                 .padding(end = 4.dp)
                         )
                     }
-                    if (note.folderName != "Notes") {
+                    if (showFolderBadge && note.folderName != "Notes") {
                         Text(
                             text = "📁 ${note.folderName}",
                             style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),

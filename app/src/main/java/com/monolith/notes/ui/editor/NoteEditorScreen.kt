@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
@@ -527,10 +528,10 @@ fun NoteEditorScreen(
                         .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "Back",
                         tint = iOSYellow,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -700,20 +701,6 @@ fun NoteEditorScreen(
                                     }
                                 )
                             }
-                        }
-
-                        IconButton(
-                            onClick = {
-                                enterEditMode(null)
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Edit Note",
-                                tint = iOSYellow,
-                                modifier = Modifier.size(22.dp)
-                            )
                         }
                     }
 
@@ -906,12 +893,14 @@ fun NoteEditorScreen(
                             if (titleState.text.isNotBlank()) {
                                 Text(
                                     text = titleState.text,
-                                    style = MonolithTypography.displayMedium.copy(
-                                        fontSize = 26.sp,
+                                    style = TextStyle(
+                                        fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = Color.White,
+                                        fontFamily = SFProDisplay,
+                                        lineHeight = 30.sp
                                     ),
-                                    modifier = Modifier.padding(bottom = 8.dp)
+                                    modifier = Modifier.padding(bottom = 12.dp)
                                 )
                             }
 
@@ -949,7 +938,8 @@ fun NoteEditorScreen(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                fontFamily = SFProDisplay
+                                fontFamily = SFProDisplay,
+                                lineHeight = 30.sp
                             ),
                             cursorBrush = SolidColor(theme.accent),
                             singleLine = true,
@@ -974,7 +964,8 @@ fun NoteEditorScreen(
                                                 fontSize = 24.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = iOSTextTertiary,
-                                                fontFamily = SFProDisplay
+                                                fontFamily = SFProDisplay,
+                                                lineHeight = 30.sp
                                             )
                                         )
                                     }
@@ -983,7 +974,7 @@ fun NoteEditorScreen(
                             }
                         )
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Body (Zero regex lag on keystrokes, pure native 60fps typing)
                         BasicTextField(
@@ -1089,51 +1080,6 @@ fun NoteEditorScreen(
                     }
 
                     Spacer(modifier = Modifier.height(if (isEditing) 300.dp else 48.dp))
-                }
-
-                // Floating "Reading Mode • Tap to edit" indicator pill
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = !isEditing,
-                    enter = fadeIn(animationSpec = tween(200)) + slideInVertically(
-                        initialOffsetY = { 60 },
-                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
-                    ),
-                    exit = fadeOut(animationSpec = tween(150)) + slideOutVertically(
-                        targetOffsetY = { 60 },
-                        animationSpec = tween(150)
-                    ),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFF1C1C1E).copy(alpha = 0.92f),
-                        border = BorderStroke(0.5.dp, Color(0xFF3A3A3C)),
-                        shadowElevation = 8.dp,
-                        modifier = Modifier.clickable { enterEditMode(null) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(iOSYellow)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Reading Mode • Tap to edit",
-                                style = MonolithTypography.labelSmall.copy(
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
                 }
             }
 

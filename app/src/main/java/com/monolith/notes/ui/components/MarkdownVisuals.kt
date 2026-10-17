@@ -935,11 +935,12 @@ fun iOSChecklistRow(
                 indication = null,
                 onClick = onToggle
             )
-            .padding(vertical = 6.dp, horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 5.dp, horizontal = 2.dp),
+        verticalAlignment = Alignment.Top
     ) {
         Box(
             modifier = Modifier
+                .padding(top = 2.dp)
                 .size(22.dp)
                 .graphicsLayer {
                     scaleX = circleBounce
@@ -966,6 +967,8 @@ fun iOSChecklistRow(
             }
         }
 
+        Spacer(modifier = Modifier.width(10.dp))
+
         val colors = MarkdownThemeColors(
             textPrimary = iOSTextPrimary,
             textSecondary = iOSTextSecondary,
@@ -982,6 +985,7 @@ fun iOSChecklistRow(
                 color = textColor
             ),
             lineHeight = 22.sp,
+            modifier = Modifier.weight(1f, fill = false),
             onNavigateToNote = onNavigateToNote
         )
     }

@@ -11,8 +11,8 @@ android {
         applicationId = "com.monolith.notes"
         minSdk = 26
         targetSdk = 34
-        versionCode = 22
-        versionName = "2.1.7"
+        versionCode = 23
+        versionName = "2.1.8"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
