@@ -472,6 +472,9 @@ class MainActivity : FragmentActivity() {
                                         currentFolder = selectedFolder,
                                         folders = folders,
                                         trashNotesCount = trashNotes.size,
+                                        onToggleGalleryView = {
+                                            settingsManager.setGalleryView(!settings.isGalleryView)
+                                        },
                                         onOpenFolders = {
                                             currentScreen = Screen.Folders
                                         },

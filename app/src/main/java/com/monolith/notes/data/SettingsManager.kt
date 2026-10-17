@@ -51,7 +51,8 @@ data class AppSettings(
     val googleDriveConfig: GoogleDriveConfig = GoogleDriveConfig(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val googleDriveUri: String? = null,
-    val lastSyncTimestamp: Long = 0L
+    val lastSyncTimestamp: Long = 0L,
+    val isGalleryView: Boolean = false
 )
 
 class SettingsManager(context: Context) {
@@ -121,6 +122,7 @@ class SettingsManager(context: Context) {
         )
 
         val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
+        val galleryView = prefs.getBoolean(KEY_GALLERY_VIEW, false)
 
         return AppSettings(
             hapticsEnabled = haptics,
@@ -135,8 +137,14 @@ class SettingsManager(context: Context) {
             googleDriveConfig = googleDriveConfig,
             webDavConfig = webDavConfig,
             googleDriveUri = gDriveUri,
-            lastSyncTimestamp = lastSync
+            lastSyncTimestamp = lastSync,
+            isGalleryView = galleryView
         )
+    }
+
+    fun setGalleryView(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_GALLERY_VIEW, enabled).apply()
+        _settings.value = _settings.value.copy(isGalleryView = enabled)
     }
 
     fun setHapticsEnabled(enabled: Boolean) {
@@ -277,5 +285,6 @@ class SettingsManager(context: Context) {
         private const val KEY_WEBDAV_PASSPHRASE = "key_webdav_passphrase"
         private const val KEY_WEBDAV_AUTOSYNC = "key_webdav_autosync"
         private const val KEY_LAST_SYNC_TIME = "key_last_sync_time"
+        private const val KEY_GALLERY_VIEW = "key_gallery_view"
     }
 }

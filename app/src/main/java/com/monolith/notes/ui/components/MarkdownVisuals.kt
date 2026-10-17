@@ -4,10 +4,15 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,11 +21,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,8 +36,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -892,8 +903,14 @@ fun iOSChecklistRow(
         label = "iosCheckColor"
     )
 
-    val checkScale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (checked) 1f else 0.2f,
+    val circleBounce by animateFloatAsState(
+        targetValue = if (checked) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "iosCircleBounce"
+    )
+
+    val checkScale by animateFloatAsState(
+        targetValue = if (checked) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.55f, stiffness = 780f),
         label = "iosCheckScale"
     )
@@ -914,6 +931,10 @@ fun iOSChecklistRow(
         Box(
             modifier = Modifier
                 .size(22.dp)
+                .graphicsLayer {
+                    scaleX = circleBounce
+                    scaleY = circleBounce
+                }
                 .clip(CircleShape)
                 .background(checkboxBg)
                 .border(
@@ -923,7 +944,7 @@ fun iOSChecklistRow(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (checked) {
+            if (checked || checkScale > 0.05f) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Completed",
@@ -1050,28 +1071,223 @@ fun IOSInlineImage(
     }
 
     if (isExpanded) {
-        Dialog(
-            onDismissRequest = { isExpanded = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ImageLightboxDialog(
+            imageModel = imageModel,
+            alt = alt,
+            onDismiss = { isExpanded = false }
+        )
+    }
+}
+
+/**
+ * iOS-grade Full-Screen Image Lightbox Viewer:
+ * - Dual-gesture pinch-to-zoom (1.0x - 5.0x) with pan constraints
+ * - Double-tap zoom toggle (1.0x <-> 2.5x)
+ * - Single-tap background dismiss when scale == 1.0x
+ * - Glassmorphic top bar: frosted close button, zoom % badge, and system share intent
+ * - Bottom frosted pill displaying caption/alt text
+ * - OLED pitch-black background
+ */
+@Composable
+fun ImageLightboxDialog(
+    imageModel: Any,
+    alt: String,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var scale by remember { mutableFloatStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = scale,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "lightboxScale"
+    )
+    val animatedOffset by animateOffsetAsState(
+        targetValue = offset,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 420f),
+        label = "lightboxOffset"
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = {
+                            if (scale > 1.05f) {
+                                scale = 1f
+                                offset = Offset.Zero
+                            } else {
+                                scale = 2.5f
+                            }
+                        },
+                        onTap = {
+                            if (scale <= 1.05f) {
+                                onDismiss()
+                            }
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val newScale = (scale * zoom).coerceIn(1f, 5f)
+                        scale = newScale
+                        if (newScale > 1f) {
+                            val maxOffsetX = (size.width * (newScale - 1f)) / 2f
+                            val maxOffsetY = (size.height * (newScale - 1f)) / 2f
+                            val newX = (offset.x + pan.x).coerceIn(-maxOffsetX, maxOffsetX)
+                            val newY = (offset.y + pan.y).coerceIn(-maxOffsetY, maxOffsetY)
+                            offset = Offset(newX, newY)
+                        } else {
+                            offset = Offset.Zero
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
         ) {
-            Box(
+            // Main Image
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(imageModel)
+                    .crossfade(true)
+                    .build(),
+                contentDescription = alt.ifBlank { "Full-screen Image" },
+                contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.94f))
-                    .clickable { isExpanded = false },
-                contentAlignment = Alignment.Center
+                    .padding(16.dp)
+                    .graphicsLayer {
+                        scaleX = animatedScale
+                        scaleY = animatedScale
+                        translationX = animatedOffset.x
+                        translationY = animatedOffset.y
+                    }
+            )
+
+            // Top Glassmorphic Navigation Bar
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageModel)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = alt,
-                    contentScale = ContentScale.Fit,
+                // Frosted Glass Close Button
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                )
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                // Zoom % Pill Badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
+                        .clickable {
+                            scale = 1f
+                            offset = Offset.Zero
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "${(scale * 100).toInt()}%",
+                        style = MonolithTypography.labelSmall.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = if (scale > 1.05f) iOSYellow else Color.White
+                    )
+                }
+
+                // Frosted Glass Share Button
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2C2C2E).copy(alpha = 0.85f))
+                        .clickable {
+                            try {
+                                val shareIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    when (imageModel) {
+                                        is Uri -> {
+                                            putExtra(Intent.EXTRA_STREAM, imageModel)
+                                            type = "image/*"
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        is File -> {
+                                            val uri = androidx.core.content.FileProvider.getUriForFile(
+                                                context,
+                                                "${context.packageName}.fileprovider",
+                                                imageModel
+                                            )
+                                            putExtra(Intent.EXTRA_STREAM, uri)
+                                            type = "image/*"
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        is String -> {
+                                            if (imageModel.startsWith("http")) {
+                                                putExtra(Intent.EXTRA_TEXT, imageModel)
+                                                type = "text/plain"
+                                            }
+                                        }
+                                    }
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Image"))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Could not share image", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Share",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Bottom Caption Pill (if alt text exists)
+            if (alt.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 24.dp, start = 20.dp, end = 20.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF1C1C1E).copy(alpha = 0.85f))
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = alt,
+                        style = MonolithTypography.bodySmall.copy(fontSize = 13.sp),
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                }
             }
         }
     }

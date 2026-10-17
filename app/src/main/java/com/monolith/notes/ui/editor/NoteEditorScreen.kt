@@ -17,16 +17,19 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -1086,6 +1089,51 @@ fun NoteEditorScreen(
                     }
 
                     Spacer(modifier = Modifier.height(if (isEditing) 300.dp else 48.dp))
+                }
+
+                // Floating "Reading Mode • Tap to edit" indicator pill
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !isEditing,
+                    enter = fadeIn(animationSpec = tween(200)) + slideInVertically(
+                        initialOffsetY = { 60 },
+                        animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f)
+                    ),
+                    exit = fadeOut(animationSpec = tween(150)) + slideOutVertically(
+                        targetOffsetY = { 60 },
+                        animationSpec = tween(150)
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFF1C1C1E).copy(alpha = 0.92f),
+                        border = BorderStroke(0.5.dp, Color(0xFF3A3A3C)),
+                        shadowElevation = 8.dp,
+                        modifier = Modifier.clickable { enterEditMode(null) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(iOSYellow)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Reading Mode • Tap to edit",
+                                style = MonolithTypography.labelSmall.copy(
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
                 }
             }
 

@@ -4,16 +4,25 @@ package com.monolith.notes.ui.list
 
 import android.content.Intent
 import android.widget.Toast
+import kotlinx.coroutines.launch
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -38,14 +47,17 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.monolith.notes.data.AppSettings
 import com.monolith.notes.data.EditorFontSize
 import com.monolith.notes.data.NewNoteStartStyle
@@ -84,6 +96,7 @@ fun NotesListScreen(
     folders: List<String> = emptyList(),
     onOpenFolders: () -> Unit = {},
     onOpenGraph: () -> Unit = {},
+    onToggleGalleryView: () -> Unit = {},
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
@@ -321,6 +334,21 @@ fun NotesListScreen(
                     IconButton(
                         onClick = {
                             performHaptic(HapticFeedbackType.TextHandleMove)
+                            onToggleGalleryView()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (settings.isGalleryView) Icons.Default.ViewAgenda else Icons.Default.GridView,
+                            contentDescription = if (settings.isGalleryView) "Switch to List View" else "Switch to Gallery View",
+                            tint = iOSYellow,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
                             showSettings = true
                         },
                         modifier = Modifier.size(36.dp)
@@ -455,7 +483,80 @@ fun NotesListScreen(
                         }
                     }
                 }
+            } else if (settings.isGalleryView) {
+                // GALLERY / GRID VIEW (2-column responsive layout)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 4.dp, bottom = 60.dp)
+                ) {
+                    if (pinnedNotes.isNotEmpty()) {
+                        item(key = "grid_header_pinned", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = "PINNED",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = iOSTextSecondary,
+                                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+                            )
+                        }
+                        items(
+                            items = pinnedNotes,
+                            key = { "grid_pinned_${it.id}" }
+                        ) { note ->
+                            IOSNoteGridCard(
+                                note = note,
+                                searchQuery = searchQuery,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    onNoteClick(note)
+                                },
+                                onLongClick = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    noteActionTarget = note
+                                }
+                            )
+                        }
+                    }
+
+                    if (unpinnedNotes.isNotEmpty()) {
+                        groupedUnpinnedNotes.forEach { (sectionTitle, sectionNotes) ->
+                            item(key = "grid_header_$sectionTitle", span = { GridItemSpan(maxLineSpan) }) {
+                                Text(
+                                    text = sectionTitle,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = iOSTextSecondary,
+                                    modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
+                                )
+                            }
+                            items(
+                                items = sectionNotes,
+                                key = { "grid_${it.id}" }
+                            ) { note ->
+                                IOSNoteGridCard(
+                                    note = note,
+                                    searchQuery = searchQuery,
+                                    onClick = {
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        onNoteClick(note)
+                                    },
+                                    onLongClick = {
+                                        performHaptic(HapticFeedbackType.LongPress)
+                                        noteActionTarget = note
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             } else {
+                // INSET GROUPED LIST VIEW WITH SWIPE GESTURES
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -482,34 +583,32 @@ fun NotesListScreen(
                             val rowShape = remember(index, pinnedNotes.size) {
                                 getRowShape(index, pinnedNotes.size)
                             }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(rowShape)
-                                    .background(iOSCardBackground)
-                            ) {
-                                Column {
-                                    IOSNoteRow(
-                                        note = note,
-                                        searchQuery = searchQuery,
-                                        onClick = {
-                                            performHaptic(HapticFeedbackType.TextHandleMove)
-                                            onNoteClick(note)
-                                        },
-                                        onLongClick = {
-                                            performHaptic(HapticFeedbackType.LongPress)
-                                            noteActionTarget = note
-                                        }
-                                    )
-                                    if (index < pinnedNotes.size - 1) {
-                                        HorizontalDivider(
-                                            modifier = Modifier.padding(start = 16.dp),
-                                            thickness = 0.5.dp,
-                                            color = iOSDivider
-                                        )
-                                    }
-                                }
-                            }
+                            IOSSwipeableNoteRow(
+                                note = note,
+                                rowShape = rowShape,
+                                searchQuery = searchQuery,
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    onNoteClick(note)
+                                },
+                                onLongClick = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    noteActionTarget = note
+                                },
+                                onTogglePin = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    onTogglePin(note)
+                                },
+                                onDelete = {
+                                    performHaptic(HapticFeedbackType.LongPress)
+                                    noteToDelete = note
+                                },
+                                onMove = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    noteToMove = note
+                                },
+                                showDivider = index < pinnedNotes.size - 1
+                            )
                         }
                     }
 
@@ -533,34 +632,32 @@ fun NotesListScreen(
                                 val rowShape = remember(index, sectionNotes.size) {
                                     getRowShape(index, sectionNotes.size)
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(rowShape)
-                                        .background(iOSCardBackground)
-                                ) {
-                                    Column {
-                                        IOSNoteRow(
-                                            note = note,
-                                            searchQuery = searchQuery,
-                                            onClick = {
-                                                performHaptic(HapticFeedbackType.TextHandleMove)
-                                                onNoteClick(note)
-                                            },
-                                            onLongClick = {
-                                                performHaptic(HapticFeedbackType.LongPress)
-                                                noteActionTarget = note
-                                            }
-                                        )
-                                        if (index < sectionNotes.size - 1) {
-                                            HorizontalDivider(
-                                                modifier = Modifier.padding(start = 16.dp),
-                                                thickness = 0.5.dp,
-                                                color = iOSDivider
-                                            )
-                                        }
-                                    }
-                                }
+                                IOSSwipeableNoteRow(
+                                    note = note,
+                                    rowShape = rowShape,
+                                    searchQuery = searchQuery,
+                                    onClick = {
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        onNoteClick(note)
+                                    },
+                                    onLongClick = {
+                                        performHaptic(HapticFeedbackType.LongPress)
+                                        noteActionTarget = note
+                                    },
+                                    onTogglePin = {
+                                        performHaptic(HapticFeedbackType.LongPress)
+                                        onTogglePin(note)
+                                    },
+                                    onDelete = {
+                                        performHaptic(HapticFeedbackType.LongPress)
+                                        noteToDelete = note
+                                    },
+                                    onMove = {
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        noteToMove = note
+                                    },
+                                    showDivider = index < sectionNotes.size - 1
+                                )
                             }
                         }
                     }
@@ -1169,7 +1266,7 @@ fun IOSNoteRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (note.isPinned) {
                     Icon(
@@ -1240,15 +1337,403 @@ fun IOSNoteRow(
                 }
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.width(8.dp))
+/**
+ * iOS-grade Swipeable Note Row with drag gestures:
+ * - Swipe right: Pin/Unpin (amber gold)
+ * - Swipe left: Move to Folder (indigo) & Delete (red)
+ * - Full swipe left: Delete
+ * - Tap snaps closed
+ */
+@Composable
+fun IOSSwipeableNoteRow(
+    note: Note,
+    rowShape: RoundedCornerShape,
+    searchQuery: String = "",
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onTogglePin: () -> Unit,
+    onDelete: () -> Unit,
+    onMove: () -> Unit,
+    showDivider: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
 
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = iOSTextTertiary.copy(alpha = 0.4f),
-            modifier = Modifier.size(18.dp)
-        )
+    val offsetX = remember { Animatable(0f) }
+    var hasHapticTriggered by remember { mutableStateOf(false) }
+
+    val actionWidthPx = with(density) { 140.dp.toPx() }
+    val fullDeleteThresholdPx = with(density) { 190.dp.toPx() }
+    val pinThresholdPx = with(density) { 95.dp.toPx() }
+    val maxSwipeLeftPx = with(density) { 260.dp.toPx() }
+    val maxSwipeRightPx = with(density) { 130.dp.toPx() }
+
+    val draggableState = rememberDraggableState { delta ->
+        val newOffset = (offsetX.value + delta).coerceIn(-maxSwipeLeftPx, maxSwipeRightPx)
+        coroutineScope.launch {
+            offsetX.snapTo(newOffset)
+        }
+        val isFullSwipe = newOffset <= -fullDeleteThresholdPx || newOffset >= pinThresholdPx
+        if (isFullSwipe && !hasHapticTriggered) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            hasHapticTriggered = true
+        } else if (!isFullSwipe && hasHapticTriggered) {
+            hasHapticTriggered = false
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(rowShape)
+            .background(iOSCardBackground)
+    ) {
+        // Behind Actions Layer
+        val currentOffset = offsetX.value
+        if (currentOffset > 0) {
+            // Swipe Right: Pin Action (Warm Amber Gold)
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(iOSYellow),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PushPin,
+                        contentDescription = if (note.isPinned) "Unpin" else "Pin",
+                        tint = Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (note.isPinned) "Unpin" else "Pin",
+                        style = MonolithTypography.titleMedium.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Black
+                    )
+                }
+            }
+        } else if (currentOffset < 0) {
+            // Swipe Left: Move + Delete Actions
+            val isFullDelete = currentOffset <= -fullDeleteThresholdPx
+            if (isFullDelete) {
+                // Full Swipe: Delete expands over full width
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(Color(0xFFFF453A)),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Row(
+                        modifier = Modifier.padding(end = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Delete",
+                            style = MonolithTypography.titleMedium.copy(
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            } else {
+                // Split Action buttons: Move (Indigo) and Delete (Red)
+                Row(
+                    modifier = Modifier.matchParentSize(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Move Button
+                    Box(
+                        modifier = Modifier
+                            .width(70.dp)
+                            .fillMaxHeight()
+                            .background(Color(0xFF5E5CE6))
+                            .clickable {
+                                coroutineScope.launch {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                }
+                                onMove()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = "Move",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Move",
+                                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Delete Button
+                    Box(
+                        modifier = Modifier
+                            .width(70.dp)
+                            .fillMaxHeight()
+                            .background(Color(0xFFFF453A))
+                            .clickable {
+                                coroutineScope.launch {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                }
+                                onDelete()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Delete",
+                                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Foreground Note Row
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .background(iOSCardBackground)
+                .draggable(
+                    state = draggableState,
+                    orientation = Orientation.Horizontal,
+                    onDragStopped = {
+                        val current = offsetX.value
+                        coroutineScope.launch {
+                            when {
+                                current <= -fullDeleteThresholdPx -> {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                    onDelete()
+                                }
+                                current <= -actionWidthPx / 2f -> {
+                                    offsetX.animateTo(-actionWidthPx, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                }
+                                current >= pinThresholdPx -> {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                    onTogglePin()
+                                }
+                                else -> {
+                                    offsetX.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 450f))
+                                }
+                            }
+                        }
+                    }
+                )
+        ) {
+            IOSNoteRow(
+                note = note,
+                searchQuery = searchQuery,
+                onClick = {
+                    if (offsetX.value != 0f) {
+                        coroutineScope.launch {
+                            offsetX.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 500f))
+                        }
+                    } else {
+                        onClick()
+                    }
+                },
+                onLongClick = onLongClick
+            )
+            if (showDivider) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 16.dp),
+                    thickness = 0.5.dp,
+                    color = iOSDivider
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Apple Notes Gallery View: 2-column index cards
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+fun IOSNoteGridCard(
+    note: Note,
+    searchQuery: String = "",
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.965f else 1f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
+        label = "gridCardPressScale"
+    )
+
+    val highlightColor = iOSYellow
+    val titleText = remember(note.displayTitle, searchQuery, highlightColor) {
+        if (searchQuery.isBlank()) AnnotatedString(note.displayTitle)
+        else highlightQuery(note.displayTitle, searchQuery, highlightColor)
+    }
+    val snippetText = remember(note.previewSnippet, searchQuery, highlightColor) {
+        if (note.previewSnippet.isBlank()) null
+        else if (searchQuery.isBlank()) AnnotatedString(note.previewSnippet)
+        else highlightQuery(note.previewSnippet, searchQuery, highlightColor)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = iOSCardBackground,
+        border = BorderStroke(0.5.dp, Color(0xFF2C2C2E)),
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 130.dp, max = 190.dp)
+            .graphicsLayer {
+                scaleX = pressScale
+                scaleY = pressScale
+            }
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp)
+        ) {
+            // Badges row: Pin & Folder & Checklists
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (note.isPinned) {
+                        Icon(
+                            imageVector = Icons.Default.PushPin,
+                            contentDescription = "Pinned",
+                            tint = iOSYellow,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .padding(end = 4.dp)
+                        )
+                    }
+                    if (note.folderName != "Notes") {
+                        Text(
+                            text = "📁 ${note.folderName}",
+                            style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),
+                            color = iOSYellow.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                note.taskStats?.let { (completed, total) ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (completed == total) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = if (completed == total) "✓" else "$completed/$total",
+                            style = MonolithTypography.labelSmall.copy(fontSize = 10.sp),
+                            color = if (completed == total) iOSEmerald else iOSYellow,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Title
+            Text(
+                text = titleText,
+                style = MonolithTypography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                ),
+                color = iOSTextPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Body preview snippet (up to 3 lines)
+            if (snippetText != null) {
+                Text(
+                    text = snippetText,
+                    style = MonolithTypography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    ),
+                    color = iOSTextSecondary,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+            } else {
+                Spacer(modifier = Modifier.weight(1f, fill = false))
+            }
+
+            // Date pill
+            Text(
+                text = note.formattedDate,
+                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
+                color = iOSTextTertiary
+            )
+        }
     }
 }
 
