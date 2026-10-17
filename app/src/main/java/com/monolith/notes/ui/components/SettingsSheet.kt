@@ -465,7 +465,7 @@ fun SettingsSheet(
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Version 1.5.1 • Pure Offline Markdown",
+                            text = "Version 1.6.0 • Pure Offline Markdown",
                             style = MonolithTypography.labelSmall.copy(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
