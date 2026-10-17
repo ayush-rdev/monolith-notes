@@ -5,9 +5,7 @@ package com.monolith.notes.ui.list
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -52,6 +50,7 @@ import com.monolith.notes.data.EditorFontSize
 import com.monolith.notes.data.NewNoteStartStyle
 import com.monolith.notes.data.NoteSortOrder
 import com.monolith.notes.data.sync.SyncResult
+import com.monolith.notes.data.sync.SyncState
 import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.components.SettingsSheet
@@ -96,6 +95,8 @@ fun NotesListScreen(
     onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
     onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
+    syncState: SyncState = SyncState.IDLE,
+    onTriggerSync: () -> Unit = {},
     isLoaded: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -219,8 +220,88 @@ fun NotesListScreen(
                     )
                 }
 
-                // Right action buttons: Knowledge Graph & Settings
+                // Right action buttons: Cloud Sync Status, Knowledge Graph & Settings
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isCloudConfigured = settings.googleDriveConfig.isConnected ||
+                            settings.cloudConfig.isLoggedIn ||
+                            settings.webDavConfig.isConfigured
+
+                    val infiniteTransition = rememberInfiniteTransition(label = "SyncSpin")
+                    val spinAngle by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "SyncSpinAngle"
+                    )
+
+                    IconButton(
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            if (isCloudConfigured) {
+                                onTriggerSync()
+                                val providerName = when {
+                                    settings.googleDriveConfig.isConnected -> "Google Drive"
+                                    settings.cloudConfig.isLoggedIn -> "Monolith Cloud"
+                                    settings.webDavConfig.isConfigured -> "WebDAV"
+                                    else -> "Cloud"
+                                }
+                                Toast.makeText(context, "Syncing vault with $providerName...", Toast.LENGTH_SHORT).show()
+                            } else {
+                                showSettings = true
+                            }
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        when (syncState) {
+                            SyncState.SYNCING -> {
+                                Icon(
+                                    imageVector = Icons.Default.Sync,
+                                    contentDescription = "Syncing with Cloud",
+                                    tint = iOSYellow,
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer { rotationZ = spinAngle }
+                                )
+                            }
+                            SyncState.SUCCESS -> {
+                                Icon(
+                                    imageVector = Icons.Default.CloudDone,
+                                    contentDescription = "Vault Synced",
+                                    tint = Color(0xFF4ADE80),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            SyncState.ERROR -> {
+                                Icon(
+                                    imageVector = Icons.Default.CloudOff,
+                                    contentDescription = "Sync Error",
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            SyncState.IDLE -> {
+                                if (isCloudConfigured) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudDone,
+                                        contentDescription = "Cloud Connected",
+                                        tint = iOSYellow.copy(alpha = 0.85f),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudQueue,
+                                        contentDescription = "Connect Cloud Sync",
+                                        tint = iOSTextSecondary.copy(alpha = 0.55f),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     IconButton(
                         onClick = {
                             performHaptic(HapticFeedbackType.TextHandleMove)

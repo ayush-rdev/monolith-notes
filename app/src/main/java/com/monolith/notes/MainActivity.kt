@@ -34,11 +34,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import com.monolith.notes.data.NoteRepository
 import com.monolith.notes.data.SettingsManager
 import com.monolith.notes.data.sync.GoogleDriveSyncEngine
 import com.monolith.notes.data.sync.MonolithCloudSyncEngine
 import com.monolith.notes.data.sync.SyncResult
+import com.monolith.notes.data.sync.SyncState
 import com.monolith.notes.data.sync.WebDavSyncEngine
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.editor.NoteEditorScreen
@@ -75,6 +77,96 @@ class MainActivity : FragmentActivity() {
     private lateinit var settingsManager: SettingsManager
     private var isAppUnlocked by mutableStateOf(false)
     private var pendingWidgetIntent by mutableStateOf<Intent?>(null)
+    var syncState by mutableStateOf(SyncState.IDLE)
+        private set
+    private var syncJob: kotlinx.coroutines.Job? = null
+
+    fun triggerAutoSync(debounceMs: Long = 0L) {
+        val settings = settingsManager.settings.value
+        val isGoogleConnected = settings.googleDriveConfig.isConnected
+        val isCloudConnected = settings.cloudConfig.isLoggedIn
+        val isWebDavConfigured = settings.webDavConfig.isConfigured
+
+        if (!isGoogleConnected && !isCloudConnected && !isWebDavConfigured) {
+            return
+        }
+
+        syncJob?.cancel()
+        syncJob = lifecycleScope.launch(Dispatchers.IO) {
+            if (debounceMs > 0) {
+                kotlinx.coroutines.delay(debounceMs)
+            }
+            withContext(Dispatchers.Main) {
+                syncState = SyncState.SYNCING
+            }
+
+            var anySuccess = false
+            var anyChanges = false
+
+            // 1. Google Drive Sync
+            if (isGoogleConnected) {
+                try {
+                    val res = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, settings.googleDriveConfig)
+                    if (res.isSuccess) {
+                        anySuccess = true
+                        settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
+                        if (res.downloadedCount > 0 || res.uploadedCount > 0) {
+                            anyChanges = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            // 2. Monolith Cloud Sync
+            if (isCloudConnected) {
+                try {
+                    val res = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
+                    if (res.isSuccess) {
+                        anySuccess = true
+                        settingsManager.updateCloudLastSync(System.currentTimeMillis())
+                        if (res.downloadedCount > 0 || res.uploadedCount > 0) {
+                            anyChanges = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            // 3. WebDAV Sync
+            if (isWebDavConfigured) {
+                try {
+                    val res = WebDavSyncEngine.sync(repository.notesDir, settings.webDavConfig)
+                    if (res.isSuccess) {
+                        anySuccess = true
+                        settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                        if (res.downloadedCount > 0 || res.uploadedCount > 0) {
+                            anyChanges = true
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            if (anyChanges) {
+                repository.loadNotes()
+                repository.loadTrashNotes()
+            }
+
+            withContext(Dispatchers.Main) {
+                syncState = if (anySuccess) SyncState.SUCCESS else SyncState.ERROR
+            }
+            kotlinx.coroutines.delay(2500)
+            withContext(Dispatchers.Main) {
+                if (syncState != SyncState.SYNCING) {
+                    syncState = SyncState.IDLE
+                }
+            }
+        }
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -126,14 +218,7 @@ class MainActivity : FragmentActivity() {
                             )
                             settingsManager.setGoogleDriveConfig(updatedConfig)
                             android.widget.Toast.makeText(this@MainActivity, "Connected to Google Drive: $email", android.widget.Toast.LENGTH_SHORT).show()
-                            scope.launch(Dispatchers.IO) {
-                                val syncRes = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, updatedConfig)
-                                if (syncRes.isSuccess) {
-                                    settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
-                                    repository.loadNotes()
-                                    repository.loadTrashNotes()
-                                }
-                            }
+                            triggerAutoSync(debounceMs = 0L)
                         } catch (e: com.google.android.gms.common.api.ApiException) {
                             val code = e.statusCode
                             if (code == 10) {
@@ -147,6 +232,7 @@ class MainActivity : FragmentActivity() {
                     BackHandler(enabled = currentScreen != Screen.List) {
                         when (currentScreen) {
                             is Screen.Editor -> {
+                                triggerAutoSync(debounceMs = 0L)
                                 if (editorBackStack.isNotEmpty()) {
                                     val prevNote = editorBackStack.removeLast()
                                     val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
@@ -167,52 +253,7 @@ class MainActivity : FragmentActivity() {
                         repository.setSortOrder(settings.sortOrder)
                         repository.loadNotes()
                         repository.loadTrashNotes()
-
-                        // Auto-sync WebDAV if enabled
-                        if (settings.webDavConfig.autoSyncOnLaunch && settings.webDavConfig.isConfigured) {
-                            withContext(Dispatchers.IO) {
-                                val result = WebDavSyncEngine.sync(repository.notesDir, settings.webDavConfig)
-                                if (result.isSuccess) {
-                                    settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
-                                    if (result.downloadedCount > 0) {
-                                        repository.loadNotes()
-                                        repository.loadTrashNotes()
-                                    }
-                                }
-                            }
-                        }
-
-                        // Auto-sync Monolith Cloud Vault if logged in
-                        if (settings.cloudConfig.isLoggedIn && settings.cloudConfig.autoSyncOnLaunch) {
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    val result = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
-                                    if (result.isSuccess) {
-                                        settingsManager.updateCloudLastSync(System.currentTimeMillis())
-                                        if (result.downloadedCount > 0) {
-                                            repository.loadNotes()
-                                            repository.loadTrashNotes()
-                                        }
-                                    }
-                                } catch (_: Exception) {}
-                            }
-                        }
-
-                        // Auto-sync Google Drive if connected
-                        if (settings.googleDriveConfig.isConnected && settings.googleDriveConfig.autoSyncOnLaunch) {
-                            withContext(Dispatchers.IO) {
-                                try {
-                                    val result = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, settings.googleDriveConfig)
-                                    if (result.isSuccess) {
-                                        settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
-                                        if (result.downloadedCount > 0) {
-                                            repository.loadNotes()
-                                            repository.loadTrashNotes()
-                                        }
-                                    }
-                                } catch (_: Exception) {}
-                            }
-                        }
+                        triggerAutoSync(debounceMs = 400L)
                     }
 
                     // Process incoming Intent capture triggers (Widget, Quick Note Tile, Share Target)
@@ -443,6 +484,7 @@ class MainActivity : FragmentActivity() {
                                         onMoveNoteToFolder = { note, targetFolder ->
                                             scope.launch {
                                                 repository.moveNoteToFolder(note, targetFolder)
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         },
                                         onUpdateBiometricLock = { enabled ->
@@ -495,16 +537,19 @@ class MainActivity : FragmentActivity() {
                                         onTogglePin = { note ->
                                             scope.launch {
                                                 repository.togglePin(note)
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         },
                                         onDeleteNote = { note ->
                                             scope.launch {
                                                 repository.deleteNote(note)
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         },
                                         onDuplicateNote = { note ->
                                             scope.launch {
                                                 val duplicated = repository.duplicateNote(note)
+                                                triggerAutoSync(debounceMs = 0L)
                                                 currentScreen = Screen.Editor(duplicated)
                                             }
                                         },
@@ -578,7 +623,9 @@ class MainActivity : FragmentActivity() {
                                                 repository.loadTrashNotes()
                                             }
                                             result
-                                        }
+                                        },
+                                        syncState = syncState,
+                                        onTriggerSync = { triggerAutoSync(debounceMs = 0L) }
                                     )
                                 }
                                 is Screen.Editor -> {
@@ -589,6 +636,7 @@ class MainActivity : FragmentActivity() {
                                         vaultPath = repository.notesDir.absolutePath,
                                         settings = settings,
                                         onBack = {
+                                            triggerAutoSync(debounceMs = 0L)
                                             if (editorBackStack.isNotEmpty()) {
                                                 val prevNote = editorBackStack.removeLast()
                                                 val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
@@ -618,6 +666,7 @@ class MainActivity : FragmentActivity() {
                                             scope.launch {
                                                 repository.saveNote(updatedNote)
                                                 QuickCaptureWidgetProvider.updateAllWidgets(applicationContext)
+                                                triggerAutoSync(debounceMs = 2500L)
                                             }
                                         },
                                         onSaveAttachment = { uri ->
@@ -627,6 +676,7 @@ class MainActivity : FragmentActivity() {
                                             scope.launch {
                                                 repository.deleteNote(noteToDelete)
                                                 QuickCaptureWidgetProvider.updateAllWidgets(applicationContext)
+                                                triggerAutoSync(debounceMs = 0L)
                                                 if (editorBackStack.isNotEmpty()) {
                                                     val prevNote = editorBackStack.removeLast()
                                                     val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
@@ -648,16 +698,19 @@ class MainActivity : FragmentActivity() {
                                         onRestoreNote = { noteToRestore ->
                                             scope.launch {
                                                 repository.restoreNote(noteToRestore)
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         },
                                         onPermanentlyDeleteNote = { noteToDelete ->
                                             scope.launch {
                                                 repository.permanentlyDelete(noteToDelete)
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         },
                                         onEmptyTrash = {
                                             scope.launch {
                                                 repository.emptyTrash()
+                                                triggerAutoSync(debounceMs = 0L)
                                             }
                                         }
                                     )
@@ -709,12 +762,18 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        triggerAutoSync(debounceMs = 600L)
+    }
+
     override fun onStop() {
         super.onStop()
         if (isChangingConfigurations) return
         if (settingsManager.settings.value.biometricLockEnabled) {
             isAppUnlocked = false
         }
+        triggerAutoSync(debounceMs = 0L)
     }
 
     private fun promptBiometricAuth(
