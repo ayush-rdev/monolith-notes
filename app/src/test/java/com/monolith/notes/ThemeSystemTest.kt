@@ -14,16 +14,16 @@ class ThemeSystemTest {
     @Test
     fun testThemeCountAndCategories() {
         val allThemes = AppTheme.entries
-        assertEquals("Expected 23 curated themes", 23, allThemes.size)
+        assertEquals("Expected 26 curated themes", 26, allThemes.size)
 
         val oledThemes = allThemes.filter { it.category == ThemeCategory.OLED }
         val classicsThemes = allThemes.filter { it.category == ThemeCategory.CLASSICS }
         val brutalistThemes = allThemes.filter { it.category == ThemeCategory.BRUTALIST }
         val paperThemes = allThemes.filter { it.category == ThemeCategory.PAPER }
 
-        assertEquals(6, oledThemes.size)
+        assertEquals(10, oledThemes.size)
         assertEquals(8, classicsThemes.size)
-        assertEquals(5, brutalistThemes.size)
+        assertEquals(4, brutalistThemes.size)
         assertEquals(4, paperThemes.size)
     }
 
@@ -92,7 +92,35 @@ class ThemeSystemTest {
     }
 
     @Test
-    fun testAll23ThemesHaveUniqueIdsAndValidPalettes() {
+    fun testMinimalDarkThemes() {
+        val minimalThemes = AppTheme.MINIMAL_DARK_THEMES
+        assertEquals(5, minimalThemes.size)
+
+        val expectedThemes = listOf(
+            AppTheme.OBSIDIAN,
+            AppTheme.TITANIUM,
+            AppTheme.MATTE_AMBER,
+            AppTheme.NORDIC_PINE,
+            AppTheme.MIDNIGHT_SLATE
+        )
+        assertEquals(expectedThemes, minimalThemes)
+
+        for (theme in minimalThemes) {
+            assertEquals("Minimal dark theme ${theme.displayName} must be pure black", androidx.compose.ui.graphics.Color(0xFF000000), theme.background)
+            assertTrue("Minimal dark theme ${theme.displayName} must be marked dark", theme.isDark)
+            assertTrue("Minimal dark theme ${theme.displayName} must have valid accent", theme.accent.value != 0UL)
+        }
+
+        // Test IDs resolve cleanly
+        assertEquals(AppTheme.OBSIDIAN, AppTheme.fromId("obsidian"))
+        assertEquals(AppTheme.TITANIUM, AppTheme.fromId("titanium"))
+        assertEquals(AppTheme.MATTE_AMBER, AppTheme.fromId("amber"))
+        assertEquals(AppTheme.NORDIC_PINE, AppTheme.fromId("pine"))
+        assertEquals(AppTheme.MIDNIGHT_SLATE, AppTheme.fromId("slate"))
+    }
+
+    @Test
+    fun testAllThemesHaveUniqueIdsAndValidPalettes() {
         val ids = mutableSetOf<String>()
         for (theme in AppTheme.entries) {
             assertTrue("Theme ID must not be blank", theme.id.isNotBlank())
@@ -101,6 +129,6 @@ class ThemeSystemTest {
             assertTrue("Theme display name must not be blank", theme.displayName.isNotBlank())
             assertTrue("Theme subtitle must not be blank", theme.subtitle.isNotBlank())
         }
-        assertEquals(23, ids.size)
+        assertEquals(26, ids.size)
     }
 }

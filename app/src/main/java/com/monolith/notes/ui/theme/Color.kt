@@ -41,8 +41,8 @@ enum class AppTheme(
     // ==========================================
     OBSIDIAN(
         id = "obsidian",
-        displayName = "Obsidian Minimal",
-        subtitle = "OLED Pure Black & Obsidian Violet",
+        displayName = "Obsidian",
+        subtitle = "Pure OLED Black & Muted Violet",
         category = ThemeCategory.OLED,
         background = Color(0xFF000000),
         cardBackground = Color(0xFF121214),
@@ -53,6 +53,70 @@ enum class AppTheme(
         textSecondary = Color(0xFFA1A1AA),
         textTertiary = Color(0xFF71717A),
         divider = Color(0xFF222226),
+        isDark = true
+    ),
+    TITANIUM(
+        id = "titanium",
+        displayName = "Titanium",
+        subtitle = "Pure Monochrome & Brushed Steel",
+        category = ThemeCategory.OLED,
+        background = Color(0xFF000000),
+        cardBackground = Color(0xFF111113),
+        elevatedCard = Color(0xFF1B1B1E),
+        accent = Color(0xFFE2E8F0),
+        accentContainer = Color(0x33E2E8F0),
+        textPrimary = Color(0xFFFFFFFF),
+        textSecondary = Color(0xFFA1A1AA),
+        textTertiary = Color(0xFF64748B),
+        divider = Color(0xFF222226),
+        isDark = true
+    ),
+    MATTE_AMBER(
+        id = "amber",
+        displayName = "Amber",
+        subtitle = "Pure OLED Black & Tungsten Gold",
+        category = ThemeCategory.OLED,
+        background = Color(0xFF000000),
+        cardBackground = Color(0xFF131210),
+        elevatedCard = Color(0xFF1F1B16),
+        accent = Color(0xFFD99B35),
+        accentContainer = Color(0x33D99B35),
+        textPrimary = Color(0xFFFFFFFF),
+        textSecondary = Color(0xFFC7BBAF),
+        textTertiary = Color(0xFF7D7266),
+        divider = Color(0xFF24201A),
+        isDark = true
+    ),
+    NORDIC_PINE(
+        id = "pine",
+        displayName = "Pine",
+        subtitle = "Pure OLED Black & Muted Sage",
+        category = ThemeCategory.OLED,
+        background = Color(0xFF000000),
+        cardBackground = Color(0xFF0F1411),
+        elevatedCard = Color(0xFF17201C),
+        accent = Color(0xFF5BA67D),
+        accentContainer = Color(0x335BA67D),
+        textPrimary = Color(0xFFFFFFFF),
+        textSecondary = Color(0xFFB0C4B8),
+        textTertiary = Color(0xFF6B7E73),
+        divider = Color(0xFF1C2721),
+        isDark = true
+    ),
+    MIDNIGHT_SLATE(
+        id = "slate",
+        displayName = "Slate",
+        subtitle = "Pure OLED Black & Steel Blue",
+        category = ThemeCategory.OLED,
+        background = Color(0xFF000000),
+        cardBackground = Color(0xFF0F131A),
+        elevatedCard = Color(0xFF171E29),
+        accent = Color(0xFF6B9BD1),
+        accentContainer = Color(0x336B9BD1),
+        textPrimary = Color(0xFFFFFFFF),
+        textSecondary = Color(0xFFB0C0D4),
+        textTertiary = Color(0xFF65758A),
+        divider = Color(0xFF1B2330),
         isDark = true
     ),
     CRIMSON_NOIR(
@@ -319,22 +383,6 @@ enum class AppTheme(
         divider = Color(0xFF1A291C),
         isDark = true
     ),
-    TITANIUM(
-        id = "titanium",
-        displayName = "Titanium",
-        subtitle = "Nordic Silver & Graphite",
-        category = ThemeCategory.BRUTALIST,
-        background = Color(0xFF0C0D10),
-        cardBackground = Color(0xFF16181D),
-        elevatedCard = Color(0xFF22252C),
-        accent = Color(0xFFE2E8F0),
-        accentContainer = Color(0x33E2E8F0),
-        textPrimary = Color(0xFFF8FAFC),
-        textSecondary = Color(0xFF94A3B8),
-        textTertiary = Color(0xFF64748B),
-        divider = Color(0xFF22252C),
-        isDark = true
-    ),
     KANSO(
         id = "kanso",
         displayName = "Kanso",
@@ -422,6 +470,14 @@ enum class AppTheme(
 
     companion object {
         fun fromId(id: String): AppTheme = entries.find { it.id.equals(id, ignoreCase = true) } ?: OBSIDIAN
+
+        val MINIMAL_DARK_THEMES: List<AppTheme> = listOf(
+            OBSIDIAN,
+            TITANIUM,
+            MATTE_AMBER,
+            NORDIC_PINE,
+            MIDNIGHT_SLATE
+        )
     }
 }
 

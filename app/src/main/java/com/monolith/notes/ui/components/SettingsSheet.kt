@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -144,16 +145,93 @@ fun SettingsSheet(
                         .clip(RoundedCornerShape(12.dp))
                         .background(iOSCardBackground)
                 ) {
-                    SettingsRow(
-                        icon = Icons.Default.Palette,
-                        iconTint = iOSYellow,
-                        title = "Theme",
-                        value = "Obsidian Minimal",
-                        onClick = {
-                            performHaptic(HapticFeedbackType.TextHandleMove)
-                            Toast.makeText(context, "Obsidian Minimal (Pure Black & Violet) active", Toast.LENGTH_SHORT).show()
+                    Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(LocalMonolithTheme.current.accent.copy(alpha = 0.16f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = LocalMonolithTheme.current.accent,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Theme: ${settings.theme.displayName}",
+                                    style = MonolithTypography.bodyLarge.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                                    color = iOSTextPrimary
+                                )
+                                Text(
+                                    text = settings.theme.subtitle,
+                                    style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
+                                    color = iOSTextSecondary
+                                )
+                            }
                         }
-                    )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Minimal Dark Themes Chips
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AppTheme.MINIMAL_DARK_THEMES.forEach { theme ->
+                                val isSelected = settings.theme == theme
+                                val chipBorderColor = if (isSelected) theme.accent else iOSDivider.copy(alpha = 0.6f)
+                                val chipBgColor = if (isSelected) theme.accentContainer.copy(alpha = 0.25f) else Color.Transparent
+
+                                Surface(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            performHaptic(HapticFeedbackType.TextHandleMove)
+                                            onUpdateTheme(theme)
+                                        },
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = chipBgColor,
+                                    border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, chipBorderColor)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(12.dp)
+                                                .clip(CircleShape)
+                                                .background(theme.accent)
+                                        )
+                                        Text(
+                                            text = theme.displayName,
+                                            style = MonolithTypography.bodyMedium.copy(
+                                                fontSize = 14.sp,
+                                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                            ),
+                                            color = if (isSelected) iOSTextPrimary else iOSTextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
             Spacer(modifier = Modifier.height(20.dp))

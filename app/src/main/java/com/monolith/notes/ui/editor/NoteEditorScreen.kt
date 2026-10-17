@@ -677,7 +677,7 @@ fun NoteEditorScreen(
                             )
                         }
 
-                        if (onDelete != null && !isNewNote) {
+                        if (onDelete != null) {
                             var showDeleteConfirm by remember { mutableStateOf(false) }
                             IconButton(
                                 onClick = {
@@ -703,7 +703,11 @@ fun NoteEditorScreen(
                                         TextButton(
                                             onClick = {
                                                 showDeleteConfirm = false
-                                                onDelete(currentNote)
+                                                if (currentNote.file == null && currentNote.title.isBlank() && currentNote.content.isBlank()) {
+                                                    onBack()
+                                                } else {
+                                                    onDelete(currentNote)
+                                                }
                                             }
                                         ) {
                                             Text("Delete", color = Color(0xFFFF453A), fontWeight = FontWeight.Bold)
