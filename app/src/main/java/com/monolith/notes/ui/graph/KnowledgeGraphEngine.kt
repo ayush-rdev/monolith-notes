@@ -172,10 +172,10 @@ object KnowledgeGraphEngine {
             if (degree == 0) orphanCount++
 
             val normPR = (pageRank[i] - minPR) / prRange
-            val isHub = degree >= 3 || (count > 8 && normPR > 0.65f)
+            val isHub = (count <= 10 && degree >= 2) || (count > 10 && (degree >= 6 || normPR > 0.75f))
 
             // Radius scales dynamically with degree and centrality
-            val radius = (12f + min(degree * 3.5f + normPR * 8f, 32f)).coerceIn(12f, 44f)
+            val radius = (12f + min(degree * 3.0f + normPR * 8f, 32f)).coerceIn(12f, 44f)
 
             val clusterName = when (clusterMode) {
                 ClusterMode.FOLDER -> notes[i].folderName

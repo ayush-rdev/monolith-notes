@@ -426,9 +426,11 @@ fun KnowledgeGraphScreen(
                     )
                 }
 
-                // Title Labels
+                // Title Labels (Obsidian-grade spatial filtering: shows core hubs at overview, neighbors on select, and deep labels on zoom)
                 val shouldDrawLabel = isSelected || isQueryMatch || isConnectedToSelected ||
-                        (scale > 0.85f && node.degree > 0) || (scale > 1.25f)
+                        (node.isHub && scale >= 0.75f) ||
+                        (scale >= 1.45f && node.degree >= 3) ||
+                        (scale >= 2.1f)
 
                 if (shouldDrawLabel) {
                     val label = node.note.displayTitle
