@@ -3,535 +3,1721 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monolith — Vector Icon Studio</title>
+  <title>Monolith — iOS 18 Champagne Gold Icon Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: #070709;
-      color: #f4f4f6;
+    :root {
+      --amoled-black: #000000;
+      --neon-accent: #facc15;
     }
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    .checkerboard {
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #000000;
+      color: #f4f4f6;
+      overflow-x: hidden;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Stage Backdrops */
+    .stage-amoled {
+      background-color: #000000;
+      background-image: radial-gradient(circle at 50% 48%, rgba(250, 204, 21, 0.075) 0%, rgba(0, 0, 0, 0) 68%);
+    }
+    .stage-checkerboard {
+      background-color: #08080a;
       background-image: 
-        linear-gradient(45deg, #121216 25%, transparent 25%), 
-        linear-gradient(-45deg, #121216 25%, transparent 25%), 
-        linear-gradient(45deg, transparent 75%, #121216 75%), 
-        linear-gradient(-45deg, transparent 75%, #121216 75%);
+        linear-gradient(45deg, #131318 25%, transparent 25%), 
+        linear-gradient(-45deg, #131318 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #131318 75%), 
+        linear-gradient(-45deg, transparent 75%, #131318 75%);
       background-size: 24px 24px;
       background-position: 0 0, 0 12px, 12px -12px, -12px 0;
-      background-color: #09090c;
     }
+    .checkerboard-sm {
+      background-color: #060608;
+      background-image: 
+        linear-gradient(45deg, #111115 25%, transparent 25%), 
+        linear-gradient(-45deg, #111115 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #111115 75%), 
+        linear-gradient(-45deg, transparent 75%, #111115 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+    }
+    /* Custom Range Sliders */
     input[type="range"] {
-      accent-color: #facc15;
+      -webkit-appearance: none;
+      appearance: none;
+      background: #121216;
+      height: 6px;
+      border-radius: 999px;
+      outline: none;
+      border: 1px solid #27272a;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--neon-accent);
+      cursor: pointer;
+      box-shadow: 0 0 12px var(--neon-accent);
+      border: 2px solid #ffffff;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+    /* Desktop / iOS Dock Hover Physics */
+    .dock-item {
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), margin 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .dock-item:hover {
+      transform: translateY(-10px) scale(1.22);
+      margin-left: 6px;
+      margin-right: 6px;
+      z-index: 20;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #000000;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #3f3f46;
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col lg:flex-row overflow-x-hidden">
+<body class="min-h-screen flex flex-col xl:flex-row bg-black text-zinc-100 selection:bg-yellow-300 selection:text-black">
 
-  <!-- Left / Center Canvas Preview -->
-  <main class="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative checkerboard min-h-[520px]">
-    <!-- Top Status Pill -->
-    <div class="absolute top-6 left-6 flex items-center gap-3 bg-zinc-900/90 border border-zinc-800 px-4 py-2 rounded-full backdrop-blur-md">
-      <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
-      <span class="text-xs font-medium tracking-wider uppercase text-zinc-300">Monolith Vector Engine</span>
-      <span class="text-xs mono text-zinc-500">1024×1024 SVG</span>
-    </div>
+  <!-- ===================================================================== -->
+  <!-- LEFT / CENTER WORKSPACE: 1024x1024 STAGE & LIVE CONTEXT PREVIEWS      -->
+  <!-- ===================================================================== -->
+  <div class="flex-1 flex flex-col min-w-0">
 
-    <!-- Live SVG Container -->
-    <div id="preview-wrapper" class="w-full max-w-[460px] aspect-square flex items-center justify-center transition-transform duration-300">
-      <svg id="monolith-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="100%" height="100%">
-        <defs id="svg-defs">
-          <!-- Ambient Backdrop Gradient -->
-          <radialGradient id="bg-radial" cx="50%" cy="50%" r="60%">
-            <stop offset="0%" stop-color="#17150c" id="bg-stop-1" />
-            <stop offset="100%" stop-color="#070709" id="bg-stop-2" />
-          </radialGradient>
-
-          <!-- Squircle Base Gradient -->
-          <linearGradient id="squircle-grad" x1="15%" y1="10%" x2="85%" y2="90%">
-            <stop offset="0%" stop-color="#26252a" />
-            <stop offset="45%" stop-color="#121215" />
-            <stop offset="100%" stop-color="#08080a" />
-          </linearGradient>
-
-          <!-- Squircle Metallic Rim Gradient -->
-          <linearGradient id="squircle-rim" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#fef08a" stop-opacity="0.55" class="accent-light" />
-            <stop offset="35%" stop-color="#ca8a04" stop-opacity="0.2" class="accent-mid" />
-            <stop offset="70%" stop-color="#ca8a04" stop-opacity="0.15" class="accent-mid" />
-            <stop offset="100%" stop-color="#facc15" stop-opacity="0.6" class="accent-bright" />
-          </linearGradient>
-
-          <!-- Document Body Gradient -->
-          <linearGradient id="doc-body" x1="20%" y1="10%" x2="75%" y2="85%">
-            <stop offset="0%" stop-color="#1c1b20" />
-            <stop offset="100%" stop-color="#0b0b0e" />
-          </linearGradient>
-
-          <!-- Folded Flap Gradient -->
-          <linearGradient id="flap-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#09090b" />
-            <stop offset="55%" stop-color="#221f17" id="flap-mid" />
-            <stop offset="100%" stop-color="#eab308" stop-opacity="0.45" class="accent-mid" />
-          </linearGradient>
-
-          <!-- Note Line Gradient -->
-          <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#eab308" stop-opacity="0.35" class="accent-mid" />
-            <stop offset="60%" stop-color="#fde047" stop-opacity="0.85" class="accent-bright" />
-            <stop offset="100%" stop-color="#fef08a" stop-opacity="0.95" class="accent-light" />
-          </linearGradient>
-
-          <!-- Crystal Facet Gradients (Dynamically Updated via JS) -->
-          <linearGradient id="facet-bright" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#fef08a" class="c-spec" />
-            <stop offset="45%" stop-color="#eab308" class="c-primary" />
-            <stop offset="100%" stop-color="#422006" class="c-deep" />
-          </linearGradient>
-
-          <linearGradient id="facet-mid" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#facc15" class="c-primary" />
-            <stop offset="55%" stop-color="#854d0e" class="c-mid" />
-            <stop offset="100%" stop-color="#14110b" class="c-dark" />
-          </linearGradient>
-
-          <linearGradient id="facet-deep" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#713f12" class="c-mid" />
-            <stop offset="50%" stop-color="#1f1608" class="c-deep" />
-            <stop offset="100%" stop-color="#090807" class="c-dark" />
-          </linearGradient>
-
-          <linearGradient id="facet-obsidian" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#08080a" />
-            <stop offset="70%" stop-color="#18161b" />
-            <stop offset="100%" stop-color="#713f12" stop-opacity="0.6" class="c-mid" />
-          </linearGradient>
-
-          <linearGradient id="facet-glass" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55" />
-            <stop offset="40%" stop-color="#fde047" stop-opacity="0.25" class="c-spec" />
-            <stop offset="100%" stop-color="#09090b" stop-opacity="0.9" />
-          </linearGradient>
-
-          <!-- Glow & Shadow Filters -->
-          <filter id="squircle-shadow" x="-20%" y="-20%" width="140%" height="145%">
-            <feDropShadow dx="0" dy="28" stdDeviation="32" flood-color="#000000" flood-opacity="0.85" />
-          </filter>
-
-          <filter id="logo-shadow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="-8" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.9" />
-          </filter>
-
-          <filter id="crystal-glow" x="-35%" y="-35%" width="170%" height="170%">
-            <feGaussianBlur stdDeviation="22" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          <filter id="glint-glow" x="-100%" y="-100%" width="300%" height="300%">
-            <feGaussianBlur stdDeviation="5" result="blur1" />
-            <feGaussianBlur stdDeviation="12" result="blur2" />
-            <feMerge>
-              <feMergeNode in="blur2" />
-              <feMergeNode in="blur1" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        <!-- 1. Optional Full Canvas Wallpaper -->
-        <rect id="layer-wallpaper" width="1024" height="1024" fill="url(#bg-radial)" />
-
-        <!-- 2. Squircle App Icon Container -->
-        <g id="layer-squircle">
-          <!-- Outer Metallic Bezel -->
-          <rect x="166" y="166" width="692" height="692" rx="164" fill="#0c0c0f" stroke="url(#squircle-rim)" stroke-width="4" filter="url(#squircle-shadow)" />
-          <!-- Inner Matte Surface -->
-          <rect x="182" y="182" width="660" height="660" rx="150" fill="url(#squircle-grad)" stroke="url(#squircle-rim)" stroke-width="2" />
-        </g>
-
-        <!-- 3. Ambient Crystal Backlight -->
-        <g id="layer-ambient-glow" opacity="0.55">
-          <circle cx="670" cy="560" r="145" fill="#eab308" class="c-primary-fill" filter="url(#crystal-glow)" opacity="0.35" />
-          <ellipse cx="520" cy="735" rx="160" ry="32" fill="#facc15" class="c-spec-fill" filter="url(#crystal-glow)" opacity="0.45" />
-        </g>
-
-        <!-- 4. Core Monolith Note + Crystal Mark -->
-        <g id="layer-mark" filter="url(#logo-shadow)">
-          
-          <!-- 4A. Document Sheet Base -->
-          <g id="doc-group">
-            <!-- Main Page Polygon -->
-            <path d="M 406 266 L 604 266 L 604 680 L 292 736 L 292 384 Z" 
-                  fill="url(#doc-body)" 
-                  stroke="url(#line-grad)" 
-                  stroke-width="2.5" 
-                  stroke-linejoin="round" />
-
-            <!-- Horizontal Note Lines (Clipped nicely before the crystal edge) -->
-            <g id="note-lines" stroke="url(#line-grad)" stroke-width="3" stroke-linecap="round" opacity="0.85">
-              <line x1="338" y1="432" x2="578" y2="432" />
-              <line x1="338" y1="478" x2="548" y2="478" />
-              <line x1="338" y1="524" x2="502" y2="524" />
-              <line x1="338" y1="570" x2="455" y2="570" />
-              <line x1="338" y1="616" x2="408" y2="616" />
-              <line x1="338" y1="662" x2="365" y2="662" />
-              <line x1="338" y1="704" x2="338" y2="704" />
-            </g>
-
-            <!-- Folded Top-Left Corner Shadow -->
-            <path d="M 292 384 L 382 384 Q 406 384 406 360 L 406 266 Z" 
-                  fill="#000000" opacity="0.65" transform="translate(4, 10)" filter="url(#glint-glow)" />
-
-            <!-- Folded Top-Left Flap -->
-            <path d="M 292 384 L 374 384 Q 406 384 406 352 L 406 266 Z" 
-                  fill="url(#flap-grad)" 
-                  stroke="url(#line-grad)" 
-                  stroke-width="2.5" 
-                  stroke-linejoin="round" />
-          </g>
-
-          <!-- 4B. 3D Low-Poly Crystal Monolith Structure -->
-          <g id="crystal-mesh" stroke-linejoin="round" stroke-linecap="round">
-            <!-- Upper Apex Shards -->
-            <polygon points="604,266 644,344 604,422" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="604,266 720,362 644,344" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="644,344 720,362 604,422" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Upper-Mid Transition Shards -->
-            <polygon points="604,422 720,362 644,492" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="604,422 644,492 595,502" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="518,512 604,422 595,502" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Right Wing Shards -->
-            <polygon points="720,362 680,508 644,492" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="720,362 728,554 680,508" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="680,508 728,554 622,608" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="728,554 726,736 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Central Heart Facets -->
-            <polygon points="518,512 595,502 496,618" fill="url(#facet-glass)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="595,502 644,492 622,608" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="595,502 622,608 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="644,492 680,508 622,608" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Diagonal Left Spine Shards -->
-            <polygon points="424,604 518,512 496,618" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="292,736 424,604 496,618" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Bottom Base Facets -->
-            <polygon points="292,736 496,618 504,694" fill="url(#facet-deep)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="292,736 504,694 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.8" />
-            <polygon points="496,618 604,672 504,694" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="496,618 622,608 604,672" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="504,694 604,672 634,736" fill="url(#facet-obsidian)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="622,608 726,736 604,672" fill="url(#facet-mid)" stroke="url(#line-grad)" stroke-width="1.5" />
-            <polygon points="604,672 726,736 634,736" fill="url(#facet-bright)" stroke="url(#line-grad)" stroke-width="1.5" />
-
-            <!-- Sharp Outer Diagonal Rim Highlight -->
-            <polyline points="292,736 424,604 518,512 604,422 604,266" 
-                      fill="none" stroke="url(#line-grad)" stroke-width="3" opacity="0.9" />
-          </g>
-
-          <!-- 4C. Specular Vertex Glints (Optical Polish) -->
-          <g id="vertex-glints" filter="url(#glint-glow)">
-            <!-- Right-Mid Primary Glint -->
-            <g transform="translate(680, 508)">
-              <circle cx="0" cy="0" r="4" fill="#ffffff" />
-              <path d="M -22 0 L 22 0 M 0 -22 L 0 22" stroke="#fef08a" class="c-spec-stroke" stroke-width="2" stroke-linecap="round" />
-            </g>
-            <!-- Bottom-Mid Glint -->
-            <g transform="translate(504, 694)">
-              <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
-              <path d="M -18 0 L 18 0 M 0 -18 L 0 18" stroke="#fef08a" class="c-spec-stroke" stroke-width="1.8" stroke-linecap="round" />
-            </g>
-            <!-- Lower-Right Glint -->
-            <g transform="translate(652, 698)">
-              <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
-              <path d="M -12 0 L 12 0 M 0 -12 L 0 12" stroke="#fef08a" class="c-spec-stroke" stroke-width="1.5" stroke-linecap="round" />
-            </g>
-          </g>
-
-        </g>
-      </svg>
-    </div>
-  </main>
-
-  <!-- Right Control & Export Sidebar -->
-  <aside class="w-full lg:w-[420px] bg-zinc-950 border-t lg:border-t-0 lg:border-l border-zinc-800/80 p-6 lg:p-8 flex flex-col justify-between gap-8">
-    <div class="space-y-7">
-      <!-- Header -->
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight text-white flex items-center gap-2.5">
-          Monolith Icon Studio
-          <span class="text-[11px] font-medium px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">PRO</span>
-        </h1>
-        <p class="text-xs text-zinc-400 mt-1">Customize color physics, toggle background layers, and extract production-ready assets.</p>
+    <!-- Top Studio Header -->
+    <header class="h-14 px-5 sm:px-6 border-b border-zinc-900 bg-black/90 backdrop-blur-md flex items-center justify-between sticky top-0 z-30">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-[9px] bg-[#0c0c0f] border border-yellow-400/40 flex items-center justify-center shadow-[0_0_15px_rgba(250,204,21,0.18)]">
+          <svg viewBox="190 175 644 674" class="w-5 h-5">
+            <use href="#gfx-mark" />
+          </svg>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-[0.14em] text-sm text-white">MONOLITH</span>
+          <span class="text-zinc-700">/</span>
+          <span class="text-xs font-medium text-zinc-400 hidden sm:inline">iOS 18 Specular Icon Studio</span>
+        </div>
+        <span class="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-yellow-400/10 text-yellow-200 border border-yellow-400/25 mono">
+          <span id="header-pulse-dot" class="w-1.5 h-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_#fde047] animate-pulse"></span>
+          iOS 18 SPECULAR BEZEL + SVG MASK
+        </span>
       </div>
 
-      <!-- Color Theme Presets -->
-      <div class="space-y-2.5">
-        <label class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Color Presets</label>
-        <div class="grid grid-cols-2 gap-2.5">
-          <button onclick="applyPreset(48, 96, 53)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-yellow-500/40 text-left transition">
-            <span class="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_#facc15]"></span>
-            <span class="text-xs font-medium text-zinc-200">Solar Yellow</span>
-          </button>
-          <button onclick="applyPreset(38, 95, 50)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
-            <span class="w-4 h-4 rounded-full bg-amber-500 shadow-[0_0_10px_#f59e0b]"></span>
-            <span class="text-xs font-medium text-zinc-200">Imperial Gold</span>
-          </button>
-          <button onclick="applyPreset(56, 100, 55)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
-            <span class="w-4 h-4 rounded-full bg-lime-300 shadow-[0_0_10px_#fde047]"></span>
-            <span class="text-xs font-medium text-zinc-200">Cyber Canary</span>
-          </button>
-          <button onclick="applyPreset(272, 85, 60)" class="flex items-center gap-2.5 p-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-left transition">
-            <span class="w-4 h-4 rounded-full bg-purple-500 shadow-[0_0_10px_#a855f7]"></span>
-            <span class="text-xs font-medium text-zinc-200">Original Obsidian</span>
-          </button>
+      <!-- Extraction Mode Quick Switcher -->
+      <div class="flex items-center gap-1.5 bg-zinc-950 p-1 rounded-lg border border-zinc-800/90">
+        <button id="header-btn-squircle" onclick="setExtractionMode(false)" class="px-3 py-1 rounded-md text-xs font-semibold transition bg-yellow-300 text-black shadow-[0_0_14px_rgba(253,224,71,0.35)]">
+          iOS Squircle Icon
+        </button>
+        <button id="header-btn-mark" onclick="setExtractionMode(true)" class="px-3 py-1 rounded-md text-xs font-medium transition text-zinc-400 hover:text-white">
+          Logo Mark Only (Transparent)
+        </button>
+      </div>
+    </header>
+
+    <!-- Main 1024x1024 Interactive Stage -->
+    <section id="main-stage-bg" class="relative flex-1 flex flex-col items-center justify-center p-6 sm:p-10 stage-amoled min-h-[500px] border-b border-zinc-900 overflow-hidden">
+
+      <!-- Top-Left HUD Pills -->
+      <div class="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
+        <div class="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
+          <span class="text-zinc-500">Finish:</span>
+          <span id="hud-mode" class="text-yellow-200 font-semibold">iOS 18 Dark Specular</span>
+        </div>
+        <div class="bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-xs">
+          <span class="text-zinc-500">Champagne Gold:</span>
+          <span id="hud-swatch-dot" class="w-2.5 h-2.5 rounded-full bg-[#FDE047] inline-block shadow-[0_0_8px_#FDE047]"></span>
+          <span id="hud-hex" class="mono text-zinc-200">#FDE047</span>
+        </div>
+        <div class="hidden sm:flex bg-zinc-950/90 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg items-center gap-1.5 text-xs">
+          <span class="text-zinc-500">iOS Bezel Rim:</span>
+          <span id="hud-rim" class="mono text-zinc-200">88% Top-Lit</span>
         </div>
       </div>
 
-      <!-- Fine-Tune Sliders -->
-      <div class="space-y-4 pt-2 border-t border-zinc-900">
+      <!-- Top-Right Stage Controls -->
+      <div class="absolute top-4 right-4 z-10 flex flex-wrap items-center gap-2">
+        <button onclick="toggleStageBackdrop()" id="btn-stage-bg" class="bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-zinc-300 flex items-center gap-1.5 transition" title="Switch to Alpha Grid to verify transparent knockout channel">
+          <span class="w-2 h-2 rounded-full bg-yellow-300"></span>
+          <span id="label-stage-bg">Stage: AMOLED #000</span>
+        </button>
+        <button onclick="toggleBlueprintGrid()" id="btn-grid" class="bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-zinc-300 flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm0 6h16M12 4v16"/></svg>
+          <span>iOS Grid</span>
+        </button>
+        <button onclick="openSVGModal()" class="bg-zinc-950/90 hover:bg-zinc-900 border border-zinc-800/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs text-zinc-300 flex items-center gap-1.5 transition">
+          <svg class="w-3.5 h-3.5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+          <span>Inspect SVG</span>
+        </button>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- MASTER 1024x1024 iOS 18 STACKED NOTE VECTOR ICON SVG              -->
+      <!-- ================================================================= -->
+      <div class="w-full max-w-[440px] aspect-square flex items-center justify-center relative transition-all duration-300">
+        <svg id="monolith-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="100%" height="100%" class="select-none">
+          <defs id="svg-defs">
+            <!-- 1. Pure #000000 AMOLED Wallpaper Gradient -->
+            <radialGradient id="amoled-wallpaper-grad" cx="50%" cy="48%" r="60%">
+              <stop offset="0%" stop-color="#1c180c" id="bg-core-glow" />
+              <stop offset="58%" stop-color="#060503" />
+              <stop offset="100%" stop-color="#000000" />
+            </radialGradient>
+
+            <!-- 2. iOS 18 Dark Mode Squircle Surface (#141417 to #060608) -->
+            <linearGradient id="squircle-surface-grad" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="#17171c" id="sq-top-tint" />
+              <stop offset="35%" stop-color="#0d0d11" />
+              <stop offset="100%" stop-color="#050507" />
+            </linearGradient>
+
+            <!-- iOS Top-Surface Subtle Ambient Sheen -->
+            <radialGradient id="squircle-top-sheen" cx="50%" cy="8%" r="65%">
+              <stop offset="0%" stop-color="#fef9c3" stop-opacity="0.10" class="c-cream" id="sq-sheen-stop" />
+              <stop offset="55%" stop-color="#eab308" stop-opacity="0.02" class="c-mid" />
+              <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+            </radialGradient>
+
+            <!-- 3. Authentic iOS 18 Top-Lit Metallic Glass Bezel Rim (Outer Squircle) -->
+            <linearGradient id="ios-squircle-rim" x1="35%" y1="0%" x2="65%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92" id="sq-rim-top" />
+              <stop offset="14%" stop-color="#fef08a" stop-opacity="0.72" class="c-spec" id="sq-rim-upper" />
+              <stop offset="48%" stop-color="#ca8a04" stop-opacity="0.18" class="c-mid" id="sq-rim-mid" />
+              <stop offset="82%" stop-color="#713f12" stop-opacity="0.16" class="c-deep" />
+              <stop offset="100%" stop-color="#fde047" stop-opacity="0.48" class="c-bright" id="sq-rim-bot" />
+            </linearGradient>
+
+            <!-- Recessed iOS Inner Hairline Rim -->
+            <linearGradient id="ios-squircle-inner-rim" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="#fef9c3" stop-opacity="0.32" class="c-cream" />
+              <stop offset="35%" stop-color="#ffffff" stop-opacity="0.05" />
+              <stop offset="100%" stop-color="#eab308" stop-opacity="0.15" class="c-mid" />
+            </linearGradient>
+
+            <!-- 4. Front Note Card Surface (Rich Obsidian-Graphite #1f1f24 to #0d0d10) -->
+            <linearGradient id="front-card-grad" x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0%" stop-color="#232329" id="front-stop-1" />
+              <stop offset="48%" stop-color="#151519" id="front-stop-2" />
+              <stop offset="100%" stop-color="#0c0c0f" id="front-stop-3" />
+            </linearGradient>
+
+            <!-- Front Note Card iOS Top-Lit Specular Border Rim -->
+            <linearGradient id="ios-front-card-rim" x1="18%" y1="0%" x2="82%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88" id="fc-rim-1" />
+              <stop offset="22%" stop-color="#fef08a" stop-opacity="0.65" class="c-spec" id="fc-rim-2" />
+              <stop offset="60%" stop-color="#a16207" stop-opacity="0.22" class="c-mid" id="fc-rim-3" />
+              <stop offset="100%" stop-color="#fde047" stop-opacity="0.38" class="c-bright" id="fc-rim-4" />
+            </linearGradient>
+
+            <!-- 5. Back Offset Card Satin Champagne-Yellow Metallic Gradient -->
+            <linearGradient id="back-accent-grad" x1="12%" y1="0%" x2="88%" y2="100%">
+              <stop offset="0%" stop-color="#fef9c3" class="c-cream" id="accent-stop-1" />
+              <stop offset="28%" stop-color="#fde047" class="c-spec" id="accent-stop-2" />
+              <stop offset="68%" stop-color="#eab308" class="c-bright" id="accent-stop-3" />
+              <stop offset="100%" stop-color="#a16207" class="c-primary" id="accent-stop-4" />
+            </linearGradient>
+
+            <!-- Back Card Anodized Specular Rim Border -->
+            <linearGradient id="ios-back-card-rim" x1="15%" y1="0%" x2="85%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95" />
+              <stop offset="35%" stop-color="#fef9c3" stop-opacity="0.75" class="c-cream" />
+              <stop offset="75%" stop-color="#ca8a04" stop-opacity="0.45" class="c-primary" />
+              <stop offset="100%" stop-color="#fef08a" stop-opacity="0.8" class="c-spec" />
+            </linearGradient>
+
+            <!-- Tertiary Card Gradient (3-Layer Cascade Mode) -->
+            <linearGradient id="tertiary-accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#eab308" class="c-bright" />
+              <stop offset="100%" stop-color="#713f12" class="c-deep" />
+            </linearGradient>
+
+            <!-- 6. Horizontal Pill Note Lines Gradients -->
+            <!-- Standard Warm-White / Slight-Yellow Tactile Pill Line -->
+            <linearGradient id="pill-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96" />
+              <stop offset="70%" stop-color="#fefce8" stop-opacity="0.92" id="line-warm-stop" />
+              <stop offset="100%" stop-color="#fef08a" stop-opacity="0.84" class="c-spec" />
+            </linearGradient>
+
+            <!-- Active First-Line Slight-Yellow Header Pill Gradient -->
+            <linearGradient id="pill-header-accent-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#fef9c3" class="c-cream" />
+              <stop offset="50%" stop-color="#fde047" class="c-spec" />
+              <stop offset="100%" stop-color="#eab308" class="c-bright" />
+            </linearGradient>
+
+            <!-- 7. Optical & Elevation Filters -->
+            <filter id="squircle-shadow" x="-20%" y="-20%" width="140%" height="145%">
+              <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#000000" flood-opacity="0.95" />
+            </filter>
+
+            <filter id="card-drop-shadow" x="-25%" y="-20%" width="150%" height="150%">
+              <feDropShadow dx="-6" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.82" />
+            </filter>
+
+            <filter id="ambient-aura-filter" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="40" id="aura-blur" />
+            </filter>
+
+            <filter id="header-line-glow" x="-30%" y="-80%" width="160%" height="260%">
+              <feGaussianBlur stdDeviation="4" result="b1" />
+              <feMerge>
+                <feMergeNode in="b1" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- ============================================================= -->
+          <!-- LAYER 1: OPTIONAL PURE #000000 AMOLED BACKDROP                -->
+          <!-- ============================================================= -->
+          <g id="layer-wallpaper" style="display: none;">
+            <rect width="1024" height="1024" fill="#000000" />
+            <rect width="1024" height="1024" fill="url(#amoled-wallpaper-grad)" />
+          </g>
+
+          <!-- ============================================================= -->
+          <!-- LAYER 2: AUTHENTIC iOS 18 DARK MODE SQUIRCLE CONTAINER        -->
+          <!-- (680x680 with rx=154 -> exact 22.6% iOS continuous curvature) -->
+          <!-- ============================================================= -->
+          <g id="layer-squircle">
+            <g id="gfx-squircle">
+              <!-- Deep Obsidian Base & Drop Shadow -->
+              <rect id="sq-main-body"
+                    x="172" y="172" width="680" height="680" rx="154"
+                    fill="url(#squircle-surface-grad)"
+                    filter="url(#squircle-shadow)" />
+
+              <!-- Subtle Top-Lit Ambient Glass Sheen -->
+              <rect x="172" y="172" width="680" height="680" rx="154"
+                    fill="url(#squircle-top-sheen)" />
+
+              <!-- Recessed Inner 1px Hairline Groove -->
+              <rect id="sq-inner-groove"
+                    x="182" y="182" width="660" height="660" rx="145"
+                    fill="none"
+                    stroke="url(#ios-squircle-inner-rim)"
+                    stroke-width="1.2"
+                    opacity="0.85" />
+
+              <!-- Primary iOS 18 Top-Lit Metallic Specular Bezel -->
+              <rect id="sq-outer-bezel"
+                    x="172" y="172" width="680" height="680" rx="154"
+                    fill="none"
+                    stroke="url(#ios-squircle-rim)"
+                    stroke-width="3.2" />
+            </g>
+          </g>
+
+          <!-- ============================================================= -->
+          <!-- LAYER 3: SUBSURFACE WARM CHAMPAGNE BACKLIGHT                  -->
+          <!-- ============================================================= -->
+          <g id="layer-ambient-glow">
+            <g id="gfx-ambient-glow" opacity="0.65">
+              <circle id="glow-back-orb" cx="420" cy="610" r="160"
+                      fill="#fde047" class="c-spec-fill"
+                      filter="url(#ambient-aura-filter)" opacity="0.34" />
+            </g>
+          </g>
+
+          <!-- ============================================================= -->
+          <!-- LAYER 4: STACKED NOTE CARDS WITH iOS SPECULAR BORDERS & MASK  -->
+          <!-- ============================================================= -->
+          <g id="layer-mark">
+            <g id="gfx-mark">
+              <!-- Populated dynamically by renderStackedNoteIcon() -->
+            </g>
+          </g>
+
+          <!-- ============================================================= -->
+          <!-- LAYER 5: iOS 18 ICON GRID & KEYLINE OVERLAY                   -->
+          <!-- ============================================================= -->
+          <g id="layer-keyline-grid" style="display: none;" pointer-events="none" opacity="0.35">
+            <rect x="172" y="172" width="680" height="680" rx="154" fill="none" stroke="#fde047" stroke-width="1.5" stroke-dasharray="6 6" />
+            <line x1="512" y1="130" x2="512" y2="894" stroke="#fde047" stroke-width="1" />
+            <line x1="130" y1="512" x2="894" y2="512" stroke="#fde047" stroke-width="1" />
+            <circle cx="512" cy="512" r="240" fill="none" stroke="#fde047" stroke-width="1" stroke-dasharray="4 4" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Design Architecture Caption Bar -->
+      <div class="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-400">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-yellow-300 shadow-[0_0_6px_#fde047]"></span>
+          <strong class="text-zinc-200">iOS 18 Specular Borders:</strong> Top-lit champagne glass rims on squircle &amp; both note sheets
+        </span>
+        <span class="hidden sm:inline text-zinc-700">•</span>
+        <span>
+          <strong class="text-zinc-200">True SVG Knockout Mask:</strong> 100% transparent negative-space L-channel
+        </span>
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- LIVE CONTEXT & SCALE INVARIANCE PREVIEWS                            -->
+    <!-- =================================================================== -->
+    <section class="p-6 sm:p-8 bg-black space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
-          <div class="flex justify-between text-xs mb-1.5">
-            <span class="text-zinc-300 font-medium">Accent Hue (Yellow ↔ Gold)</span>
-            <span id="hue-val" class="mono text-yellow-400">48°</span>
+          <h2 class="text-sm font-semibold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+            <svg class="w-4 h-4 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+            iOS 18 / macOS Dock &amp; Brand Lockup Previews
+          </h2>
+          <p class="text-xs text-zinc-500 mt-0.5">Verify how the slight-yellow champagne finish and iOS specular borders perform across dark docks, app headers, and 16px favicons.</p>
+        </div>
+        <span class="text-[11px] mono text-yellow-200 bg-yellow-400/10 border border-yellow-400/25 px-2.5 py-1 rounded-md self-start sm:self-auto">
+          LIVE VECTOR SYNC
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- CARD 1: iOS 18 / macOS DARK DOCK BENCHMARK (5 Cols) -->
+        <div class="lg:col-span-5 rounded-2xl bg-[#07070a] border border-zinc-800/80 p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-100">iOS 18 / macOS Dark Mode Dock</h3>
+              <p class="text-[11px] text-zinc-500">Notice how the top-lit iOS specular border matches native dark icons</p>
+            </div>
+            <span class="text-[10px] mono uppercase px-2 py-0.5 rounded bg-zinc-900 text-yellow-300 border border-zinc-800">iOS 18 Dark</span>
           </div>
-          <input id="slider-hue" type="range" min="0" max="360" value="48" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateColors()" />
+
+          <div class="h-44 rounded-xl bg-gradient-to-b from-[#0d0c08] via-[#050507] to-black border border-zinc-800/70 flex flex-col items-center justify-end pb-4 relative overflow-hidden">
+            <div class="w-48 h-20 rounded-full bg-yellow-400/10 blur-2xl absolute bottom-2 pointer-events-none"></div>
+
+            <div class="px-4 py-2.5 rounded-2xl bg-zinc-950/75 backdrop-blur-xl border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.95)] flex items-end gap-3 z-10">
+              <!-- Peer App 1 -->
+              <div class="dock-item group relative flex flex-col items-center cursor-pointer">
+                <div class="-top-8 opacity-0 group-hover:opacity-100 transition bg-zinc-950 text-zinc-200 text-[10px] font-medium px-2 py-0.5 rounded border border-zinc-800 absolute whitespace-nowrap pointer-events-none">
+                  Linear
+                </div>
+                <div class="w-12 h-12 rounded-[13px] bg-gradient-to-b from-zinc-900 to-black border border-white/15 shadow-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="8" />
+                    <path d="M6.5 14.5L14.5 6.5M9.5 17.5L17.5 9.5" />
+                  </svg>
+                </div>
+                <span class="w-1 h-1 rounded-full bg-zinc-600 mt-1.5"></span>
+              </div>
+
+              <!-- Peer App 2 -->
+              <div class="dock-item group relative flex flex-col items-center cursor-pointer">
+                <div class="-top-8 opacity-0 group-hover:opacity-100 transition bg-zinc-950 text-zinc-200 text-[10px] font-medium px-2 py-0.5 rounded border border-zinc-800 absolute whitespace-nowrap pointer-events-none">
+                  Raycast
+                </div>
+                <div class="w-12 h-12 rounded-[13px] bg-gradient-to-b from-zinc-900 to-black border border-white/15 shadow-lg flex items-center justify-center">
+                  <svg class="w-5 h-5 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M12 3l9 9-9 9-9-9 9-9z" />
+                  </svg>
+                </div>
+                <span class="w-1 h-1 rounded-full bg-transparent mt-1.5"></span>
+              </div>
+
+              <!-- LIVE MONOLITH ICON -->
+              <div class="dock-item group relative flex flex-col items-center cursor-pointer" onclick="setExtractionMode(false)">
+                <div class="-top-8 opacity-0 group-hover:opacity-100 transition bg-black text-yellow-200 text-[10px] font-semibold px-2.5 py-0.5 rounded border border-yellow-400/40 shadow-lg absolute whitespace-nowrap pointer-events-none">
+                  Monolith Notes
+                </div>
+                <div class="w-14 h-14 flex items-center justify-center">
+                  <svg viewBox="140 140 744 744" class="w-full h-full">
+                    <use href="#gfx-squircle" />
+                    <use href="#gfx-ambient-glow" />
+                    <use href="#gfx-mark" />
+                  </svg>
+                </div>
+                <span class="w-1.5 h-1.5 rounded-full bg-yellow-300 shadow-[0_0_8px_#fde047] mt-1"></span>
+              </div>
+
+              <!-- Peer App 3 -->
+              <div class="dock-item group relative flex flex-col items-center cursor-pointer">
+                <div class="-top-8 opacity-0 group-hover:opacity-100 transition bg-zinc-950 text-zinc-200 text-[10px] font-medium px-2 py-0.5 rounded border border-zinc-800 absolute whitespace-nowrap pointer-events-none">
+                  Terminal
+                </div>
+                <div class="w-12 h-12 rounded-[13px] bg-gradient-to-b from-zinc-900 to-black border border-white/15 shadow-lg flex items-center justify-center">
+                  <span class="mono text-xs font-bold text-zinc-300">&gt;_</span>
+                </div>
+                <span class="w-1 h-1 rounded-full bg-zinc-600 mt-1.5"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <div class="flex justify-between text-xs mb-1.5">
-            <span class="text-zinc-300 font-medium">Saturation Intensity</span>
-            <span id="sat-val" class="mono text-yellow-400">96%</span>
+        <!-- CARD 2: LIVE APP HEADER / NAVBAR LOCKUP (7 Cols) -->
+        <div class="lg:col-span-7 rounded-2xl bg-[#07070a] border border-zinc-800/80 p-5 flex flex-col justify-between">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-100">Extracted Transparent Logo Mark — App Navbar Lockup</h3>
+              <p class="text-[11px] text-zinc-500">Live preview of the inner stacked note mark with iOS borders &amp; knockout channel</p>
+            </div>
+            <button onclick="setExtractionMode(true)" class="text-[11px] font-medium text-yellow-300 hover:text-yellow-200 underline underline-offset-2">
+              Isolate Transparent Mark →
+            </button>
           </div>
-          <input id="slider-sat" type="range" min="0" max="100" value="96" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateColors()" />
+
+          <div class="rounded-xl bg-black border border-zinc-800/90 overflow-hidden shadow-2xl">
+            <div class="px-4 py-3 bg-[#060608] border-b border-zinc-800/80 flex flex-wrap items-center justify-between gap-3">
+              <!-- Brand Lockup -->
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-[10px] bg-[#0d0d11] border border-white/15 flex items-center justify-center relative shadow-inner">
+                  <svg viewBox="190 175 644 674" class="w-7 h-7">
+                    <use href="#gfx-ambient-glow" />
+                    <use href="#gfx-mark" />
+                  </svg>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-extrabold tracking-[0.16em] text-sm text-white">MONOLITH</span>
+                    <span class="text-[10px] mono font-semibold px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-200 border border-yellow-400/30">NOTES</span>
+                  </div>
+                  <div class="text-[11px] text-zinc-500">Champagne Gold &amp; Obsidian Workspace</div>
+                </div>
+              </div>
+
+              <!-- Command Bar & New Note CTA -->
+              <div class="flex items-center gap-2.5">
+                <div class="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-400">
+                  <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  <span>Quick Find</span>
+                  <kbd class="mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">⌘K</kbd>
+                </div>
+                <button onclick="triggerMockNewNote()" class="px-3.5 py-1.5 rounded-lg bg-yellow-300 hover:bg-yellow-200 text-black font-bold text-xs transition flex items-center gap-1.5 shadow-[0_0_18px_rgba(253,224,71,0.28)]">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                  <span>New Note</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Simulated Note Editor Row -->
+            <div class="p-4 flex items-center justify-between bg-gradient-to-r from-black via-[#0a0905] to-black">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 text-xs font-medium text-zinc-200">
+                  <span class="w-1.5 h-4 bg-yellow-300 rounded-full inline-block shadow-[0_0_8px_#fde047]"></span>
+                  <span id="mock-doc-title">iOS 18 Specular Borders &amp; Champagne Gold Icon System.md</span>
+                </div>
+                <p id="mock-doc-meta" class="text-[11px] text-zinc-500 mono pl-3.5">Top-Lit Specular Bezel • SVG Knockout Mask • 100% Vector</p>
+              </div>
+              <button onclick="downloadRawMarkSVG()" class="px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-900 border border-yellow-400/30 text-[11px] font-medium text-yellow-200 transition shrink-0">
+                Export Transparent Mark (.SVG)
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <div class="flex justify-between text-xs mb-1.5">
-            <span class="text-zinc-300 font-medium">Crystal Glow & Glints</span>
-            <span id="glow-val" class="mono text-yellow-400">75%</span>
+        <!-- CARD 3: SCALE INVARIANCE STRIP (128px, 64px, 32px, 16px) -->
+        <div class="lg:col-span-12 rounded-2xl bg-[#07070a] border border-zinc-800/80 p-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-100">Scale Invariance &amp; Favicon Clarity Strip (128px → 16px)</h3>
+              <p class="text-[11px] text-zinc-500">The warm champagne-yellow L-peek, first-line title accent, and iOS specular borders stay crisp down to 16×16px.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-zinc-400">Preview Mode:</span>
+              <button id="scale-btn-squircle" onclick="setScaleStripMode('squircle')" class="px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-800 text-yellow-200 border border-yellow-400/30">iOS Squircle</button>
+              <button id="scale-btn-mark" onclick="setScaleStripMode('mark')" class="px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-zinc-200">Raw Logo Mark</button>
+            </div>
           </div>
-          <input id="slider-glow" type="range" min="0" max="100" value="75" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateGlow()" />
+
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 items-center">
+            <!-- 128px -->
+            <div class="p-4 rounded-xl checkerboard-sm border border-zinc-800/80 flex flex-col items-center justify-center gap-3">
+              <div class="w-28 h-28 flex items-center justify-center">
+                <svg class="scale-svg w-28 h-28" viewBox="140 140 744 744">
+                  <use class="scale-sq" href="#gfx-squircle" />
+                  <use href="#gfx-ambient-glow" />
+                  <use href="#gfx-mark" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="text-xs font-semibold text-zinc-200 mono">128 × 128</div>
+                <div class="text-[10px] text-zinc-500">App Store / macOS</div>
+              </div>
+            </div>
+
+            <!-- 64px -->
+            <div class="p-4 rounded-xl checkerboard-sm border border-zinc-800/80 flex flex-col items-center justify-center gap-3 h-full">
+              <div class="h-28 flex items-center justify-center">
+                <svg class="scale-svg w-16 h-16" viewBox="140 140 744 744">
+                  <use class="scale-sq" href="#gfx-squircle" />
+                  <use href="#gfx-ambient-glow" />
+                  <use href="#gfx-mark" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="text-xs font-semibold text-zinc-200 mono">64 × 64</div>
+                <div class="text-[10px] text-zinc-500">iOS 18 Home Screen</div>
+              </div>
+            </div>
+
+            <!-- 32px -->
+            <div class="p-4 rounded-xl checkerboard-sm border border-zinc-800/80 flex flex-col items-center justify-center gap-3 h-full">
+              <div class="h-28 flex items-center justify-center">
+                <svg class="scale-svg w-8 h-8" viewBox="140 140 744 744">
+                  <use class="scale-sq" href="#gfx-squircle" />
+                  <use href="#gfx-ambient-glow" />
+                  <use href="#gfx-mark" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="text-xs font-semibold text-zinc-200 mono">32 × 32</div>
+                <div class="text-[10px] text-zinc-500">Spotlight / Taskbar</div>
+              </div>
+            </div>
+
+            <!-- 16px -->
+            <div class="p-4 rounded-xl checkerboard-sm border border-zinc-800/80 flex flex-col items-center justify-center gap-3 h-full">
+              <div class="h-28 flex items-center justify-center">
+                <svg class="scale-svg w-4 h-4" viewBox="140 140 744 744">
+                  <use class="scale-sq" href="#gfx-squircle" />
+                  <use href="#gfx-ambient-glow" />
+                  <use href="#gfx-mark" />
+                </svg>
+              </div>
+              <div class="text-center">
+                <div class="text-xs font-semibold text-zinc-200 mono">16 × 16</div>
+                <div class="text-[10px] text-zinc-500">Menu Bar / Favicon</div>
+              </div>
+            </div>
+
+            <!-- Live Browser Tab Favicon Check -->
+            <div class="col-span-2 sm:col-span-1 p-4 rounded-xl bg-black border border-zinc-800/80 flex flex-col justify-between h-full">
+              <div class="text-[11px] text-zinc-400 font-medium mb-2">Browser Tab Preview</div>
+              <div class="my-auto bg-[#0c0c10] border border-zinc-800 rounded-t-lg px-3 py-2 flex items-center gap-2 shadow-inner">
+                <svg viewBox="190 175 644 674" class="w-4 h-4 shrink-0">
+                  <use href="#gfx-mark" />
+                </svg>
+                <span class="text-[11px] text-zinc-200 font-medium truncate">Monolith — Notes</span>
+                <span class="text-zinc-500 text-xs ml-auto">×</span>
+              </div>
+              <div class="text-[10px] text-zinc-500 mt-2 text-center">16px Tab Recognition</div>
+            </div>
+          </div>
         </div>
 
+      </div>
+    </section>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- RIGHT SIDEBAR: CHAMPAGNE PRESETS, iOS BORDERS & EXPORT ENGINE         -->
+  <!-- ===================================================================== -->
+  <aside class="w-full xl:w-[440px] bg-[#040406] border-t xl:border-t-0 xl:border-l border-zinc-900 p-6 flex flex-col justify-between gap-6 shrink-0">
+
+    <div class="space-y-5">
+      <!-- Sidebar Header -->
+      <div class="pb-3 border-b border-zinc-900 flex items-center justify-between">
         <div>
-          <div class="flex justify-between text-xs mb-1.5">
-            <span class="text-zinc-300 font-medium">Note Lines Opacity</span>
-            <span id="lines-val" class="mono text-yellow-400">85%</span>
-          </div>
-          <input id="slider-lines" type="range" min="0" max="100" value="85" class="w-full h-1.5 bg-zinc-800 rounded-lg cursor-pointer" oninput="updateLines()" />
+          <h2 class="text-base font-bold tracking-tight text-white">iOS 18 Specular Studio</h2>
+          <p class="text-xs text-zinc-400 mt-0.5">Slight-yellow champagne finish with iOS top-lit borders.</p>
+        </div>
+        <button onclick="resetStudioDefaults()" class="text-[11px] mono text-zinc-400 hover:text-yellow-300 transition px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">
+          Reset
+        </button>
+      </div>
+
+      <!-- 1. CURATED SLIGHT-YELLOW & PRO COLOR PRESETS -->
+      <div class="space-y-2">
+        <label class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+          1. Curated Color Finishes
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <!-- Default: Champagne Yellow (H:46, S:84) -->
+          <button id="preset-champagne" onclick="applyColorPreset('champagne')" class="preset-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-yellow-300/70 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-[#fde047] shadow-[0_0_10px_#fde047] shrink-0"></span>
+            <div>
+              <div class="text-xs font-semibold text-white">Champagne Yellow</div>
+              <div class="text-[10px] mono text-yellow-200/80">Slight Yellow (Default)</div>
+            </div>
+          </button>
+
+          <!-- Classic Notes Gold (H:41, S:95) -->
+          <button id="preset-notesgold" onclick="applyColorPreset('notesgold')" class="preset-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-[#f59e0b] shadow-[0_0_10px_#f59e0b] shrink-0"></span>
+            <div>
+              <div class="text-xs font-semibold text-zinc-200">Classic Notes Gold</div>
+              <div class="text-[10px] mono text-zinc-400">Warm Apple Amber</div>
+            </div>
+          </button>
+
+          <!-- Titanium Sand (H:48, S:58) -->
+          <button id="preset-titaniumsand" onclick="applyColorPreset('titaniumsand')" class="preset-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-[#e5d399] shadow-[0_0_10px_#d6c285] shrink-0"></span>
+            <div>
+              <div class="text-xs font-semibold text-zinc-200">Titanium Sand</div>
+              <div class="text-[10px] mono text-zinc-400">Anodized Desert Gold</div>
+            </div>
+          </button>
+
+          <!-- Neon Blue AMOLED (H:198, S:96) -->
+          <button id="preset-neonblue" onclick="applyColorPreset('neonblue')" class="preset-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 text-left transition">
+            <span class="w-4 h-4 rounded-full bg-[#38bdf8] shadow-[0_0_10px_#38bdf8] shrink-0"></span>
+            <div>
+              <div class="text-xs font-semibold text-zinc-200">Neon Blue AMOLED</div>
+              <div class="text-[10px] mono text-zinc-400">Electric Cyan-Blue</div>
+            </div>
+          </button>
         </div>
       </div>
 
-      <!-- Extraction Layer Toggles -->
-      <div class="space-y-3 pt-2 border-t border-zinc-900">
-        <label class="text-xs font-semibold uppercase tracking-wider text-zinc-400">Extraction Mode</label>
-        
-        <label class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/70 border border-zinc-800/80 cursor-pointer">
-          <div>
-            <div class="text-xs font-medium text-zinc-200">Logo Mark Only (Transparent)</div>
-            <div class="text-[11px] text-zinc-500">Hides squircle & backdrop for raw logo extraction</div>
+      <!-- 2. STACK ALIGNMENT & SYMMETRY MODE -->
+      <div class="space-y-2 pt-3 border-t border-zinc-900">
+        <label class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+          2. Stack Alignment &amp; Symmetry Mode
+        </label>
+        <div class="grid grid-cols-1 gap-2">
+          <!-- Mode A: Classic Bottom-Left Offset -->
+          <button id="mode-btn-offset" onclick="setStackMode('offset')" class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-yellow-300/70 text-left transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-black border border-zinc-800 flex items-center justify-center relative shrink-0">
+                <div class="w-3.5 h-4 rounded-[2px] bg-yellow-300 absolute bottom-1 left-1.5"></div>
+                <div class="w-4 h-4.5 rounded-[2px] bg-zinc-700 border border-white/40 absolute top-1 right-1.5"></div>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-white">Mode A: Classic L-Offset Stack</div>
+                <div class="text-[11px] text-zinc-400">iOS-bordered front dark sheet + slight-yellow back sheet</div>
+              </div>
+            </div>
+            <span class="text-[10px] mono text-yellow-300 font-semibold px-2 py-0.5 rounded bg-yellow-400/10">DEFAULT</span>
+          </button>
+
+          <!-- Mode B: Symmetric Center Stack -->
+          <button id="mode-btn-symmetric" onclick="setStackMode('symmetric')" class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-800/90 text-left transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-black border border-zinc-800 flex items-center justify-center relative shrink-0">
+                <div class="w-5 h-4 rounded-[2px] bg-yellow-300 absolute bottom-1"></div>
+                <div class="w-3.5 h-5 rounded-[2px] bg-zinc-700 border border-white/40 absolute top-1"></div>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-zinc-200">Mode B: Symmetric Center Cradle</div>
+                <div class="text-[11px] text-zinc-400">Bilaterally symmetric champagne cradle around X = 512</div>
+              </div>
+            </div>
+            <span class="text-[10px] mono text-zinc-400 px-2 py-0.5 rounded bg-zinc-900">SYMMETRIC</span>
+          </button>
+
+          <!-- Mode C: Dual-Step 3-Card Cascade -->
+          <button id="mode-btn-cascade" onclick="setStackMode('cascade')" class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-800/90 text-left transition">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-black border border-zinc-800 flex items-center justify-center relative shrink-0">
+                <div class="w-3 h-3.5 rounded-[2px] bg-amber-700 absolute bottom-1 left-1"></div>
+                <div class="w-3.5 h-4 rounded-[2px] bg-yellow-300 absolute bottom-1.5 left-2"></div>
+                <div class="w-3.5 h-4 rounded-[2px] bg-zinc-700 border border-white/40 absolute top-1 right-1"></div>
+              </div>
+              <div>
+                <div class="text-xs font-bold text-zinc-200">Mode C: Dual-Step 3-Card Cascade</div>
+                <div class="text-[11px] text-zinc-400">Three tiered sheets with dual negative-space cutouts</div>
+              </div>
+            </div>
+            <span class="text-[10px] mono text-zinc-400 px-2 py-0.5 rounded bg-zinc-900">3-LAYER</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. SURFACE FINISH & LINE LAYOUT TOGGLES -->
+      <div class="grid grid-cols-2 gap-2.5 pt-3 border-t border-zinc-900">
+        <div>
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 block mb-1.5">
+            3. Surface &amp; Borders
+          </label>
+          <div class="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+            <button id="finish-btn-pro" onclick="setFinishMode('pro')" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition">
+              iOS 18 Pro
+            </button>
+            <button id="finish-btn-flat" onclick="setFinishMode('flat')" class="py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition">
+              Flat Vector
+            </button>
           </div>
-          <input id="toggle-mark-only" type="checkbox" class="w-4 h-4 accent-yellow-400 rounded cursor-pointer" onchange="updateLayers()" />
+        </div>
+
+        <div>
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 block mb-1.5">
+            4. Note Line Layout
+          </label>
+          <div class="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-zinc-800">
+            <button id="linestyle-btn-uniform" onclick="setLineStyle('uniform')" class="py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition">
+              Uniform (6)
+            </button>
+            <button id="linestyle-btn-tapered" onclick="setLineStyle('tapered')" class="py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition">
+              Tapered + Cursor
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- First Note Line Yellow Title Accent Toggle -->
+      <label class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 border border-yellow-400/25 cursor-pointer">
+        <div>
+          <div class="text-xs font-semibold text-zinc-100">First Note Line Yellow Accent (Apple Notes Cue)</div>
+          <div class="text-[10px] text-zinc-400">Highlights the top pill line in warm champagne yellow</div>
+        </div>
+        <input id="toggle-first-line-accent" type="checkbox" checked class="w-4 h-4 accent-yellow-300 rounded cursor-pointer" onchange="updateAllParameters()" />
+      </label>
+
+      <!-- 4. REAL-TIME iOS BORDER & GEOMETRY SLIDERS -->
+      <div class="space-y-3 pt-3 border-t border-zinc-900">
+        <label class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+          5. iOS Specular Borders &amp; Geometry Sliders
         </label>
 
-        <label class="flex items-center justify-between p-3 rounded-lg bg-zinc-900/70 border border-zinc-800/80 cursor-pointer">
-          <div>
-            <div class="text-xs font-medium text-zinc-200">Include Outer Wallpaper</div>
-            <div class="text-[11px] text-zinc-500">Uncheck for transparent-background app icon</div>
+        <!-- iOS Border Rim Intensity (0% to 100%) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-zinc-200 font-medium">iOS Border Rim Intensity (Squircle + Cards)</span>
+            <span id="val-rim" class="mono text-yellow-300 font-semibold">88%</span>
           </div>
-          <input id="toggle-wallpaper" type="checkbox" class="w-4 h-4 accent-yellow-400 rounded cursor-pointer" onchange="updateLayers()" />
+          <input id="slider-rim" type="range" min="0" max="100" value="88" class="w-full" oninput="updateAllParameters()" />
+        </div>
+
+        <!-- Knockout Cutout Gap (0px to 40px) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-zinc-300 font-medium">Knockout Cutout Gap (Negative Space)</span>
+            <span id="val-gap" class="mono text-yellow-300 font-semibold">18px</span>
+          </div>
+          <input id="slider-gap" type="range" min="0" max="40" value="18" class="w-full" oninput="updateAllParameters()" />
+        </div>
+
+        <!-- Back Card Offset (24px to 96px) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-zinc-300 font-medium">Back Card Offset (L-Peek Width)</span>
+            <span id="val-offset" class="mono text-yellow-300 font-semibold">64px</span>
+          </div>
+          <input id="slider-offset" type="range" min="24" max="96" value="64" class="w-full" oninput="updateAllParameters()" />
+        </div>
+
+        <!-- Card Corner Radius (iOS Curvature: 8px to 48px) -->
+        <div>
+          <div class="flex justify-between text-xs mb-1">
+            <span class="text-zinc-300 font-medium">Card Corner Radius (iOS Curvature)</span>
+            <span id="val-radius" class="mono text-yellow-300 font-semibold">26px</span>
+          </div>
+          <input id="slider-radius" type="range" min="8" max="48" value="26" class="w-full" oninput="updateAllParameters()" />
+        </div>
+
+        <!-- Warm Yellow Hue & Saturation Row -->
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-zinc-400">Accent Hue</span>
+              <span id="val-hue" class="mono text-yellow-300">46°</span>
+            </div>
+            <input id="slider-hue" type="range" min="0" max="360" value="46" class="w-full" oninput="onCustomColorInput()" />
+          </div>
+          <div>
+            <div class="flex justify-between text-[11px] mb-1">
+              <span class="text-zinc-400">Yellow Saturation</span>
+              <span id="val-sat" class="mono text-yellow-300">84%</span>
+            </div>
+            <input id="slider-sat" type="range" min="15" max="100" value="84" class="w-full" oninput="onCustomColorInput()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. ASSET EXTRACTION TOGGLES -->
+      <div class="space-y-2 pt-3 border-t border-zinc-900">
+        <label class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 block">
+          6. Production Asset Extraction
+        </label>
+        <label class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 border border-zinc-800/90 cursor-pointer">
+          <div>
+            <div class="text-xs font-semibold text-zinc-100">Logo Mark Only (Transparent Cutout)</div>
+            <div class="text-[10px] text-zinc-400">Extracts just the iOS-bordered stacked sheets without squircle</div>
+          </div>
+          <input id="toggle-mark-only" type="checkbox" class="w-4 h-4 accent-yellow-300 rounded cursor-pointer" onchange="syncExtractionToggles()" />
+        </label>
+
+        <label class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-950 border border-zinc-800/90 cursor-pointer">
+          <div>
+            <div class="text-xs font-semibold text-zinc-100">Include Outer Wallpaper</div>
+            <div class="text-[10px] text-zinc-400">Fills 1024×1024 canvas behind the iOS squircle</div>
+          </div>
+          <input id="toggle-wallpaper" type="checkbox" class="w-4 h-4 accent-yellow-300 rounded cursor-pointer" onchange="syncExtractionToggles()" />
         </label>
       </div>
     </div>
 
-    <!-- Export Actions -->
+    <!-- 6. EXPORT & DOWNLOAD ENGINE -->
     <div class="space-y-3 pt-4 border-t border-zinc-900">
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-xs text-zinc-400 font-medium">PNG Resolution</span>
-        <select id="export-size" class="bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 rounded-md px-2.5 py-1.5 mono focus:outline-none focus:border-yellow-500">
-          <option value="2048">2048 × 2048 px (Ultra)</option>
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium text-zinc-300">PNG Resolution</span>
+        <select id="export-size" class="bg-zinc-950 border border-zinc-800 text-xs text-zinc-100 rounded-lg px-2.5 py-1.5 mono focus:outline-none focus:border-yellow-300">
+          <option value="2048">2048 × 2048 px (Ultra 2K)</option>
           <option value="1024" selected>1024 × 1024 px (App Store)</option>
-          <option value="512">512 × 512 px (Desktop)</option>
+          <option value="512">512 × 512 px (macOS Dock)</option>
           <option value="256">256 × 256 px (Web Icon)</option>
         </select>
       </div>
 
       <div class="grid grid-cols-2 gap-2.5">
-        <button onclick="downloadSVG()" class="py-2.5 px-4 rounded-lg bg-yellow-400 hover:bg-yellow-300 text-black font-semibold text-xs transition flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.25)]">
-          Download .SVG
+        <button onclick="downloadSVGFile()" class="py-2.5 px-4 rounded-xl bg-yellow-300 hover:bg-yellow-200 active:scale-[0.99] text-black font-bold text-xs transition flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(253,224,71,0.28)]">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span>Download .SVG</span>
         </button>
-        <button onclick="downloadPNG()" class="py-2.5 px-4 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs border border-zinc-700 transition flex items-center justify-center gap-2">
-          Download .PNG
+
+        <button onclick="downloadPNGFile()" class="py-2.5 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 active:scale-[0.99] text-white font-semibold text-xs border border-zinc-700 transition flex items-center justify-center gap-2">
+          <svg class="w-4 h-4 text-yellow-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Download .PNG</span>
         </button>
       </div>
 
-      <button id="btn-copy-svg" onclick="copySVGCode()" class="w-full py-2 px-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-medium border border-zinc-800 transition">
-        Copy Raw SVG Code
+      <button onclick="copySVGCode()" class="w-full py-2.5 px-4 rounded-xl bg-zinc-950 hover:bg-zinc-900 text-zinc-200 text-xs font-medium border border-zinc-800 transition flex items-center justify-center gap-2">
+        <svg class="w-3.5 h-3.5 text-yellow-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        <span id="copy-btn-text">Copy Raw SVG Code</span>
       </button>
     </div>
+
   </aside>
 
+  <!-- ===================================================================== -->
+  <!-- SVG CODE INSPECTOR MODAL                                              -->
+  <!-- ===================================================================== -->
+  <div id="svg-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-[#09090c] border border-zinc-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-white">Clean Production SVG Code (iOS 18 Specular Borders + Knockout Mask)</h3>
+          <p class="text-xs text-zinc-400">Self-contained vector with iOS top-lit bezels and real negative-space cutout channel.</p>
+        </div>
+        <button onclick="closeSVGModal()" class="text-zinc-400 hover:text-white text-sm px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">✕</button>
+      </div>
+      <textarea id="svg-modal-code" readonly class="w-full h-72 bg-black border border-zinc-800 rounded-xl p-3.5 mono text-[11px] text-yellow-100/90 focus:outline-none resize-none"></textarea>
+      <div class="flex justify-end gap-2.5">
+        <button onclick="copySVGCode()" class="px-4 py-2 rounded-lg bg-yellow-300 hover:bg-yellow-200 text-black font-bold text-xs">
+          Copy Code to Clipboard
+        </button>
+        <button onclick="closeSVGModal()" class="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs font-medium border border-zinc-800">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST NOTIFICATION                                                    -->
+  <!-- ===================================================================== -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300 bg-zinc-950/95 border border-yellow-300/50 text-zinc-100 px-4 py-2.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.95)] flex items-center gap-2.5 text-xs font-medium">
+    <span class="w-2 h-2 rounded-full bg-yellow-300 shadow-[0_0_8px_#fde047]"></span>
+    <span id="toast-text">Ready</span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- iOS 18 SPECULAR BORDER & STACKED NOTE VECTOR ENGINE                   -->
+  <!-- ===================================================================== -->
   <script>
+    // Default Studio State: Slight Yellow Premium (Champagne Gold H:46, S:84) + iOS 18 Borders
+    const state = {
+      preset: 'champagne',       // 'champagne' | 'notesgold' | 'titaniumsand' | 'neonblue' | 'custom'
+      stackMode: 'offset',       // 'offset' | 'symmetric' | 'cascade'
+      finishMode: 'pro',         // 'pro' (iOS 18 Specular Borders + Gradients) | 'flat'
+      lineStyle: 'uniform',      // 'uniform' | 'tapered'
+      firstLineAccent: true,     // Apple Notes subtle yellow header line cue
+      rimIntensity: 88,          // 0% to 100% iOS specular border brightness & thickness
+      cutoutGap: 18,             // 0px to 40px negative-space L-channel width
+      sheetOffset: 64,           // 24px to 96px back card peek
+      cornerRadius: 26,          // 8px to 48px iOS continuous-style card curvature
+      lineCount: 6,              // 6 crisp rounded pill lines
+      hue: 46,                   // Slight Yellow / Champagne Gold Hue
+      sat: 84,                   // Refined 84% saturation
+      markOnly: false,
+      includeWallpaper: false,
+      stageAmoled: true
+    };
+
+    const COLOR_PRESETS = {
+      champagne: {
+        name: 'Champagne Yellow (Slight Yellow)',
+        hue: 46,
+        sat: 84,
+        frontTop: '#232329',
+        frontMid: '#151519',
+        frontBot: '#0c0c0f',
+        frontFlat: '#27272c'
+      },
+      notesgold: {
+        name: 'Classic Notes Gold',
+        hue: 41,
+        sat: 95,
+        frontTop: '#262428',
+        frontMid: '#17161a',
+        frontBot: '#0d0c0f',
+        frontFlat: '#2b292e'
+      },
+      titaniumsand: {
+        name: 'Titanium Sand',
+        hue: 48,
+        sat: 58,
+        frontTop: '#242427',
+        frontMid: '#161618',
+        frontBot: '#0b0b0d',
+        frontFlat: '#28282c'
+      },
+      neonblue: {
+        name: 'Neon Blue AMOLED',
+        hue: 198,
+        sat: 96,
+        frontTop: '#1d2433',
+        frontMid: '#121722',
+        frontBot: '#0a0d14',
+        frontFlat: '#1e2430'
+      }
+    };
+
+    const MODE_LABELS = {
+      offset: 'iOS 18 L-Offset Stack',
+      symmetric: 'Symmetric Center Cradle',
+      cascade: 'Dual-Step 3-Card Cascade'
+    };
+
+    // Convert HSL to Uppercase Hex
     function hslToHex(h, s, l) {
-      l /= 100;
-      const a = s * Math.min(l, 1 - l) / 100;
+      h = ((h % 360) + 360) % 360;
+      s = Math.max(0, Math.min(100, s));
+      l = Math.max(0, Math.min(100, l)) / 100;
+      const a = (s * Math.min(l, 1 - l)) / 100;
       const f = n => {
         const k = (n + h / 30) % 12;
         const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
         return Math.round(255 * color).toString(16).padStart(2, '0');
       };
-      return `#${f(0)}${f(8)}${f(4)}`;
+      return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
     }
 
-    function applyPreset(h, s, glow = 75) {
-      document.getElementById('slider-hue').value = h;
-      document.getElementById('slider-sat').value = s;
-      document.getElementById('slider-glow').value = glow;
-      updateColors();
-      updateGlow();
+    // Toast Notification
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = msg;
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-3');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2400);
     }
 
-    function updateColors() {
-      const h = parseInt(document.getElementById('slider-hue').value, 10);
-      const s = parseInt(document.getElementById('slider-sat').value, 10);
+    // Apply Curated Color Preset
+    function applyColorPreset(key) {
+      const p = COLOR_PRESETS[key];
+      if (!p) return;
+      state.preset = key;
+      state.hue = p.hue;
+      state.sat = p.sat;
+      document.getElementById('slider-hue').value = p.hue;
+      document.getElementById('slider-sat').value = p.sat;
 
-      document.getElementById('hue-val').textContent = `${h}°`;
-      document.getElementById('sat-val').textContent = `${s}%`;
+      ['champagne', 'notesgold', 'titaniumsand', 'neonblue'].forEach(k => {
+        const btn = document.getElementById(`preset-${k}`);
+        if (k === key) {
+          btn.classList.remove('border-zinc-800');
+          btn.classList.add('border-yellow-300/70');
+        } else {
+          btn.classList.add('border-zinc-800');
+          btn.classList.remove('border-yellow-300/70');
+        }
+      });
 
-      const specColor = hslToHex(h, Math.min(100, s + 5), 82);
-      const brightColor = hslToHex(h, s, 60);
-      const primaryColor = hslToHex(Math.max(0, h - 5), s, 48);
-      const midColor = hslToHex(Math.max(0, h - 10), Math.max(20, s - 15), 26);
-      const deepColor = hslToHex(Math.max(0, h - 12), Math.max(15, s - 25), 11);
-      const darkColor = hslToHex(h, Math.min(30, s), 4);
+      updateAllParameters();
+      showToast(`Applied ${p.name}`);
+    }
 
-      document.querySelectorAll('.c-spec, .accent-light').forEach(el => el.setAttribute('stop-color', specColor));
-      document.querySelectorAll('.accent-bright').forEach(el => el.setAttribute('stop-color', brightColor));
-      document.querySelectorAll('.c-primary, .accent-mid').forEach(el => el.setAttribute('stop-color', primaryColor));
+    function onCustomColorInput() {
+      state.preset = 'custom';
+      ['champagne', 'notesgold', 'titaniumsand', 'neonblue'].forEach(k => {
+        const btn = document.getElementById(`preset-${k}`);
+        btn.classList.add('border-zinc-800');
+        btn.classList.remove('border-yellow-300/70');
+      });
+      updateAllParameters();
+    }
+
+    // Switch Stack Symmetry / Alignment Mode
+    function setStackMode(mode) {
+      state.stackMode = mode;
+      document.getElementById('hud-mode').textContent = MODE_LABELS[mode];
+
+      ['offset', 'symmetric', 'cascade'].forEach(k => {
+        const btn = document.getElementById(`mode-btn-${k}`);
+        if (k === mode) {
+          btn.classList.remove('border-zinc-800/90');
+          btn.classList.add('border-yellow-300/70');
+        } else {
+          btn.classList.add('border-zinc-800/90');
+          btn.classList.remove('border-yellow-300/70');
+        }
+      });
+
+      updateAllParameters();
+      showToast(`Stack Mode: ${MODE_LABELS[mode]}`);
+    }
+
+    // Switch Material Finish (iOS 18 Specular Pro vs Flat Vector)
+    function setFinishMode(finish) {
+      state.finishMode = finish;
+      const btnPro = document.getElementById('finish-btn-pro');
+      const btnFlat = document.getElementById('finish-btn-flat');
+
+      if (finish === 'pro') {
+        btnPro.className = 'py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition';
+        btnFlat.className = 'py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition';
+      } else {
+        btnFlat.className = 'py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition';
+        btnPro.className = 'py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition';
+      }
+      updateAllParameters();
+      showToast(finish === 'pro' ? 'iOS 18 Specular Borders Enabled' : 'Flat Vector Mode Enabled');
+    }
+
+    // Switch Note Line Layout (Uniform vs Tapered + Cursor)
+    function setLineStyle(style) {
+      state.lineStyle = style;
+      const btnUni = document.getElementById('linestyle-btn-uniform');
+      const btnTap = document.getElementById('linestyle-btn-tapered');
+
+      if (style === 'uniform') {
+        btnUni.className = 'py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition';
+        btnTap.className = 'py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition';
+      } else {
+        btnTap.className = 'py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-yellow-300 text-black transition';
+        btnUni.className = 'py-1.5 px-2 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white transition';
+      }
+      renderStackedNoteIcon();
+    }
+
+    // Reset Studio Defaults
+    function resetStudioDefaults() {
+      document.getElementById('slider-rim').value = 88;
+      document.getElementById('slider-gap').value = 18;
+      document.getElementById('slider-offset').value = 64;
+      document.getElementById('slider-radius').value = 26;
+      document.getElementById('toggle-first-line-accent').checked = true;
+      setFinishMode('pro');
+      setLineStyle('uniform');
+      setStackMode('offset');
+      applyColorPreset('champagne');
+      showToast('Reset to Slight Yellow iOS 18 Specular defaults');
+    }
+
+    // Build Horizontal Rounded Pill Note Lines Inside the Front Sheet
+    function buildNoteLinesMarkup(frontX, frontY, cardW, cardH) {
+      const count = state.lineCount;
+      const padX = Math.round(cardW * 0.145);
+      const padYTop = Math.round(cardH * 0.155);
+      const padYBot = Math.round(cardH * 0.155);
+
+      const usableW = cardW - padX * 2;
+      const usableH = cardH - padYTop - padYBot;
+      const pillHeight = 16;
+      const pillRx = pillHeight / 2;
+
+      const isFlat = state.finishMode === 'flat';
+      const specHex = hslToHex(state.hue, state.sat, 72);
+      const standardLineFill = isFlat ? '#F4F4F6' : 'url(#pill-line-grad)';
+      const firstLineFill = state.firstLineAccent
+        ? (isFlat ? specHex : 'url(#pill-header-accent-grad)')
+        : standardLineFill;
+
+      let linesSvg = `<g id="front-note-lines">`;
+
+      for (let i = 0; i < count; i++) {
+        const progress = count === 1 ? 0.5 : i / (count - 1);
+        const cy = Math.round(frontY + padYTop + progress * usableH);
+        const y = Math.round(cy - pillHeight / 2);
+
+        let lineW = usableW;
+        if (state.lineStyle === 'tapered') {
+          if (i === count - 1) {
+            lineW = Math.round(usableW * 0.56);
+          } else if (i % 2 === 1) {
+            lineW = Math.round(usableW * 0.88);
+          }
+        }
+
+        const isFirst = i === 0;
+        const fill = isFirst ? firstLineFill : standardLineFill;
+        const filterAttr = (isFirst && state.firstLineAccent && !isFlat) ? 'filter="url(#header-line-glow)"' : '';
+
+        linesSvg += `<rect x="${frontX + padX}" y="${y}" width="${lineW}" height="${pillHeight}" rx="${pillRx}" fill="${fill}" ${filterAttr} />`;
+
+        // Optional glowing writing cursor on the final line in Tapered mode
+        if (state.lineStyle === 'tapered' && i === count - 1) {
+          const cursorX = frontX + padX + lineW + 14;
+          const cursorH = pillHeight + 10;
+          const cursorY = cy - cursorH / 2;
+          linesSvg += `<rect x="${cursorX}" y="${cursorY}" width="9" height="${cursorH}" rx="4.5" fill="url(#pill-header-accent-grad)" filter="url(#header-line-glow)" />`;
+        }
+      }
+
+      linesSvg += `</g>`;
+      return linesSvg;
+    }
+
+    // Core Procedural SVG Renderer with iOS 18 Specular Borders & True SVG <mask> Knockout
+    function renderStackedNoteIcon() {
+      const markGroup = document.getElementById('gfx-mark');
+      const gap = state.cutoutGap;
+      const offset = state.sheetOffset;
+      const r = state.cornerRadius;
+      const isFlat = state.finishMode === 'flat';
+      const rimScale = state.rimIntensity / 100;
+
+      const presetObj = COLOR_PRESETS[state.preset] || COLOR_PRESETS.champagne;
+      const brightHex = hslToHex(state.hue, state.sat, 62);
+      const midHex = hslToHex(state.hue, state.sat, 45);
+
+      const frontFill = isFlat ? presetObj.frontFlat : 'url(#front-card-grad)';
+      const backFill = isFlat ? brightHex : 'url(#back-accent-grad)';
+      const tertiaryFill = isFlat ? midHex : 'url(#tertiary-accent-grad)';
+      const groupFilter = isFlat ? '' : 'filter="url(#card-drop-shadow)"';
+
+      // iOS Specular Border widths scaled by slider
+      const frontBorderW = (isFlat || rimScale === 0) ? 0 : (1.2 + rimScale * 1.8).toFixed(2);
+      const backBorderW = (isFlat || rimScale === 0) ? 0 : (1.0 + rimScale * 1.5).toFixed(2);
+      const innerHairlineOpacity = (isFlat || rimScale === 0) ? 0 : (rimScale * 0.38).toFixed(2);
+
+      let svgMarkup = '';
+
+      if (state.stackMode === 'offset') {
+        // MODE A: CLASSIC L-OFFSET STACK WITH iOS SPECULAR BORDERS
+        const cardW = 368;
+        const cardH = 448;
+
+        const totalW = cardW + offset;
+        const totalH = cardH + offset;
+        const startX = Math.round(512 - totalW / 2);
+        const startY = Math.round(512 - totalH / 2);
+
+        const frontX = startX + offset;
+        const frontY = startY;
+        const backX = startX;
+        const backY = startY + offset;
+
+        const koRx = gap > 0 ? r + gap : r;
+
+        const glowOrb = document.getElementById('glow-back-orb');
+        if (glowOrb) {
+          glowOrb.setAttribute('cx', backX + Math.round(cardW * 0.38));
+          glowOrb.setAttribute('cy', backY + Math.round(cardH * 0.62));
+        }
+
+        svgMarkup = `
+          <!-- True Negative-Space Knockout Mask -->
+          <mask id="knockout-mask-main" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+            <rect x="0" y="0" width="1024" height="1024" fill="#ffffff" />
+            <rect x="${frontX - gap}" y="${frontY - gap}"
+                  width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                  rx="${koRx}" fill="#000000" />
+          </mask>
+
+          <g id="stack-offset-group" ${groupFilter}>
+            <!-- 1. Back Slight-Yellow Card + iOS Specular Rim (Clipped by Knockout Mask) -->
+            <g mask="url(#knockout-mask-main)">
+              <rect id="back-accent-sheet"
+                    x="${backX}" y="${backY}"
+                    width="${cardW}" height="${cardH}"
+                    rx="${r}"
+                    fill="${backFill}" />
+              ${backBorderW > 0 ? `
+              <rect x="${backX + 1}" y="${backY + 1}"
+                    width="${cardW - 2}" height="${cardH - 2}"
+                    rx="${Math.max(2, r - 1)}"
+                    fill="none"
+                    stroke="url(#ios-back-card-rim)"
+                    stroke-width="${backBorderW}" />
+              <!-- Specular Rim Along Knockout Cutout Edge -->
+              <rect x="${frontX - gap}" y="${frontY - gap}"
+                    width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                    rx="${koRx}"
+                    fill="none"
+                    stroke="url(#ios-back-card-rim)"
+                    stroke-width="${(backBorderW * 1.15).toFixed(2)}" />` : ''}
+            </g>
+
+            <!-- 2. Front Dark Obsidian Note Sheet + iOS Top-Lit Specular Border -->
+            <rect id="front-dark-sheet"
+                  x="${frontX}" y="${frontY}"
+                  width="${cardW}" height="${cardH}"
+                  rx="${r}"
+                  fill="${frontFill}"
+                  ${frontBorderW > 0 ? `stroke="url(#ios-front-card-rim)" stroke-width="${frontBorderW}"` : ''} />
+
+            <!-- Recessed iOS Inner Glass Hairline on Front Sheet -->
+            ${innerHairlineOpacity > 0 ? `
+            <rect x="${frontX + 5}" y="${frontY + 5}"
+                  width="${cardW - 10}" height="${cardH - 10}"
+                  rx="${Math.max(2, r - 5)}"
+                  fill="none"
+                  stroke="url(#ios-squircle-inner-rim)"
+                  stroke-width="1"
+                  opacity="${innerHairlineOpacity}" />` : ''}
+
+            <!-- 3. Horizontal Pill Note Lines -->
+            ${buildNoteLinesMarkup(frontX, frontY, cardW, cardH)}
+          </g>
+        `;
+      } else if (state.stackMode === 'symmetric') {
+        // MODE B: SYMMETRIC CENTER CRADLE
+        const cardW = 356;
+        const cardH = 436;
+        const sidePeek = Math.round(offset * 0.52);
+        const bottomPeek = Math.round(offset * 0.78);
+
+        const totalH = cardH + bottomPeek;
+        const frontX = Math.round(512 - cardW / 2);
+        const frontY = Math.round(512 - totalH / 2);
+
+        const backW = cardW + sidePeek * 2;
+        const backH = cardH;
+        const backX = Math.round(512 - backW / 2);
+        const backY = frontY + bottomPeek;
+        const koRx = gap > 0 ? r + gap : r;
+
+        const glowOrb = document.getElementById('glow-back-orb');
+        if (glowOrb) {
+          glowOrb.setAttribute('cx', 512);
+          glowOrb.setAttribute('cy', backY + Math.round(backH * 0.7));
+        }
+
+        svgMarkup = `
+          <mask id="knockout-mask-main" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+            <rect x="0" y="0" width="1024" height="1024" fill="#ffffff" />
+            <rect x="${frontX - gap}" y="${frontY - gap}"
+                  width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                  rx="${koRx}" fill="#000000" />
+          </mask>
+
+          <g id="stack-symmetric-group" ${groupFilter}>
+            <g mask="url(#knockout-mask-main)">
+              <rect id="back-accent-sheet"
+                    x="${backX}" y="${backY}"
+                    width="${backW}" height="${backH}"
+                    rx="${r + 4}"
+                    fill="${backFill}" />
+              ${backBorderW > 0 ? `
+              <rect x="${backX + 1}" y="${backY + 1}"
+                    width="${backW - 2}" height="${backH - 2}"
+                    rx="${r + 3}"
+                    fill="none"
+                    stroke="url(#ios-back-card-rim)"
+                    stroke-width="${backBorderW}" />
+              <rect x="${frontX - gap}" y="${frontY - gap}"
+                    width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                    rx="${koRx}"
+                    fill="none"
+                    stroke="url(#ios-back-card-rim)"
+                    stroke-width="${(backBorderW * 1.15).toFixed(2)}" />` : ''}
+            </g>
+
+            <rect id="front-dark-sheet"
+                  x="${frontX}" y="${frontY}"
+                  width="${cardW}" height="${cardH}"
+                  rx="${r}"
+                  fill="${frontFill}"
+                  ${frontBorderW > 0 ? `stroke="url(#ios-front-card-rim)" stroke-width="${frontBorderW}"` : ''} />
+
+            ${buildNoteLinesMarkup(frontX, frontY, cardW, cardH)}
+          </g>
+        `;
+      } else if (state.stackMode === 'cascade') {
+        // MODE C: DUAL-STEP 3-CARD CASCADE
+        const cardW = 340;
+        const cardH = 420;
+        const step = Math.round(offset * 0.62);
+
+        const totalW = cardW + step * 2;
+        const totalH = cardH + step * 2;
+        const startX = Math.round(512 - totalW / 2);
+        const startY = Math.round(512 - totalH / 2);
+
+        const frontX = startX + step * 2;
+        const frontY = startY;
+        const midX = startX + step;
+        const midY = startY + step;
+        const backX = startX;
+        const backY = startY + step * 2;
+        const koRx = gap > 0 ? r + gap : r;
+
+        const glowOrb = document.getElementById('glow-back-orb');
+        if (glowOrb) {
+          glowOrb.setAttribute('cx', midX + Math.round(cardW * 0.35));
+          glowOrb.setAttribute('cy', midY + Math.round(cardH * 0.65));
+        }
+
+        svgMarkup = `
+          <mask id="knockout-mask-mid" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+            <rect x="0" y="0" width="1024" height="1024" fill="#ffffff" />
+            <rect x="${frontX - gap}" y="${frontY - gap}"
+                  width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                  rx="${koRx}" fill="#000000" />
+          </mask>
+
+          <mask id="knockout-mask-back" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+            <rect x="0" y="0" width="1024" height="1024" fill="#ffffff" />
+            <rect x="${midX - gap}" y="${midY - gap}"
+                  width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                  rx="${koRx}" fill="#000000" />
+            <rect x="${frontX - gap}" y="${frontY - gap}"
+                  width="${cardW + gap * 2}" height="${cardH + gap * 2}"
+                  rx="${koRx}" fill="#000000" />
+          </mask>
+
+          <g id="stack-cascade-group" ${groupFilter}>
+            <g mask="url(#knockout-mask-back)">
+              <rect x="${backX}" y="${backY}" width="${cardW}" height="${cardH}" rx="${r}" fill="${tertiaryFill}" />
+              ${backBorderW > 0 ? `<rect x="${backX + 1}" y="${backY + 1}" width="${cardW - 2}" height="${cardH - 2}" rx="${Math.max(2, r - 1)}" fill="none" stroke="url(#ios-back-card-rim)" stroke-width="${backBorderW}" />` : ''}
+            </g>
+
+            <g mask="url(#knockout-mask-mid)">
+              <rect x="${midX}" y="${midY}" width="${cardW}" height="${cardH}" rx="${r}" fill="${backFill}" />
+              ${backBorderW > 0 ? `<rect x="${midX + 1}" y="${midY + 1}" width="${cardW - 2}" height="${cardH - 2}" rx="${Math.max(2, r - 1)}" fill="none" stroke="url(#ios-back-card-rim)" stroke-width="${backBorderW}" />` : ''}
+            </g>
+
+            <rect x="${frontX}" y="${frontY}" width="${cardW}" height="${cardH}" rx="${r}"
+                  fill="${frontFill}"
+                  ${frontBorderW > 0 ? `stroke="url(#ios-front-card-rim)" stroke-width="${frontBorderW}"` : ''} />
+
+            ${buildNoteLinesMarkup(frontX, frontY, cardW, cardH)}
+          </g>
+        `;
+      }
+
+      markGroup.innerHTML = svgMarkup;
+    }
+
+    // Master Parameter & iOS Specular Shader Update Loop
+    function updateAllParameters() {
+      const rim = parseInt(document.getElementById('slider-rim').value, 10);
+      const gap = parseInt(document.getElementById('slider-gap').value, 10);
+      const offset = parseInt(document.getElementById('slider-offset').value, 10);
+      const radius = parseInt(document.getElementById('slider-radius').value, 10);
+      const hue = parseInt(document.getElementById('slider-hue').value, 10);
+      const sat = parseInt(document.getElementById('slider-sat').value, 10);
+      const firstAccent = document.getElementById('toggle-first-line-accent').checked;
+
+      state.rimIntensity = rim;
+      state.cutoutGap = gap;
+      state.sheetOffset = offset;
+      state.cornerRadius = radius;
+      state.hue = hue;
+      state.sat = sat;
+      state.firstLineAccent = firstAccent;
+
+      // Update UI Readouts
+      document.getElementById('val-rim').textContent = `${rim}%`;
+      document.getElementById('hud-rim').textContent = `${rim}% Top-Lit`;
+      document.getElementById('val-gap').textContent = `${gap}px`;
+      document.getElementById('val-offset').textContent = `${offset}px`;
+      document.getElementById('val-radius').textContent = `${radius}px`;
+      document.getElementById('val-hue').textContent = `${hue}°`;
+      document.getElementById('val-sat').textContent = `${sat}%`;
+
+      // Compute Slight-Yellow Champagne Palette Stops
+      const creamColor   = hslToHex(hue, Math.min(100, sat + 6), 90); // #FEF9C3 creamy top highlight
+      const specColor    = hslToHex(hue, Math.min(100, sat + 4), 72); // #FDE047 champagne specular
+      const brightColor  = hslToHex(Math.max(0, hue - 3), sat, 52);   // #EAB308 satin warm gold
+      const primaryColor = hslToHex(Math.max(0, hue - 6), sat, 36);   // #CA8A04 / #A16207 warm bronze
+      const midColor     = hslToHex(Math.max(0, hue - 8), Math.max(20, sat - 10), 28);
+      const deepColor    = hslToHex(Math.max(0, hue - 10), Math.max(20, sat - 15), 16);
+
+      // Update CSS Variable & HUD Swatch
+      document.documentElement.style.setProperty('--neon-accent', specColor);
+      document.getElementById('hud-hex').textContent = specColor;
+      const dot = document.getElementById('hud-swatch-dot');
+      dot.style.backgroundColor = specColor;
+      dot.style.boxShadow = `0 0 10px ${specColor}`;
+
+      // Update SVG Gradient Color Classes
+      document.querySelectorAll('.c-cream').forEach(el => el.setAttribute('stop-color', creamColor));
+      document.querySelectorAll('.c-spec').forEach(el => el.setAttribute('stop-color', specColor));
+      document.querySelectorAll('.c-bright').forEach(el => el.setAttribute('stop-color', brightColor));
+      document.querySelectorAll('.c-primary').forEach(el => el.setAttribute('stop-color', primaryColor));
       document.querySelectorAll('.c-mid').forEach(el => el.setAttribute('stop-color', midColor));
       document.querySelectorAll('.c-deep').forEach(el => el.setAttribute('stop-color', deepColor));
-      document.querySelectorAll('.c-dark').forEach(el => el.setAttribute('stop-color', darkColor));
+      document.querySelectorAll('.c-spec-fill').forEach(el => el.setAttribute('fill', specColor));
 
-      document.querySelectorAll('.c-primary-fill').forEach(el => el.setAttribute('fill', primaryColor));
-      document.querySelectorAll('.c-spec-fill').forEach(el => el.setAttribute('fill', brightColor));
-      document.querySelectorAll('.c-spec-stroke').forEach(el => el.setAttribute('stroke', specColor));
+      // Update iOS Squircle Bezel Rim Thickness & Opacity
+      const rimFactor = state.finishMode === 'flat' ? 0.15 : (rim / 100);
+      const sqBezel = document.getElementById('sq-outer-bezel');
+      const sqInner = document.getElementById('sq-inner-groove');
+      sqBezel.setAttribute('stroke-width', (1.2 + rimFactor * 2.6).toFixed(2));
+      sqBezel.setAttribute('opacity', Math.min(1, rimFactor * 1.1).toFixed(2));
+      sqInner.setAttribute('opacity', (rimFactor * 0.85).toFixed(2));
 
-      document.getElementById('bg-stop-1').setAttribute('stop-color', hslToHex(h, Math.min(45, s), 7));
-      document.getElementById('flap-mid').setAttribute('stop-color', hslToHex(h, Math.min(35, s), 11));
+      // Update Front Dark Sheet Stops
+      const p = COLOR_PRESETS[state.preset] || COLOR_PRESETS.champagne;
+      document.getElementById('front-stop-1').setAttribute('stop-color', p.frontTop);
+      document.getElementById('front-stop-2').setAttribute('stop-color', p.frontMid);
+      document.getElementById('front-stop-3').setAttribute('stop-color', p.frontBot);
+
+      // Update Ambient Glow
+      const effectiveGlow = state.finishMode === 'flat' ? 0 : (0.3 + rimFactor * 0.45);
+      document.getElementById('gfx-ambient-glow').setAttribute('opacity', effectiveGlow.toFixed(2));
+
+      // Re-render Stacked Note SVG
+      renderStackedNoteIcon();
     }
 
-    function updateGlow() {
-      const val = parseInt(document.getElementById('slider-glow').value, 10);
-      document.getElementById('glow-val').textContent = `${val}%`;
-      document.getElementById('layer-ambient-glow').setAttribute('opacity', (val / 100) * 0.85);
-      document.getElementById('vertex-glints').setAttribute('opacity', val / 100);
+    // Extraction Mode Switcher (iOS Squircle vs Raw Transparent Logo Mark)
+    function setExtractionMode(markOnly) {
+      document.getElementById('toggle-mark-only').checked = markOnly;
+      syncExtractionToggles();
     }
 
-    function updateLines() {
-      const val = parseInt(document.getElementById('slider-lines').value, 10);
-      document.getElementById('lines-val').textContent = `${val}%`;
-      document.getElementById('note-lines').setAttribute('opacity', val / 100);
-    }
-
-    function updateLayers() {
+    function syncExtractionToggles() {
       const markOnly = document.getElementById('toggle-mark-only').checked;
       const wallpaper = document.getElementById('toggle-wallpaper').checked;
+      state.markOnly = markOnly;
+      state.includeWallpaper = wallpaper;
 
-      const squircle = document.getElementById('layer-squircle');
-      const bg = document.getElementById('layer-wallpaper');
+      const svgEl = document.getElementById('monolith-svg');
+      const sqLayer = document.getElementById('layer-squircle');
+      const bgLayer = document.getElementById('layer-wallpaper');
+
+      const btnSq = document.getElementById('header-btn-squircle');
+      const btnMk = document.getElementById('header-btn-mark');
 
       if (markOnly) {
-        squircle.style.display = 'none';
-        bg.style.display = 'none';
+        sqLayer.style.display = 'none';
+        bgLayer.style.display = 'none';
+        svgEl.setAttribute('viewBox', '190 175 644 674');
+        btnMk.className = 'px-3 py-1 rounded-md text-xs font-semibold transition bg-yellow-300 text-black shadow-[0_0_14px_rgba(253,224,71,0.35)]';
+        btnSq.className = 'px-3 py-1 rounded-md text-xs font-medium transition text-zinc-400 hover:text-white';
       } else {
-        squircle.style.display = 'inline';
-        bg.style.display = wallpaper ? 'inline' : 'none';
+        sqLayer.style.display = 'inline';
+        bgLayer.style.display = wallpaper ? 'inline' : 'none';
+        svgEl.setAttribute('viewBox', '0 0 1024 1024');
+        btnSq.className = 'px-3 py-1 rounded-md text-xs font-semibold transition bg-yellow-300 text-black shadow-[0_0_14px_rgba(253,224,71,0.35)]';
+        btnMk.className = 'px-3 py-1 rounded-md text-xs font-medium transition text-zinc-400 hover:text-white';
       }
     }
 
-    function getCleanSVGString() {
-      const svgEl = document.getElementById('monolith-svg');
-      const clone = svgEl.cloneNode(true);
-      // Remove hidden layers from exported SVG
-      ['layer-wallpaper', 'layer-squircle'].forEach(id => {
-        const orig = document.getElementById(id);
-        const clonedNode = clone.querySelector(`#${id}`);
-        if (orig.style.display === 'none' && clonedNode) {
-          clonedNode.remove();
+    // Stage Backdrop Switcher (AMOLED #000 vs Alpha Grid)
+    function toggleStageBackdrop() {
+      state.stageAmoled = !state.stageAmoled;
+      const stage = document.getElementById('main-stage-bg');
+      const label = document.getElementById('label-stage-bg');
+      if (state.stageAmoled) {
+        stage.classList.remove('stage-checkerboard');
+        stage.classList.add('stage-amoled');
+        label.textContent = 'Stage: AMOLED #000';
+      } else {
+        stage.classList.remove('stage-amoled');
+        stage.classList.add('stage-checkerboard');
+        label.textContent = 'Stage: Alpha Grid';
+        showToast('Alpha Grid active — verify the transparent knockout gap');
+      }
+    }
+
+    // iOS Keyline Grid Overlay Toggle
+    function toggleBlueprintGrid() {
+      const grid = document.getElementById('layer-keyline-grid');
+      const btn = document.getElementById('btn-grid');
+      const hidden = grid.style.display === 'none';
+      grid.style.display = hidden ? 'inline' : 'none';
+      btn.classList.toggle('border-yellow-300/60', hidden);
+    }
+
+    // Scale Strip Mode Toggle
+    function setScaleStripMode(mode) {
+      const svgs = document.querySelectorAll('.scale-svg');
+      const sqs = document.querySelectorAll('.scale-sq');
+      const btnSq = document.getElementById('scale-btn-squircle');
+      const btnMk = document.getElementById('scale-btn-mark');
+
+      if (mode === 'mark') {
+        sqs.forEach(el => el.style.display = 'none');
+        svgs.forEach(s => s.setAttribute('viewBox', '190 175 644 674'));
+        btnMk.className = 'px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-800 text-yellow-200 border border-yellow-400/30';
+        btnSq.className = 'px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-zinc-200';
+      } else {
+        sqs.forEach(el => el.style.display = 'inline');
+        svgs.forEach(s => s.setAttribute('viewBox', '140 140 744 744'));
+        btnSq.className = 'px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-800 text-yellow-200 border border-yellow-400/30';
+        btnMk.className = 'px-2.5 py-1 rounded text-[11px] font-medium bg-zinc-950 text-zinc-400 border border-zinc-800 hover:text-zinc-200';
+      }
+    }
+
+    // Interactive Mockup "New Note" Trigger
+    let docIndex = 1;
+    const mockDocs = [
+      '02 — iOS 18 Specular Bezel Optics & Continuous Squircle Curvature.md',
+      '03 — Champagne Yellow (#FDE047) vs Obsidian Graphite Contrast.md',
+      '04 — Scale Invariance Benchmark: 1024px App Store to 16px Favicon.md',
+      '01 — iOS 18 Specular Borders & Champagne Gold Icon System.md'
+    ];
+    function triggerMockNewNote() {
+      const next = mockDocs[(docIndex++) % mockDocs.length];
+      document.getElementById('mock-doc-title').textContent = next;
+      document.getElementById('mock-doc-meta').textContent = `Updated just now • ${MODE_LABELS[state.stackMode]}`;
+      showToast(`Opened note: "${next.slice(0, 32)}..."`);
+    }
+
+    // Serialize Clean, Standalone Production SVG
+    function serializeCleanSVG(forceMarkOnly = false) {
+      const orig = document.getElementById('monolith-svg');
+      const clone = orig.cloneNode(true);
+
+      const grid = clone.querySelector('#layer-keyline-grid');
+      if (grid) grid.remove();
+
+      const markOnly = forceMarkOnly || state.markOnly;
+      if (markOnly) {
+        const sq = clone.querySelector('#layer-squircle');
+        const bg = clone.querySelector('#layer-wallpaper');
+        if (sq) sq.remove();
+        if (bg) bg.remove();
+        clone.setAttribute('viewBox', '190 175 644 674');
+      } else {
+        if (!state.includeWallpaper) {
+          const bg = clone.querySelector('#layer-wallpaper');
+          if (bg) bg.remove();
+        } else {
+          const bg = clone.querySelector('#layer-wallpaper');
+          if (bg) bg.style.display = 'inline';
         }
-      });
+        clone.setAttribute('viewBox', '0 0 1024 1024');
+      }
+
+      clone.setAttribute('width', '1024');
+      clone.setAttribute('height', '1024');
+      clone.removeAttribute('class');
+
       return new XMLSerializer().serializeToString(clone);
     }
 
-    function downloadSVG() {
-      const svgData = getCleanSVGString();
+    // Download .SVG File
+    function downloadSVGFile() {
+      const svgData = serializeCleanSVG(false);
+      const filename = state.markOnly
+        ? `monolith-ios-champagne-${state.stackMode}-mark.svg`
+        : `monolith-ios-champagne-${state.stackMode}-icon.svg`;
+
       const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'monolith-icon.svg';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      showToast(`Downloaded ${filename}`);
     }
 
-    function downloadPNG() {
+    // Quick Export of Raw Navbar Logo Mark (.SVG)
+    function downloadRawMarkSVG() {
+      const svgData = serializeCleanSVG(true);
+      const filename = `monolith-ios-champagne-transparent-mark.svg`;
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Extracted transparent ${filename}`);
+    }
+
+    // Download High-Resolution .PNG via HTML5 Canvas
+    function downloadPNGFile() {
       const size = parseInt(document.getElementById('export-size').value, 10);
-      const svgData = getCleanSVGString();
+      const svgData = serializeCleanSVG(false);
+      const filename = state.markOnly
+        ? `monolith-ios-champagne-${state.stackMode}-mark-${size}px.png`
+        : `monolith-ios-champagne-${state.stackMode}-icon-${size}px.png`;
+
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const img = new Image();
-      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
 
       img.onload = function () {
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
         ctx.drawImage(img, 0, 0, size, size);
         URL.revokeObjectURL(url);
 
-        canvas.toBlob(blob => {
-          const pngUrl = URL.createObjectURL(blob);
+        canvas.toBlob(pngBlob => {
+          if (!pngBlob) return;
+          const pngUrl = URL.createObjectURL(pngBlob);
           const a = document.createElement('a');
           a.href = pngUrl;
-          a.download = `monolith-icon-${size}px.png`;
+          a.download = filename;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(pngUrl);
+          showToast(`Downloaded ${filename} (${size}×${size})`);
         }, 'image/png');
       };
       img.src = url;
     }
 
+    // Copy Raw SVG Code
     function copySVGCode() {
-      const svgData = getCleanSVGString();
-      navigator.clipboard.writeText(svgData).then(() => {
-        const btn = document.getElementById('btn-copy-svg');
-        const original = btn.textContent;
-        btn.textContent = 'Copied SVG to Clipboard!';
-        btn.classList.add('text-yellow-400', 'border-yellow-500/40');
+      const svgData = serializeCleanSVG(false);
+      const temp = document.createElement('textarea');
+      temp.value = svgData;
+      document.body.appendChild(temp);
+      temp.select();
+      try {
+        document.execCommand('copy');
+        const label = document.getElementById('copy-btn-text');
+        label.textContent = 'Copied Clean SVG!';
+        showToast('Copied iOS 18 specular SVG code to clipboard');
         setTimeout(() => {
-          btn.textContent = original;
-          btn.classList.remove('text-yellow-400', 'border-yellow-500/40');
+          label.textContent = 'Copy Raw SVG Code';
         }, 2000);
-      });
+      } catch (e) {
+        showToast('Open "Inspect SVG" to copy manually');
+      }
+      document.body.removeChild(temp);
     }
 
-    // Initialize with transparent outer wallpaper by default so the squircle pops
-    document.getElementById('toggle-wallpaper').checked = false;
-    updateLayers();
-    updateColors();
+    // SVG Inspector Modal
+    function openSVGModal() {
+      const modal = document.getElementById('svg-modal');
+      document.getElementById('svg-modal-code').value = serializeCleanSVG(false);
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSVGModal() {
+      const modal = document.getElementById('svg-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    // Initialize Studio on Load
+    window.addEventListener('DOMContentLoaded', () => {
+      updateAllParameters();
+      syncExtractionToggles();
+    });
   </script>
 </body>
 </html>
