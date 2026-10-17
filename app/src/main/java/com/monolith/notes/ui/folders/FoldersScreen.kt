@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -153,6 +154,7 @@ fun FoldersScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(iOSCardBackground)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                     ) {
                         Column {
                             // "All Monolith"
@@ -222,6 +224,7 @@ fun FoldersScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(iOSCardBackground)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                     ) {
                         FolderRow(
                             title = "Recently Deleted",
@@ -247,15 +250,16 @@ fun FoldersScreen(
                 color = iOSCardBackground,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = bottomInset)
                 ) {
+                    HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.07f))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(46.dp)
                             .padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -270,19 +274,19 @@ fun FoldersScreen(
                                     newFolderName = ""
                                     showCreateDialog = true
                                 }
-                                .padding(vertical = 6.dp, horizontal = 4.dp)
+                                .padding(vertical = 4.dp, horizontal = 4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CreateNewFolder,
                                 contentDescription = "New Folder",
                                 tint = iOSYellow,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "New Folder",
                                 color = iOSYellow,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -293,13 +297,13 @@ fun FoldersScreen(
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 onNewNoteClick()
                             },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,
                                 contentDescription = "New Note",
                                 tint = iOSYellow,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }

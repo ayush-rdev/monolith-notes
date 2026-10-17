@@ -166,6 +166,7 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     // Editor Font Size
@@ -303,6 +304,7 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     // 1. Google Drive (Zero-Config, Free 15GB, User's Google Account)
@@ -525,6 +527,7 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     SettingsDetailRow(
@@ -596,6 +599,7 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                     .padding(vertical = 22.dp, horizontal = 16.dp)
             ) {
                 Column(
@@ -626,10 +630,11 @@ fun SettingsSheet(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(iOSElevatedCard)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = "Version 1.6.0 • Pure Offline Markdown",
+                            text = "Version ${com.monolith.notes.BuildConfig.VERSION_NAME} • Pure Offline Markdown",
                             style = MonolithTypography.labelSmall.copy(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -662,6 +667,7 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     SettingsDetailRow(

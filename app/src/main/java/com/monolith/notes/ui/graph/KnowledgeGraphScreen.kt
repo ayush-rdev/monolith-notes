@@ -446,9 +446,9 @@ fun KnowledgeGraphScreen(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(CircleShape)
                     .background(iOSCardBackground)
-                    .border(0.5.dp, iOSDivider, RoundedCornerShape(20.dp))
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Icon(
@@ -499,7 +499,7 @@ fun KnowledgeGraphScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = iOSCardBackground,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, iOSDivider),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {

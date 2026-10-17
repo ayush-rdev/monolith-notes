@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -14,9 +15,11 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -94,10 +97,10 @@ fun TrashScreen(
                         .padding(horizontal = 6.dp, vertical = 4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                         contentDescription = "Back",
                         tint = iOSYellow,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -438,14 +441,14 @@ private fun TrashNoteRow(
                 indication = null,
                 onClick = onClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = note.displayTitle,
-                style = MonolithTypography.titleLarge,
+                style = MonolithTypography.titleLarge.copy(fontSize = 16.sp),
                 color = iOSTextPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -456,7 +459,7 @@ private fun TrashNoteRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = formattedDate,
-                    style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                    style = MonolithTypography.bodyMedium.copy(fontSize = 13.5.sp),
                     color = iOSTextPrimary.copy(alpha = 0.85f),
                     fontWeight = FontWeight.Medium
                 )
@@ -465,7 +468,7 @@ private fun TrashNoteRow(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = note.previewSnippet,
-                        style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                        style = MonolithTypography.bodyMedium.copy(fontSize = 13.5.sp),
                         color = iOSTextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -476,16 +479,17 @@ private fun TrashNoteRow(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        // Days remaining badge
+        // Days remaining capsule badge
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(6.dp))
+                .clip(CircleShape)
                 .background(Color(0xFF2C2C2E))
-                .padding(horizontal = 7.dp, vertical = 3.dp)
+                .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
+                .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
             Text(
                 text = "${daysRemaining}d left",
-                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
+                style = MonolithTypography.labelSmall.copy(fontSize = 10.5.sp),
                 color = if (daysRemaining <= 3) Color(0xFFFF453A) else iOSTextTertiary,
                 fontWeight = FontWeight.SemiBold
             )

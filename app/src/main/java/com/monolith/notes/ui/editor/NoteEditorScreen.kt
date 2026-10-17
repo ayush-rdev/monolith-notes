@@ -583,7 +583,7 @@ fun NoteEditorScreen(
                                 onDismissRequest = { showShareMenu = false },
                                 modifier = Modifier
                                     .background(iOSCardBackground)
-                                    .border(0.5.dp, iOSDivider, RoundedCornerShape(12.dp))
+                                    .border(0.5.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Share Text / Markdown", color = Color.White, fontSize = 14.sp) },
@@ -1619,15 +1619,15 @@ private fun WikiLinkAutocompleteBar(
                 if (trimmedQuery.isNotEmpty() && !exactMatch) {
                     item {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = CircleShape,
                             color = iOSYellow.copy(alpha = 0.15f),
-                            border = BorderStroke(1.dp, iOSYellow.copy(alpha = 0.6f)),
+                            border = BorderStroke(0.5.dp, iOSYellow.copy(alpha = 0.5f)),
                             modifier = Modifier.clickable {
                                 onSelect(trimmedQuery)
                             }
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
@@ -1639,7 +1639,7 @@ private fun WikiLinkAutocompleteBar(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Create \"$trimmedQuery\"",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = iOSYellow
                                 )
@@ -1650,20 +1650,20 @@ private fun WikiLinkAutocompleteBar(
 
                 items(suggestions, key = { it.id }) { targetNote ->
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = CircleShape,
                         color = iOSCardBackground,
-                        border = BorderStroke(1.dp, iOSDivider),
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.clickable {
                             onSelect(targetNote.displayTitle)
                         }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = targetNote.displayTitle,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.White
                             )
@@ -1696,7 +1696,7 @@ private fun LinkedReferencesSection(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(iOSCardBackground)
-            .border(1.dp, iOSDivider, RoundedCornerShape(14.dp))
+            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
         Row(
@@ -1773,7 +1773,7 @@ private fun BacklinkItemCard(
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = iOSBackground,
-        border = BorderStroke(0.5.dp, iOSDivider),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
@@ -1794,15 +1794,20 @@ private fun BacklinkItemCard(
                     color = Color.White
                 )
                 if (note.folderName != "Notes") {
-                    Text(
-                        text = note.folderName,
-                        fontSize = 11.sp,
-                        color = iOSYellow,
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
+                            .clip(CircleShape)
                             .background(iOSYellow.copy(alpha = 0.12f))
-                            .padding(horizontal = 6.dp, vertical = 1.dp)
-                    )
+                            .border(0.5.dp, iOSYellow.copy(alpha = 0.25f), CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 1.5.dp)
+                    ) {
+                        Text(
+                            text = note.folderName,
+                            fontSize = 10.5.sp,
+                            color = iOSYellow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 

@@ -545,6 +545,7 @@ fun MarkdownRenderView(
                             .padding(vertical = 4.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(iOSCardBackground)
+                            .border(0.5.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp))
                             .padding(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Box(
@@ -811,7 +812,7 @@ private fun RenderCommonMarkTable(
             .padding(vertical = 8.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(iOSCardBackground)
-            .border(1.dp, iOSDivider, RoundedCornerShape(12.dp))
+            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
     ) {
         Box(
             modifier = Modifier
@@ -1005,6 +1006,7 @@ fun iOSCodeBlockCard(
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(iOSCardBackground)
+            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             .padding(14.dp)
     ) {
         if (language.isNotBlank()) {
@@ -1057,6 +1059,7 @@ fun IOSInlineImage(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
                     .clickable { isExpanded = true }
             ) {
                 AsyncImage(

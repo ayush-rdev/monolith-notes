@@ -9,6 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -372,15 +373,16 @@ fun NotesListScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp)
             )
 
-            // iOS Search Capsule
+            // iOS Search Capsule (Specular translucent hairline border, compact 35dp height)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .height(38.dp)
+                    .padding(horizontal = 16.dp, vertical = 3.dp)
+                    .height(35.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(iOSSearchPill)
-                    .padding(horizontal = 12.dp),
+                    .border(0.5.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 10.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Row(
@@ -391,7 +393,7 @@ fun NotesListScreen(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Search",
                         tint = iOSTextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(17.dp)
                     )
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -401,13 +403,13 @@ fun NotesListScreen(
                         onValueChange = { searchQuery = it },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
-                        textStyle = MonolithTypography.bodyMedium.copy(color = iOSTextPrimary, fontSize = 16.sp),
+                        textStyle = MonolithTypography.bodyMedium.copy(color = iOSTextPrimary, fontSize = 15.sp),
                         cursorBrush = SolidColor(iOSYellow),
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
                                     text = "Search",
-                                    style = MonolithTypography.bodyMedium.copy(fontSize = 16.sp),
+                                    style = MonolithTypography.bodyMedium.copy(fontSize = 15.sp),
                                     color = iOSTextSecondary
                                 )
                             }
@@ -418,28 +420,28 @@ fun NotesListScreen(
                     if (searchQuery.isNotEmpty()) {
                         IconButton(
                             onClick = { searchQuery = "" },
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Cancel,
                                 contentDescription = "Clear",
                                 tint = iOSTextSecondary,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                     }
                 }
             }
 
-            // Tag Filter Chips (iOS Capsule Chips)
+            // Tag Filter Chips (iOS Concentric Capsule Chips with Specular Hairline Borders)
             if (allTags.isNotEmpty()) {
                 val tagScrollState = rememberScrollState()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
                         .horizontalScroll(tagScrollState),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     IOSTagChip(
                         label = "All Notes",
@@ -456,7 +458,7 @@ fun NotesListScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             // Notes Stream (Apple Notes Inset Grouped Table)
             if (filteredNotes.isEmpty()) {
@@ -500,10 +502,10 @@ fun NotesListScreen(
                         item(key = "grid_header_pinned", span = { GridItemSpan(maxLineSpan) }) {
                             Text(
                                 text = "PINNED",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = iOSTextSecondary,
-                                modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+                                modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp)
                             )
                         }
                         items(
@@ -532,10 +534,10 @@ fun NotesListScreen(
                             item(key = "grid_header_$sectionTitle", span = { GridItemSpan(maxLineSpan) }) {
                                 Text(
                                     text = sectionTitle,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = iOSTextSecondary,
-                                    modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 4.dp)
+                                    modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp)
                                 )
                             }
                             items(
@@ -574,10 +576,10 @@ fun NotesListScreen(
                         item(key = "header_pinned", contentType = "section_header") {
                             Text(
                                 text = "PINNED",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = iOSTextSecondary,
-                                modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp)
+                                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
                             )
                         }
                         itemsIndexed(
@@ -624,10 +626,10 @@ fun NotesListScreen(
                             item(key = "header_$sectionTitle", contentType = "section_header") {
                                 Text(
                                     text = sectionTitle,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = iOSTextSecondary,
-                                    modifier = Modifier.padding(start = 16.dp, top = 18.dp, bottom = 6.dp)
+                                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
                                 )
                             }
                             itemsIndexed(
@@ -681,21 +683,22 @@ fun NotesListScreen(
                 color = iOSCardBackground,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = bottomInset)
                 ) {
+                    HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.07f))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(46.dp)
                             .padding(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Balance spacer for centered count label (Folders navigation is already prominent at top-left)
-                        Box(modifier = Modifier.size(40.dp))
+                        Box(modifier = Modifier.size(36.dp))
                         val countLabel = if (searchQuery.isNotBlank()) {
                             "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"
                         } else {
@@ -703,7 +706,7 @@ fun NotesListScreen(
                         }
                         Text(
                             text = countLabel,
-                            style = MonolithTypography.labelSmall,
+                            style = MonolithTypography.labelSmall.copy(fontSize = 12.sp),
                             color = iOSTextSecondary
                         )
 
@@ -713,13 +716,13 @@ fun NotesListScreen(
                                 performHaptic(HapticFeedbackType.LongPress)
                                 onNewNoteClick()
                             },
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,
                                 contentDescription = "New Note",
                                 tint = iOSYellow,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
@@ -748,6 +751,7 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
@@ -887,9 +891,10 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(52.dp)
                             .clickable {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
                                 noteActionTarget = null
@@ -1042,6 +1047,7 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1076,7 +1082,7 @@ fun NotesListScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(54.dp)
+                                    .height(52.dp)
                                     .clickable {
                                         performHaptic(HapticFeedbackType.LongPress)
                                         onDeleteNote(targetNote)
@@ -1102,9 +1108,10 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
+                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp)
+                            .height(52.dp)
                             .clickable {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
                                 noteToDelete = null
@@ -1165,7 +1172,7 @@ fun NotesListScreen(
     }
 }
 
-private val TagChipShape = RoundedCornerShape(8.dp)
+private val TagChipShape = CircleShape
 
 @Composable
 fun IOSTagChip(
@@ -1188,14 +1195,19 @@ fun IOSTagChip(
         modifier = Modifier
             .clip(TagChipShape)
             .drawBehind { drawRect(chipBgState.value) }
+            .border(
+                width = 0.5.dp,
+                color = if (isSelected) iOSYellow.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f),
+                shape = TagChipShape
+            )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 11.dp, vertical = 4.dp)
     ) {
         Text(
             text = label,
-            style = MonolithTypography.labelMedium,
+            style = MonolithTypography.labelMedium.copy(fontSize = 12.5.sp),
             color = chipTextColor,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
@@ -1257,7 +1269,7 @@ fun IOSNoteRow(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1275,7 +1287,7 @@ fun IOSNoteRow(
                 }
                 Text(
                     text = titleText,
-                    style = MonolithTypography.titleLarge,
+                    style = MonolithTypography.titleLarge.copy(fontSize = 16.sp),
                     color = iOSTextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1283,18 +1295,24 @@ fun IOSNoteRow(
                 )
 
                 note.taskStats?.let { (completed, total) ->
+                    val isAllDone = completed == total
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(if (completed == total) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
-                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                            .clip(CircleShape)
+                            .background(if (isAllDone) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
+                            .border(
+                                0.5.dp,
+                                (if (isAllDone) iOSEmerald else iOSYellow).copy(alpha = 0.35f),
+                                CircleShape
+                            )
+                            .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (completed == total) "✓ Done" else "✓ $completed/$total",
-                            style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
-                            color = if (completed == total) iOSEmerald else iOSYellow,
-                            fontWeight = FontWeight.Bold
+                            text = if (isAllDone) "✓ Done" else "✓ $completed/$total",
+                            style = MonolithTypography.labelSmall.copy(fontSize = 10.5.sp),
+                            color = if (isAllDone) iOSEmerald else iOSYellow,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -1305,26 +1323,34 @@ fun IOSNoteRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = formattedDate,
-                    style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                    style = MonolithTypography.bodyMedium.copy(fontSize = 13.5.sp),
                     color = iOSTextPrimary.copy(alpha = 0.85f),
                     fontWeight = FontWeight.Medium
                 )
 
                 if (showFolderBadge && note.folderName != "Notes") {
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "📁 ${note.folderName}",
-                        style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
-                        color = iOSYellow.copy(alpha = 0.9f),
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(iOSYellow.copy(alpha = 0.12f))
+                            .border(0.5.dp, iOSYellow.copy(alpha = 0.25f), CircleShape)
+                            .padding(horizontal = 6.dp, vertical = 1.5.dp)
+                    ) {
+                        Text(
+                            text = "📁 ${note.folderName}",
+                            style = MonolithTypography.bodySmall.copy(fontSize = 10.5.sp),
+                            color = iOSYellow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 if (snippetText != null) {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = snippetText,
-                        style = MonolithTypography.bodyMedium.copy(fontSize = 14.sp),
+                        style = MonolithTypography.bodyMedium.copy(fontSize = 13.5.sp),
                         color = iOSTextSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1632,7 +1658,11 @@ fun IOSSwipeableNoteRow(
 }
 
 /**
- * Apple Notes Gallery View: 2-column index cards
+ * Apple Notes Gallery View: High-density luxury 2-column index cards
+ * - Uniform fixed height (152.dp) for mathematically perfect grid rhythm
+ * - Inset document paper canvas preview with hairline highlight
+ * - Specular translucent glass perimeter border (0.5.dp, Color.White.copy(alpha = 0.09f))
+ * - Lower metadata footer with bold title, date, folder pill, and checklist badge
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -1665,12 +1695,12 @@ fun IOSNoteGridCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = iOSCardBackground,
-        border = BorderStroke(0.5.dp, Color(0xFF2C2C2E)),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.09f)),
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 130.dp, max = 190.dp)
+            .height(152.dp)
             .graphicsLayer {
                 scaleX = pressScale
                 scaleY = pressScale
@@ -1684,98 +1714,132 @@ fun IOSNoteGridCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp)
+                .fillMaxSize()
+                .padding(8.dp)
         ) {
-            // Badges row: Pin & Folder & Checklists
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            // 1. Inset Document Paper Canvas Preview (simulates Apple physical index note sheet)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(88.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF222225))
+                    .border(0.5.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                    .padding(8.dp)
             ) {
-                Row(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (note.isPinned) {
-                        Icon(
-                            imageVector = Icons.Default.PushPin,
-                            contentDescription = "Pinned",
-                            tint = iOSYellow,
-                            modifier = Modifier
-                                .size(14.dp)
-                                .padding(end = 4.dp)
-                        )
-                    }
-                    if (showFolderBadge && note.folderName != "Notes") {
-                        Text(
-                            text = "📁 ${note.folderName}",
-                            style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),
-                            color = iOSYellow.copy(alpha = 0.9f),
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+                // Snippet text inside paper canvas
+                Text(
+                    text = snippetText ?: titleText,
+                    style = MonolithTypography.bodySmall.copy(
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp
+                    ),
+                    color = iOSTextSecondary.copy(alpha = 0.9f),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                note.taskStats?.let { (completed, total) ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(if (completed == total) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = if (completed == total) "✓" else "$completed/$total",
-                            style = MonolithTypography.labelSmall.copy(fontSize = 10.sp),
-                            color = if (completed == total) iOSEmerald else iOSYellow,
-                            fontWeight = FontWeight.Bold
-                        )
+                // Top-right micro badges (Pinned / Checklist)
+                Row(
+                    modifier = Modifier.align(Alignment.TopEnd),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    note.taskStats?.let { (completed, total) ->
+                        val isAllDone = completed == total
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(if (isAllDone) iOSEmerald.copy(alpha = 0.22f) else iOSYellowContainer)
+                                .border(
+                                    0.5.dp,
+                                    (if (isAllDone) iOSEmerald else iOSYellow).copy(alpha = 0.4f),
+                                    CircleShape
+                                )
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = if (isAllDone) "✓" else "$completed/$total",
+                                style = MonolithTypography.labelSmall.copy(fontSize = 9.sp),
+                                color = if (isAllDone) iOSEmerald else iOSYellow,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    if (note.isPinned) {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(iOSYellow.copy(alpha = 0.2f))
+                                .border(0.5.dp, iOSYellow.copy(alpha = 0.4f), CircleShape)
+                                .padding(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PushPin,
+                                contentDescription = "Pinned",
+                                tint = iOSYellow,
+                                modifier = Modifier.size(10.dp)
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Title
-            Text(
-                text = titleText,
-                style = MonolithTypography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                ),
-                color = iOSTextPrimary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Body preview snippet (up to 3 lines)
-            if (snippetText != null) {
+            // 2. Metadata Footer (Title + Date + Folder Pill)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
-                    text = snippetText,
-                    style = MonolithTypography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
+                    text = titleText,
+                    style = MonolithTypography.titleMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp
                     ),
-                    color = iOSTextSecondary,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    color = iOSTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-            } else {
-                Spacer(modifier = Modifier.weight(1f, fill = false))
-            }
 
-            // Date pill
-            Text(
-                text = note.formattedDate,
-                style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
-                color = iOSTextTertiary
-            )
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = note.formattedDate,
+                        style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
+                        color = iOSTextTertiary
+                    )
+
+                    if (showFolderBadge && note.folderName != "Notes") {
+                        Box(
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(iOSYellow.copy(alpha = 0.12f))
+                                .border(0.5.dp, iOSYellow.copy(alpha = 0.3f), CircleShape)
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "📁 ${note.folderName}",
+                                style = MonolithTypography.bodySmall.copy(fontSize = 9.5.sp),
+                                color = iOSYellow,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
