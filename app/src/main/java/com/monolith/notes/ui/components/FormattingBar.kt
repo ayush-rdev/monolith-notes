@@ -86,7 +86,7 @@ fun FormattingBar(
                     text = "Aa",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isFormatSheetOpen) iOSYellow else Color.White
+                    color = if (isFormatSheetOpen) iOSYellow else iOSTextPrimary
                 )
             }
 

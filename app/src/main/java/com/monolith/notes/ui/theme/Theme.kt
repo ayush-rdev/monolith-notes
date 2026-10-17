@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
@@ -11,26 +12,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-fun createMonolithColorScheme(theme: AppTheme): ColorScheme = darkColorScheme(
-    primary = theme.accent,
-    onPrimary = Color.Black,
-    primaryContainer = theme.accentContainer,
-    onPrimaryContainer = theme.accent,
-    secondary = theme.accent,
-    onSecondary = Color.Black,
-    background = theme.background,
-    onBackground = theme.textPrimary,
-    surface = theme.background,
-    onSurface = theme.textPrimary,
-    surfaceVariant = theme.cardBackground,
-    onSurfaceVariant = theme.textSecondary,
-    surfaceContainerLowest = theme.background,
-    surfaceContainerLow = theme.cardBackground,
-    surfaceContainer = theme.cardBackground,
-    surfaceContainerHigh = theme.elevatedCard,
-    surfaceContainerHighest = theme.elevatedCard,
-    outline = theme.divider
-)
+fun createMonolithColorScheme(theme: AppTheme): ColorScheme = if (theme.isDark) {
+    darkColorScheme(
+        primary = theme.accent,
+        onPrimary = Color.Black,
+        primaryContainer = theme.accentContainer,
+        onPrimaryContainer = theme.accent,
+        secondary = theme.accent,
+        onSecondary = Color.Black,
+        background = theme.background,
+        onBackground = theme.textPrimary,
+        surface = theme.background,
+        onSurface = theme.textPrimary,
+        surfaceVariant = theme.cardBackground,
+        onSurfaceVariant = theme.textSecondary,
+        surfaceContainerLowest = theme.background,
+        surfaceContainerLow = theme.cardBackground,
+        surfaceContainer = theme.cardBackground,
+        surfaceContainerHigh = theme.elevatedCard,
+        surfaceContainerHighest = theme.elevatedCard,
+        outline = theme.divider
+    )
+} else {
+    lightColorScheme(
+        primary = theme.accent,
+        onPrimary = Color.White,
+        primaryContainer = theme.accentContainer,
+        onPrimaryContainer = theme.accent,
+        secondary = theme.accent,
+        onSecondary = Color.White,
+        background = theme.background,
+        onBackground = theme.textPrimary,
+        surface = theme.background,
+        onSurface = theme.textPrimary,
+        surfaceVariant = theme.cardBackground,
+        onSurfaceVariant = theme.textSecondary,
+        surfaceContainerLowest = theme.background,
+        surfaceContainerLow = theme.cardBackground,
+        surfaceContainer = theme.cardBackground,
+        surfaceContainerHigh = theme.elevatedCard,
+        surfaceContainerHighest = theme.elevatedCard,
+        outline = theme.divider
+    )
+}
 
 @Composable
 fun MonolithTheme(
@@ -45,8 +69,8 @@ fun MonolithTheme(
             window.statusBarColor = android.graphics.Color.TRANSPARENT
             window.navigationBarColor = android.graphics.Color.TRANSPARENT
             val controller = WindowCompat.getInsetsController(window, view)
-            controller.isAppearanceLightStatusBars = false
-            controller.isAppearanceLightNavigationBars = false
+            controller.isAppearanceLightStatusBars = !theme.isDark
+            controller.isAppearanceLightNavigationBars = !theme.isDark
         }
     }
 

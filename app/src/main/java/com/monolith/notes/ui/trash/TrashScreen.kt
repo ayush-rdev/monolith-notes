@@ -351,7 +351,7 @@ fun TrashScreen(
                     Text(
                         text = "Empty Recycle Bin?",
                         style = MonolithTypography.titleLarge,
-                        color = Color.White
+                        color = iOSTextPrimary
                     )
                 },
                 text = {

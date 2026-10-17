@@ -81,6 +81,7 @@ fun SettingsSheet(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
+    var showThemeGallery by remember { mutableStateOf(false) }
 
     fun performHaptic(type: HapticFeedbackType) {
         if (settings.hapticsEnabled) {
@@ -136,7 +137,115 @@ fun SettingsSheet(
             Spacer(modifier = Modifier.height(14.dp))
 
             // Section 0: Minimal Premium Theme Selector
-            SettingsSectionHeader(title = "MINIMAL PREMIUM THEMES")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SettingsSectionHeader(title = "MINIMAL PREMIUM THEMES")
+                TextButton(
+                    onClick = {
+                        performHaptic(HapticFeedbackType.TextHandleMove)
+                        showThemeGallery = true
+                    },
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "Gallery (${AppTheme.entries.size}) →",
+                        color = iOSYellow,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Featured Active Theme Card with Live Mini Palette
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(settings.theme.cardBackground)
+                    .clickable {
+                        performHaptic(HapticFeedbackType.TextHandleMove)
+                        showThemeGallery = true
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = settings.theme.displayName,
+                                style = MonolithTypography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
+                                color = settings.theme.textPrimary
+                            )
+                            val badgeText = when {
+                                !settings.theme.isDark -> "LIGHT PAPER"
+                                settings.theme.category == ThemeCategory.OLED -> "OLED 0%"
+                                settings.theme.category == ThemeCategory.BRUTALIST -> "HARDWARE"
+                                else -> "DEV CLASSIC"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(settings.theme.accentContainer)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    style = MonolithTypography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
+                                    color = settings.theme.accent
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${settings.theme.subtitle} • Tap to browse gallery",
+                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
+                            color = settings.theme.textSecondary
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(settings.theme.background)
+                                .border(0.5.dp, settings.theme.divider, CircleShape)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(14.dp)
+                                .clip(CircleShape)
+                                .background(settings.theme.accent)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Open Gallery",
+                            tint = settings.theme.textTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Quick horizontal carousel of all themes
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -714,6 +823,14 @@ fun SettingsSheet(
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
+
+    if (showThemeGallery) {
+        ThemeGallerySheet(
+            settings = settings,
+            onUpdateTheme = onUpdateTheme,
+            onDismiss = { showThemeGallery = false }
+        )
+    }
 }
 
 @Composable
@@ -969,8 +1086,8 @@ private fun ThemeCard(
             .clip(RoundedCornerShape(12.dp))
             .background(theme.cardBackground)
             .border(
-                width = if (isSelected) 2.dp else 0.dp,
-                color = if (isSelected) theme.accent else Color.Transparent,
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) theme.accent else theme.divider.copy(alpha = 0.6f),
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)
@@ -984,6 +1101,7 @@ private fun ThemeCard(
                     .height(26.dp)
                     .clip(RoundedCornerShape(6.dp))
                     .background(theme.background)
+                    .border(0.5.dp, theme.divider.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
                     .padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically

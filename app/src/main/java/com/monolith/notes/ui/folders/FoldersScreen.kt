@@ -230,7 +230,7 @@ fun FoldersScreen(
                         .fillMaxWidth()
                         .padding(bottom = bottomInset)
                 ) {
-                    HorizontalDivider(thickness = 0.5.dp, color = Color.White.copy(alpha = 0.07f))
+                    HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

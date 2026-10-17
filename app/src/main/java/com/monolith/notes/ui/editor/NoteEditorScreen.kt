@@ -585,7 +585,7 @@ fun NoteEditorScreen(
                                     .background(iOSCardBackground)
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Share Text / Markdown", color = Color.White, fontSize = 14.sp) },
+                                    text = { Text("Share Text / Markdown", color = iOSTextPrimary, fontSize = 14.sp) },
                                     leadingIcon = {
                                         Icon(Icons.Default.Share, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
                                     },
@@ -604,7 +604,7 @@ fun NoteEditorScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Export as Formatted PDF / Print", color = Color.White, fontSize = 14.sp) },
+                                    text = { Text("Export as Formatted PDF / Print", color = iOSTextPrimary, fontSize = 14.sp) },
                                     leadingIcon = {
                                         Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
                                     },
@@ -618,7 +618,7 @@ fun NoteEditorScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Export Standalone HTML", color = Color.White, fontSize = 14.sp) },
+                                    text = { Text("Export Standalone HTML", color = iOSTextPrimary, fontSize = 14.sp) },
                                     leadingIcon = {
                                         Icon(Icons.Default.Code, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
                                     },
@@ -681,7 +681,7 @@ fun NoteEditorScreen(
                                 AlertDialog(
                                     onDismissRequest = { showDeleteConfirm = false },
                                     containerColor = iOSCardBackground,
-                                    title = { Text("Delete Note?", color = Color.White) },
+                                    title = { Text("Delete Note?", color = iOSTextPrimary) },
                                     text = { Text("Are you sure you want to delete this note?", color = iOSTextSecondary) },
                                     confirmButton = {
                                         TextButton(
@@ -895,7 +895,7 @@ fun NoteEditorScreen(
                                     style = TextStyle(
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White,
+                                        color = iOSTextPrimary,
                                         fontFamily = SFProDisplay,
                                         lineHeight = 30.sp
                                     ),
@@ -936,7 +936,7 @@ fun NoteEditorScreen(
                             textStyle = TextStyle(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White,
+                                color = iOSTextPrimary,
                                 fontFamily = SFProDisplay,
                                 lineHeight = 30.sp
                             ),
@@ -1006,14 +1006,16 @@ fun NoteEditorScreen(
                                 fontSize = settings.editorFontSize.sizeSp.sp,
                                 fontWeight = FontWeight.Normal,
                                 lineHeight = settings.editorFontSize.lineHeightSp.sp,
-                                color = Color.White,
+                                color = iOSTextPrimary,
                                 fontFamily = SFProText
                             ),
                             cursorBrush = SolidColor(theme.accent),
                             visualTransformation = remember(theme) {
                                 AppleNotesVisualTransformation(
                                     accentColor = theme.accent,
-                                    secondaryTextColor = theme.textSecondary
+                                    secondaryTextColor = theme.textSecondary,
+                                    primaryTextColor = theme.textPrimary,
+                                    isDark = theme.isDark
                                 )
                             },
                             keyboardOptions = KeyboardOptions(
@@ -1662,7 +1664,7 @@ private fun WikiLinkAutocompleteBar(
                                 text = targetNote.displayTitle,
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = Color.White
+                                color = iOSTextPrimary
                             )
                             if (targetNote.folderName != "Notes") {
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -1714,7 +1716,7 @@ private fun LinkedReferencesSection(
                     text = "Linked References",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = iOSTextPrimary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Box(
@@ -1786,7 +1788,7 @@ private fun BacklinkItemCard(
                     text = note.displayTitle,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.White
+                    color = iOSTextPrimary
                 )
                 if (note.folderName != "Notes") {
                     Box(

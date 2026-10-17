@@ -553,7 +553,7 @@ fun MarkdownRenderView(
                     }
                     MarkdownClickableText(
                         text = headingText,
-                        style = style.copy(color = Color.White),
+                        style = style.copy(color = iOSTextPrimary),
                         modifier = Modifier.padding(top = topPadding, bottom = 2.dp),
                         onNavigateToNote = onNavigateToNote
                     )
@@ -950,7 +950,7 @@ private fun RenderCommonMarkTable(
                 if (headers.isNotEmpty()) {
                     Row(
                         modifier = Modifier
-                            .background(Color.White.copy(alpha = 0.05f))
+                            .background(iOSTextPrimary.copy(alpha = 0.05f))
                             .padding(vertical = 10.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -970,7 +970,7 @@ private fun RenderCommonMarkTable(
                                     text = headerText,
                                     style = MonolithTypography.bodyMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = iOSTextPrimary
                                     ),
                                     onNavigateToNote = onNavigateToNote
                                 )

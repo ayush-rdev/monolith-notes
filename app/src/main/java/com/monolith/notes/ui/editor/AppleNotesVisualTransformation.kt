@@ -27,7 +27,9 @@ import androidx.compose.ui.unit.sp
  */
 class AppleNotesVisualTransformation(
     private val accentColor: Color = Color(0xFFE5A93C),
-    private val secondaryTextColor: Color = Color(0xFF8E8E93)
+    private val secondaryTextColor: Color = Color(0xFF8E8E93),
+    private val primaryTextColor: Color = Color(0xFFFFFFFF),
+    private val isDark: Boolean = true
 ) : VisualTransformation {
 
     override fun filter(text: AnnotatedString): TransformedText {
@@ -37,7 +39,7 @@ class AppleNotesVisualTransformation(
         }
 
         val builder = AnnotatedString.Builder(raw)
-        val ghostSyntaxColor = Color(0xFF545458) // Dimmed subtle iOS gray for markdown syntax tokens
+        val ghostSyntaxColor = if (isDark) Color(0xFF545458) else Color(0xFFA8A29E) // Dimmed subtle gray for markdown syntax tokens
 
         // 1. Process line-by-line formatting (Headings, Checklists, Bullets, Quotes)
         var lineStart = 0
@@ -103,7 +105,7 @@ class AppleNotesVisualTransformation(
                     }
                     builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = prefixSize), actualStart, actualStart + prefixLen)
                     if (actualStart + prefixLen < lineEnd) {
-                        builder.addStyle(SpanStyle(fontSize = textSize, fontWeight = weight, color = Color.White), actualStart + prefixLen, lineEnd)
+                        builder.addStyle(SpanStyle(fontSize = textSize, fontWeight = weight, color = primaryTextColor), actualStart + prefixLen, lineEnd)
                     }
                 }
 
@@ -157,7 +159,7 @@ class AppleNotesVisualTransformation(
         for (match in BOLD_REGEX.findAll(raw)) {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
-            builder.addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White), range.first + 2, range.last - 1)
+            builder.addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = primaryTextColor), range.first + 2, range.last - 1)
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
         }
 
@@ -165,7 +167,7 @@ class AppleNotesVisualTransformation(
         for (match in ITALIC_REGEX.findAll(raw)) {
             val range = match.range
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
-            builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic, color = Color.White), range.first + 1, range.last)
+            builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic, color = primaryTextColor), range.first + 1, range.last)
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last, range.last + 1)
         }
 
@@ -189,7 +191,7 @@ class AppleNotesVisualTransformation(
                 SpanStyle(
                     fontFamily = FontFamily.Monospace,
                     color = accentColor,
-                    background = Color(0xFF2C2C2E)
+                    background = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE4E4E7)
                 ),
                 range.first + 1,
                 range.last

@@ -61,7 +61,7 @@ fun AppleFormatSheet(
                 Text(
                     text = "Format",
                     style = MonolithTypography.titleMedium,
-                    color = Color.White,
+                    color = iOSTextPrimary,
                     fontWeight = FontWeight.Bold
                 )
 
@@ -214,7 +214,7 @@ private fun FormatStyleChip(
             fontSize = fontSize,
             fontWeight = fontWeight,
             fontFamily = fontFamily,
-            color = Color.White
+            color = iOSTextPrimary
         )
     }
 }
@@ -242,7 +242,7 @@ private fun InlineFormatButton(
             fontStyle = fontStyle,
             textDecoration = textDecoration,
             fontFamily = fontFamily,
-            color = Color.White
+            color = iOSTextPrimary
         )
     }
 }
@@ -251,7 +251,7 @@ private fun InlineFormatButton(
 private fun ListFormatButton(
     icon: ImageVector,
     label: String,
-    tint: Color = Color.White,
+    tint: Color = iOSTextPrimary,
     onClick: () -> Unit
 ) {
     Box(
