@@ -110,53 +110,108 @@ class MainActivity : FragmentActivity() {
                         repository.loadTrashNotes()
                     }
 
-                    // Process incoming Widget capture triggers (New Note, Checklist, Open Note)
+                    // Process incoming Intent capture triggers (Widget, Quick Note Tile, Share Target)
                     LaunchedEffect(pendingWidgetIntent) {
                         val currentIntent = pendingWidgetIntent
                         if (currentIntent != null) {
-                            val action = currentIntent.getStringExtra("WIDGET_ACTION")
-                            if (action != null) {
-                                when (action) {
-                                    "NEW_NOTE" -> {
-                                        val newNote = Note(
-                                            title = "",
-                                            content = "",
-                                            lastModified = System.currentTimeMillis(),
-                                            folder = selectedFolder ?: "Notes"
-                                        )
-                                        currentScreen = Screen.Editor(newNote)
-                                    }
-                                    "NEW_CHECKLIST" -> {
-                                        val newNote = Note(
-                                            title = "",
-                                            content = "○ ",
-                                            lastModified = System.currentTimeMillis(),
-                                            folder = selectedFolder ?: "Notes"
-                                        )
-                                        currentScreen = Screen.Editor(newNote)
-                                    }
-                                    "OPEN_NOTE" -> {
-                                        val notePath = currentIntent.getStringExtra(QuickCaptureWidgetProvider.EXTRA_NOTE_PATH)
-                                        if (notePath != null) {
-                                            val targetFile = File(notePath)
-                                            if (targetFile.exists()) {
-                                                val raw = try { targetFile.readText() } catch (_: Exception) { "" }
-                                                val (title, body, isPinned) = com.monolith.notes.data.MarkdownConverter.toUi(raw, targetFile.nameWithoutExtension)
-                                                val note = Note(
-                                                    id = targetFile.absolutePath,
-                                                    file = targetFile,
-                                                    title = title,
-                                                    content = body,
-                                                    lastModified = targetFile.lastModified(),
-                                                    isPinned = isPinned
-                                                )
-                                                currentScreen = Screen.Editor(note)
-                                            }
+                            val widgetAction = currentIntent.getStringExtra("WIDGET_ACTION")
+                            val intentAction = currentIntent.action
+
+                            when {
+                                widgetAction == "NEW_NOTE" || intentAction == "com.monolith.notes.QUICK_NOTE" -> {
+                                    editorBackStack.clear()
+                                    val newNote = Note(
+                                        title = "",
+                                        content = "",
+                                        lastModified = System.currentTimeMillis(),
+                                        folder = selectedFolder ?: "Notes"
+                                    )
+                                    currentScreen = Screen.Editor(newNote)
+                                }
+                                widgetAction == "NEW_CHECKLIST" -> {
+                                    editorBackStack.clear()
+                                    val newNote = Note(
+                                        title = "",
+                                        content = "○ ",
+                                        lastModified = System.currentTimeMillis(),
+                                        folder = selectedFolder ?: "Notes"
+                                    )
+                                    currentScreen = Screen.Editor(newNote)
+                                }
+                                widgetAction == "OPEN_NOTE" -> {
+                                    editorBackStack.clear()
+                                    val notePath = currentIntent.getStringExtra(QuickCaptureWidgetProvider.EXTRA_NOTE_PATH)
+                                    if (notePath != null) {
+                                        val targetFile = File(notePath)
+                                        if (targetFile.exists()) {
+                                            val raw = try { targetFile.readText() } catch (_: Exception) { "" }
+                                            val (title, body, isPinned) = com.monolith.notes.data.MarkdownConverter.toUi(raw, targetFile.nameWithoutExtension)
+                                            val note = Note(
+                                                id = targetFile.absolutePath,
+                                                file = targetFile,
+                                                title = title,
+                                                content = body,
+                                                lastModified = targetFile.lastModified(),
+                                                isPinned = isPinned
+                                            )
+                                            currentScreen = Screen.Editor(note)
                                         }
                                     }
                                 }
-                                pendingWidgetIntent = null
+                                intentAction == Intent.ACTION_SEND -> {
+                                    editorBackStack.clear()
+                                    val sharedSubject = currentIntent.getStringExtra(Intent.EXTRA_SUBJECT)
+                                        ?: currentIntent.getStringExtra(Intent.EXTRA_TITLE)
+                                    val sharedText = currentIntent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
+                                    val streamUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        currentIntent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                                    } else {
+                                        @Suppress("DEPRECATION")
+                                        currentIntent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+                                    }
+
+                                    if (streamUri != null) {
+                                        scope.launch {
+                                            val relativePath = repository.saveAttachment(streamUri)
+                                            val bodyContent = if (relativePath != null) {
+                                                if (sharedText.isNotBlank()) "$sharedText\n\n![Shared Image]($relativePath)"
+                                                else "![Shared Image]($relativePath)"
+                                            } else {
+                                                sharedText
+                                            }
+                                            val title = sharedSubject?.trim() ?: "Shared Image"
+                                            val newNote = Note(
+                                                title = title,
+                                                content = bodyContent,
+                                                lastModified = System.currentTimeMillis(),
+                                                folder = selectedFolder ?: "Notes"
+                                            )
+                                            val saved = repository.saveNote(newNote)
+                                            currentScreen = Screen.Editor(saved)
+                                        }
+                                    } else if (sharedText.isNotBlank() || !sharedSubject.isNullOrBlank()) {
+                                        val cleanSubject = sharedSubject?.trim()
+                                        val cleanText = sharedText.trim()
+                                        val derivedTitle = when {
+                                            !cleanSubject.isNullOrBlank() -> cleanSubject
+                                            cleanText.startsWith("http://") || cleanText.startsWith("https://") -> "Shared Link"
+                                            cleanText.contains('\n') -> cleanText.substringBefore('\n').take(30).trim()
+                                            else -> cleanText.take(30)
+                                        }
+                                        val newNote = Note(
+                                            title = derivedTitle,
+                                            content = cleanText,
+                                            lastModified = System.currentTimeMillis(),
+                                            folder = selectedFolder ?: "Notes"
+                                        )
+                                        scope.launch {
+                                            val saved = repository.saveNote(newNote)
+                                            currentScreen = Screen.Editor(saved)
+                                        }
+                                    }
+                                }
                             }
+                            pendingWidgetIntent = null
                         }
                     }
 
