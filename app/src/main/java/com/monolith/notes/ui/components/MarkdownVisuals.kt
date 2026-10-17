@@ -444,7 +444,7 @@ fun MarkdownRenderView(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         var taskCounter = 0
         var blockNode: Node? = document.firstChild
@@ -454,11 +454,11 @@ fun MarkdownRenderView(
                 is Heading -> {
                     val headingText = buildAnnotatedStringFromNodes(node.firstChild)
                     val (style, topPadding) = when (node.level) {
-                        1 -> MonolithTypography.headlineLarge to 12.dp
-                        2 -> MonolithTypography.headlineMedium to 10.dp
-                        3 -> MonolithTypography.titleLarge.copy(fontSize = 19.sp, fontWeight = FontWeight.Bold) to 8.dp
-                        4 -> MonolithTypography.titleLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold) to 6.dp
-                        else -> MonolithTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold) to 4.dp
+                        1 -> MonolithTypography.headlineLarge.copy(letterSpacing = (-0.5).sp) to 14.dp
+                        2 -> MonolithTypography.headlineMedium.copy(letterSpacing = (-0.3).sp) to 12.dp
+                        3 -> MonolithTypography.titleLarge.copy(fontSize = 19.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp) to 10.dp
+                        4 -> MonolithTypography.titleLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold) to 8.dp
+                        else -> MonolithTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold) to 6.dp
                     }
                     MarkdownClickableText(
                         text = headingText,
@@ -497,7 +497,7 @@ fun MarkdownRenderView(
                             MarkdownClickableText(
                                 text = paragraphText,
                                 style = MonolithTypography.bodyLarge,
-                                lineHeight = 24.sp,
+                                lineHeight = 26.sp,
                                 onNavigateToNote = onNavigateToNote
                             )
                         }
@@ -593,7 +593,7 @@ fun MarkdownRenderView(
                             MarkdownClickableText(
                                 text = buildAnnotatedStringFromNodes(child.firstChild),
                                 style = MonolithTypography.bodyLarge,
-                                lineHeight = 24.sp,
+                                lineHeight = 26.sp,
                                 onNavigateToNote = onNavigateToNote
                             )
                         }

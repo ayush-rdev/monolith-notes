@@ -19,6 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,6 +55,7 @@ import com.monolith.notes.data.PdfPublisher
 import java.io.File
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -84,6 +86,8 @@ import com.monolith.notes.ui.components.toggleMarkdownTask
 import com.monolith.notes.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -119,11 +123,14 @@ fun NoteEditorScreen(
     val isNewNote = remember(note.id) { note.title.isEmpty() && note.content.isEmpty() }
     var isEditing by remember(note.id) { mutableStateOf(isNewNote) }
 
+    val scrollState = rememberScrollState()
+    var savedScrollOffset by remember(note.id) { mutableIntStateOf(0) }
+
     var titleState by rememberSaveable(note.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(
             TextFieldValue(
                 text = note.title,
-                selection = TextRange(note.title.length)
+                selection = if (isNewNote) TextRange(note.title.length) else TextRange.Zero
             )
         )
     }
@@ -132,9 +139,17 @@ fun NoteEditorScreen(
         mutableStateOf(
             TextFieldValue(
                 text = note.content,
-                selection = TextRange(note.content.length)
+                selection = if (isNewNote) TextRange(note.content.length) else TextRange.Zero
             )
         )
+    }
+
+    // When an existing note is opened for viewing, ensure it always begins cleanly at the top
+    LaunchedEffect(note.id) {
+        if (!isNewNote) {
+            bodyState = bodyState.copy(selection = TextRange.Zero)
+            scrollState.scrollTo(0)
+        }
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -179,6 +194,52 @@ fun NoteEditorScreen(
                 currentNote = updated
                 onSave(updated)
             }
+        }
+    }
+
+    // Seamless, jitter-free transition between Read Mode and 0ms Edit Mode
+    val enterEditMode: (targetCursor: Int?) -> Unit = { targetCursor ->
+        performHaptic(HapticFeedbackType.TextHandleMove)
+        val currentScroll = scrollState.value
+        val maxScroll = scrollState.maxValue
+        savedScrollOffset = currentScroll
+
+        val cursor = if (targetCursor != null) {
+            targetCursor.coerceIn(0, bodyState.text.length)
+        } else {
+            if (maxScroll > 0 && bodyState.text.isNotEmpty()) {
+                val scrollRatio = (currentScroll.toFloat() / maxScroll.toFloat()).coerceIn(0f, 1f)
+                val approxChar = (scrollRatio * bodyState.text.length).toInt().coerceIn(0, bodyState.text.length)
+                val lineStart = bodyState.text.lastIndexOf('\n', (approxChar - 1).coerceAtLeast(0)).let {
+                    if (it == -1) 0 else it + 1
+                }
+                lineStart.coerceIn(0, bodyState.text.length)
+            } else {
+                0
+            }
+        }
+        bodyState = bodyState.copy(selection = TextRange(cursor))
+        isEditing = true
+    }
+
+    val exitEditMode: () -> Unit = {
+        performHaptic(HapticFeedbackType.TextHandleMove)
+        focusManager.clearFocus()
+        showFormatSheet = false
+        flushSave()
+        savedScrollOffset = scrollState.value
+        isEditing = false
+    }
+
+    // Lock and restore scroll position across view mode transitions so Compose never jumps
+    LaunchedEffect(isEditing) {
+        if (savedScrollOffset > 0) {
+            try {
+                snapshotFlow { scrollState.maxValue }
+                    .filter { it > 0 }
+                    .first()
+                scrollState.scrollTo(savedScrollOffset.coerceIn(0, scrollState.maxValue))
+            } catch (_: Exception) {}
         }
     }
 
@@ -309,8 +370,6 @@ fun NoteEditorScreen(
             } catch (_: Exception) {}
         }
     }
-
-    val scrollState = rememberScrollState()
 
     // Dynamic Monolith selection colors (Custom cursor and highlights)
     val theme = LocalMonolithTheme.current
@@ -483,11 +542,7 @@ fun NoteEditorScreen(
                 if (isEditing) {
                     TextButton(
                         onClick = {
-                            performHaptic(HapticFeedbackType.TextHandleMove)
-                            focusManager.clearFocus()
-                            showFormatSheet = false
-                            flushSave()
-                            isEditing = false
+                            exitEditMode()
                         }
                     ) {
                         Text(
@@ -646,8 +701,7 @@ fun NoteEditorScreen(
 
                         IconButton(
                             onClick = {
-                                performHaptic(HapticFeedbackType.TextHandleMove)
-                                isEditing = true
+                                enterEditMode(null)
                             },
                             modifier = Modifier.size(36.dp)
                         ) {
@@ -823,11 +877,27 @@ fun NoteEditorScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    isEditing = true
+                                .pointerInput(note.id) {
+                                    detectTapGestures { tapOffset ->
+                                        val totalHeight = size.height.toFloat()
+                                        val targetCursor = if (totalHeight > 0f && bodyState.text.isNotEmpty()) {
+                                            val tapFraction = (tapOffset.y / totalHeight).coerceIn(0f, 1f)
+                                            val approxChar = (tapFraction * bodyState.text.length).toInt().coerceIn(0, bodyState.text.length)
+                                            val lineStart = bodyState.text.lastIndexOf('\n', (approxChar - 1).coerceAtLeast(0)).let {
+                                                if (it == -1) 0 else it + 1
+                                            }
+                                            lineStart.coerceIn(0, bodyState.text.length)
+                                        } else {
+                                            0
+                                        }
+                                        enterEditMode(targetCursor)
+                                        coroutineScope.launch {
+                                            delay(50)
+                                            try {
+                                                bodyFocusRequester.requestFocus()
+                                            } catch (_: Exception) {}
+                                        }
+                                    }
                                 }
                         ) {
                             if (titleState.text.isNotBlank()) {
@@ -848,9 +918,10 @@ fun NoteEditorScreen(
                                     vaultPath = vaultPath,
                                     onTaskToggled = { taskIndex ->
                                         val updated = toggleMarkdownTask(bodyState.text, taskIndex)
+                                        val preservedCursor = bodyState.selection.start.coerceIn(0, updated.length)
                                         bodyState = TextFieldValue(
                                             text = updated,
-                                            selection = TextRange(updated.length)
+                                            selection = TextRange(preservedCursor)
                                         )
                                         flushSave()
                                     },
@@ -1014,7 +1085,7 @@ fun NoteEditorScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(if (isEditing) 300.dp else 48.dp))
                 }
             }
 
@@ -1224,9 +1295,7 @@ fun NoteEditorScreen(
                                 )
                             },
                             onDismissKeyboard = {
-                                focusManager.clearFocus()
-                                showFormatSheet = false
-                                isEditing = false
+                                exitEditMode()
                             }
                         )
                     }
