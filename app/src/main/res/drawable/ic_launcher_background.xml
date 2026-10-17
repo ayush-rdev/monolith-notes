@@ -4,7 +4,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Deep OLED Obsidian Radial Canvas -->
+    <!-- Deep Obsidian Plum Radial Canvas -->
     <path
         android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
@@ -13,8 +13,8 @@
                 android:centerX="54"
                 android:centerY="48"
                 android:gradientRadius="62"
-                android:startColor="#202026"
-                android:endColor="#040406" />
+                android:startColor="#282138"
+                android:endColor="#0E0C14" />
         </aapt:attr>
     </path>
     <!-- Subtle Architectural Base Vignette -->
@@ -27,8 +27,8 @@
                 android:startY="76"
                 android:endX="54"
                 android:endY="108"
-                android:startColor="#0D0E12"
-                android:endColor="#010102" />
+                android:startColor="#14101C"
+                android:endColor="#08070C" />
         </aapt:attr>
     </path>
 </vector>
