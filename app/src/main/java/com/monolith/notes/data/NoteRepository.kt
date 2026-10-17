@@ -81,6 +81,12 @@ class NoteRepository(private val context: Context) {
                 val lastModified = obj.optLong("lastModified", System.currentTimeMillis())
                 val isPinned = obj.optBoolean("isPinned", false)
                 val folder = obj.optString("folder", "Notes")
+                val rawFrontmatter = if (obj.has("rawFrontmatter")) obj.optString("rawFrontmatter") else null
+
+                // Verify file exists on disk if path was specified
+                if (targetFile != null && !targetFile.exists()) {
+                    continue
+                }
 
                 val note = Note(
                     id = id,
@@ -90,7 +96,8 @@ class NoteRepository(private val context: Context) {
                     tags = TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList(),
                     lastModified = lastModified,
                     isPinned = isPinned,
-                    folder = folder
+                    folder = folder,
+                    rawFrontmatter = rawFrontmatter
                 )
                 if (targetFile != null) {
                     noteFileMap[note.id] = targetFile
@@ -118,10 +125,18 @@ class NoteRepository(private val context: Context) {
                     put("lastModified", note.lastModified)
                     put("isPinned", note.isPinned)
                     put("folder", note.folder)
+                    if (note.rawFrontmatter != null) {
+                        put("rawFrontmatter", note.rawFrontmatter)
+                    }
                 }
                 array.put(obj)
             }
-            fastCacheFile.writeText(array.toString())
+            val tempCache = File(fastCacheFile.parentFile, "${fastCacheFile.name}.tmp")
+            tempCache.writeText(array.toString())
+            if (!tempCache.renameTo(fastCacheFile)) {
+                tempCache.copyTo(fastCacheFile, overwrite = true)
+                tempCache.delete()
+            }
         } catch (_: Exception) {}
     }
 
@@ -226,17 +241,33 @@ class NoteRepository(private val context: Context) {
             }
         }
 
-        if (loaded.isEmpty()) {
-            // Seed default welcome note with Apple Notes styling
-            try { welcomeFile.writeText(WELCOME_MARKDOWN) } catch (_: Exception) {}
-            val welcomeNote = parseNoteFromFile(welcomeFile, WELCOME_MARKDOWN)
-            noteFileMap[welcomeNote.id] = welcomeFile
-            _notes.value = listOf(welcomeNote)
-        } else {
-            _notes.value = sortNotesList(loaded, currentSortOrder)
+        saveMutex.withLock {
+            if (loaded.isEmpty()) {
+                // If notes were already populated from fast cache and disk read returned empty
+                // (e.g. storage permissions initializing), DO NOT wipe the user's cache!
+                if (_notes.value.isEmpty()) {
+                    try { welcomeFile.writeText(WELCOME_MARKDOWN) } catch (_: Exception) {}
+                    val welcomeNote = parseNoteFromFile(welcomeFile, WELCOME_MARKDOWN)
+                    noteFileMap[welcomeNote.id] = welcomeFile
+                    _notes.value = listOf(welcomeNote)
+                    saveFastCache(_notes.value)
+                }
+            } else {
+                // Merge loaded notes with any recent in-memory edits to prevent overwriting user typing
+                val currentMap = _notes.value.associateBy { it.id }
+                val merged = loaded.map { diskNote ->
+                    val memNote = currentMap[diskNote.id]
+                    if (memNote != null && memNote.lastModified > diskNote.lastModified) {
+                        memNote
+                    } else {
+                        diskNote
+                    }
+                }
+                _notes.value = sortNotesList(merged, currentSortOrder)
+                saveFastCache(_notes.value)
+            }
+            _isLoaded.value = true
         }
-        _isLoaded.value = true
-        saveFastCache(_notes.value)
         loadTrashNotes()
     }
 
@@ -255,8 +286,9 @@ class NoteRepository(private val context: Context) {
             // Resolves target file: check note.file first, then noteFileMap by note.id, then create new file
             val targetFile = note.file ?: noteFileMap[note.id] ?: run {
                 val safeTitle = note.title.ifBlank { "Note" }
-                    .replace("[^a-zA-Z0-9_-]".toRegex(), "_")
-                    .take(30)
+                    .replace("[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex(), "_")
+                    .trim()
+                    .take(40)
                 val shortId = note.id.replace("-", "").take(8)
                 File(targetFolderDir, "${safeTitle}_$shortId.md")
             }
@@ -265,8 +297,13 @@ class NoteRepository(private val context: Context) {
             noteFileMap[note.id] = targetFile
             noteFileMap[targetFile.absolutePath] = targetFile
 
-            // Convert Apple Notes UI text back to standard Obsidian Markdown
-            val markdownContent = MarkdownConverter.toMarkdown(note.title, note.content, isPinned = note.isPinned)
+            // Convert Apple Notes UI text back to standard Obsidian Markdown, preserving YAML frontmatter
+            val markdownContent = MarkdownConverter.toMarkdown(
+                note.title,
+                note.content,
+                isPinned = note.isPinned,
+                existingFrontmatter = note.rawFrontmatter
+            )
 
             try {
                 targetFile.writeText(markdownContent)
@@ -310,12 +347,30 @@ class NoteRepository(private val context: Context) {
             newFile
         }
 
-        if (currentFile.absolutePath != finalTargetFile.absolutePath) {
-            currentFile.renameTo(finalTargetFile)
-            noteFileMap.remove(note.id)
-            noteFileMap.remove(currentFile.absolutePath)
-            noteFileMap[finalTargetFile.absolutePath] = finalTargetFile
+        val moveSuccess = if (currentFile.absolutePath != finalTargetFile.absolutePath) {
+            val renamed = currentFile.renameTo(finalTargetFile)
+            if (!renamed) {
+                try {
+                    currentFile.copyTo(finalTargetFile, overwrite = true)
+                    currentFile.delete()
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+            } else {
+                true
+            }
+        } else {
+            true
         }
+
+        if (!moveSuccess || !finalTargetFile.exists()) {
+            return@withContext note
+        }
+
+        noteFileMap.remove(note.id)
+        noteFileMap.remove(currentFile.absolutePath)
+        noteFileMap[finalTargetFile.absolutePath] = finalTargetFile
 
         val raw = try { finalTargetFile.readText() } catch (_: Exception) { "" }
         val updated = parseNoteFromFile(finalTargetFile, raw).copy(id = note.id, folder = targetFolderName)
@@ -336,7 +391,7 @@ class NoteRepository(private val context: Context) {
 
     suspend fun createFolder(folderName: String): Boolean = withContext(Dispatchers.IO) {
         val cleanName = folderName.trim().replace("[\\\\/:*?\"<>|]".toRegex(), "")
-        if (cleanName.isBlank() || cleanName.equals("Notes", ignoreCase = true)) return@withContext false
+        if (cleanName.isBlank() || cleanName.contains("..") || cleanName.equals("Notes", ignoreCase = true)) return@withContext false
         val dir = File(notesDir, cleanName)
         val created = if (!dir.exists()) dir.mkdirs() else true
         refreshFolders()
@@ -344,12 +399,15 @@ class NoteRepository(private val context: Context) {
     }
 
     suspend fun deleteFolder(folderName: String): Boolean = withContext(Dispatchers.IO) {
-        if (folderName.equals("Notes", ignoreCase = true)) return@withContext false
-        val dir = File(notesDir, folderName)
+        val cleanName = folderName.trim().replace("[\\\\/:*?\"<>|]".toRegex(), "")
+        if (cleanName.isBlank() || cleanName.contains("..") || cleanName.equals("Notes", ignoreCase = true)) return@withContext false
+        val dir = File(notesDir, cleanName).canonicalFile
+        val rootDir = notesDir.canonicalFile
+        if (!dir.path.startsWith(rootDir.path + File.separator)) return@withContext false
         if (!dir.exists() || !dir.isDirectory) return@withContext false
 
         // Move all notes in this folder to Trash
-        val folderNotes = _notes.value.filter { it.folderName.equals(folderName, ignoreCase = true) }
+        val folderNotes = _notes.value.filter { it.folderName.equals(cleanName, ignoreCase = true) }
         for (note in folderNotes) {
             moveToTrash(note)
         }
@@ -401,6 +459,9 @@ class NoteRepository(private val context: Context) {
             } catch (e: Exception) {
                 fileToDelete.renameTo(targetTrashFile)
             }
+            try {
+                targetTrashFile.setLastModified(System.currentTimeMillis())
+            } catch (_: Exception) {}
             try {
                 val journal = com.monolith.notes.data.sync.SyncJournal(context)
                 journal.addTombstone(fileToDelete.name)
@@ -592,7 +653,7 @@ class NoteRepository(private val context: Context) {
     }
 
     private fun parseNoteFromFile(file: File, rawContent: String): Note {
-        val (cleanTitle, cleanBody, isPinned) = MarkdownConverter.toUi(rawContent, file.nameWithoutExtension)
+        val parsed = MarkdownConverter.toUiWithFrontmatter(rawContent, file.nameWithoutExtension)
         val tags = TAG_REGEX.findAll(rawContent).map { it.groupValues[1] }.distinct().toList()
         val folder = if (file.parentFile != null && file.parentFile != notesDir && !file.parentFile!!.name.startsWith(".")) {
             file.parentFile!!.name
@@ -603,12 +664,13 @@ class NoteRepository(private val context: Context) {
         return Note(
             id = file.absolutePath,
             file = file,
-            title = cleanTitle,
-            content = cleanBody,
+            title = parsed.title,
+            content = parsed.body,
             tags = tags,
             lastModified = file.lastModified(),
-            isPinned = isPinned,
-            folder = folder
+            isPinned = parsed.isPinned,
+            folder = folder,
+            rawFrontmatter = parsed.rawFrontmatter
         )
     }
 

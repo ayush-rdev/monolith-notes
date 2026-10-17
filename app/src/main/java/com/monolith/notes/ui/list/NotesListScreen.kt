@@ -972,7 +972,7 @@ fun NotesListScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Are you sure you want to delete '${targetNote.displayTitle}'? This file will be permanently removed.",
+                                    text = "Are you sure you want to delete '${targetNote.displayTitle}'? It will be moved to Recently Deleted and kept for 30 days.",
                                     style = MonolithTypography.bodyMedium.copy(fontSize = 13.sp),
                                     color = iOSTextSecondary,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1268,16 +1268,17 @@ private fun getRowShape(index: Int, total: Int): RoundedCornerShape {
 
 fun highlightQuery(text: String, query: String, highlightColor: Color = Color(0xFFE5A93C)): AnnotatedString {
     if (query.isBlank() || text.isEmpty()) return AnnotatedString(text)
-    val lowerQuery = query.trim().lowercase()
-    if (lowerQuery.isEmpty()) return AnnotatedString(text)
-    val lowerText = text.lowercase()
-    val firstMatch = lowerText.indexOf(lowerQuery)
+    val trimmedQuery = query.trim()
+    if (trimmedQuery.isEmpty()) return AnnotatedString(text)
+    val firstMatch = text.indexOf(trimmedQuery, 0, ignoreCase = true)
     if (firstMatch == -1) return AnnotatedString(text)
 
     return buildAnnotatedString {
         var startIdx = 0
-        while (startIdx < text.length) {
-            val matchIdx = lowerText.indexOf(lowerQuery, startIdx)
+        val textLen = text.length
+        val queryLen = trimmedQuery.length
+        while (startIdx < textLen) {
+            val matchIdx = text.indexOf(trimmedQuery, startIdx, ignoreCase = true)
             if (matchIdx == -1) {
                 append(text.substring(startIdx))
                 break
@@ -1285,7 +1286,7 @@ fun highlightQuery(text: String, query: String, highlightColor: Color = Color(0x
             if (matchIdx > startIdx) {
                 append(text.substring(startIdx, matchIdx))
             }
-            val matchEnd = matchIdx + lowerQuery.length
+            val matchEnd = (matchIdx + queryLen).coerceAtMost(textLen)
             pushStyle(SpanStyle(background = highlightColor.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
             append(text.substring(matchIdx, matchEnd))
             pop()

@@ -45,14 +45,25 @@ object GoogleDriveClient {
     }
 
     /**
-     * Lists all files currently stored in the hidden Google Drive appDataFolder.
+     * Invalidates cached token in Google Play Services.
+     */
+    suspend fun invalidateToken(context: Context, token: String) = withContext(Dispatchers.IO) {
+        try {
+            com.google.android.gms.auth.GoogleAuthUtil.clearToken(context, token)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Lists all files currently stored in the hidden Google Drive appDataFolder (excluding trashed files).
      */
     suspend fun listAppDataFiles(accessToken: String): List<GoogleDriveFile> = withContext(Dispatchers.IO) {
         val result = mutableListOf<GoogleDriveFile>()
         var pageToken: String? = null
 
         do {
-            val urlBuilder = StringBuilder("$BASE_URL?spaces=appDataFolder&fields=nextPageToken,files(id,name,modifiedTime,size)&pageSize=1000")
+            val urlBuilder = StringBuilder("$BASE_URL?spaces=appDataFolder&q=trashed%20%3D%20false&fields=nextPageToken,files(id,name,modifiedTime,size)&pageSize=1000")
             if (pageToken != null) {
                 urlBuilder.append("&pageToken=").append(pageToken)
             }
@@ -63,13 +74,14 @@ object GoogleDriveClient {
                 .get()
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string() ?: ""
-                throw IOException("Failed to list files from Google Drive: ${response.code} - $errorBody")
+            val json = httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = response.body?.string() ?: ""
+                    throw IOException("Failed to list files from Google Drive: ${response.code} - $errorBody")
+                }
+                JSONObject(response.body?.string() ?: "{}")
             }
 
-            val json = JSONObject(response.body?.string() ?: "{}")
             val filesArray = json.optJSONArray("files")
             if (filesArray != null) {
                 for (i in 0 until filesArray.length()) {
@@ -98,11 +110,12 @@ object GoogleDriveClient {
             .get()
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            throw IOException("Failed to download file $fileId from Google Drive: ${response.code}")
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IOException("Failed to download file $fileId from Google Drive: ${response.code}")
+            }
+            response.body?.bytes() ?: ByteArray(0)
         }
-        response.body?.bytes() ?: ByteArray(0)
     }
 
     /**
@@ -127,13 +140,14 @@ object GoogleDriveClient {
             .post(body)
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            val errorBody = response.body?.string() ?: ""
-            throw IOException("Failed to upload file $fileName to Google Drive: ${response.code} - $errorBody")
+        val json = httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: ""
+                throw IOException("Failed to upload file $fileName to Google Drive: ${response.code} - $errorBody")
+            }
+            JSONObject(response.body?.string() ?: "{}")
         }
 
-        val json = JSONObject(response.body?.string() ?: "{}")
         json.getString("id")
     }
 
@@ -150,12 +164,13 @@ object GoogleDriveClient {
             .patch(body)
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            val errorBody = response.body?.string() ?: ""
-            throw IOException("Failed to update file $fileId on Google Drive: ${response.code} - $errorBody")
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val errorBody = response.body?.string() ?: ""
+                throw IOException("Failed to update file $fileId on Google Drive: ${response.code} - $errorBody")
+            }
+            true
         }
-        true
     }
 
     /**
@@ -168,8 +183,9 @@ object GoogleDriveClient {
             .delete()
             .build()
 
-        val response = httpClient.newCall(request).execute()
-        response.isSuccessful
+        httpClient.newCall(request).execute().use { response ->
+            response.isSuccessful
+        }
     }
 
     private fun parseIsoTime(isoString: String): Long {

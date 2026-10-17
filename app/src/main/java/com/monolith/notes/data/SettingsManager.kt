@@ -225,8 +225,14 @@ class SettingsManager(context: Context) {
 
     fun updateGoogleDriveLastSync(timestamp: Long) {
         val updated = _settings.value.googleDriveConfig.copy(lastSyncTime = timestamp)
-        prefs.edit().putLong(KEY_GDRIVE_LAST_SYNC, timestamp).apply()
-        _settings.value = _settings.value.copy(googleDriveConfig = updated)
+        prefs.edit()
+            .putLong(KEY_GDRIVE_LAST_SYNC, timestamp)
+            .putLong(KEY_LAST_SYNC_TIME, timestamp)
+            .apply()
+        _settings.value = _settings.value.copy(
+            googleDriveConfig = updated,
+            lastSyncTimestamp = timestamp
+        )
     }
 
     fun setGoogleDriveUri(uri: String?) {

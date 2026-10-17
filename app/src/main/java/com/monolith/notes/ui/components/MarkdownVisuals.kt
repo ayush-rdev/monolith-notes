@@ -91,7 +91,6 @@ data class MarkdownThemeColors(
  */
 @Composable
 fun buildAnnotatedStringFromNodes(firstNode: Node?): AnnotatedString {
-    if (firstNode == null) return AnnotatedString("")
     val colors = MarkdownThemeColors(
         textPrimary = iOSTextPrimary,
         textSecondary = iOSTextSecondary,
@@ -99,6 +98,11 @@ fun buildAnnotatedStringFromNodes(firstNode: Node?): AnnotatedString {
         elevatedCard = iOSElevatedCard,
         accent = iOSYellow
     )
+    return buildAnnotatedStringFromNodes(firstNode, colors)
+}
+
+fun buildAnnotatedStringFromNodes(firstNode: Node?, colors: MarkdownThemeColors): AnnotatedString {
+    if (firstNode == null) return AnnotatedString("")
     return buildAnnotatedString {
         var current: Node? = firstNode
         while (current != null) {
@@ -282,42 +286,78 @@ fun splitTableRow(line: String): List<String> {
 /**
  * High-performance inline parser using CommonMark AST.
  */
-@Composable
-fun parseInlineMarkdown(text: String): AnnotatedString {
+fun parseInlineMarkdown(text: String, colors: MarkdownThemeColors): AnnotatedString {
     if (text.isEmpty()) return AnnotatedString("")
     val doc = CommonMarkParser.parse(text)
     val firstBlock = doc.firstChild
     return if (firstBlock is Paragraph) {
-        buildAnnotatedStringFromNodes(firstBlock.firstChild)
+        buildAnnotatedStringFromNodes(firstBlock.firstChild, colors)
     } else {
-        buildAnnotatedStringFromNodes(doc.firstChild)
+        buildAnnotatedStringFromNodes(doc.firstChild, colors)
     }
+}
+
+@Composable
+fun parseInlineMarkdown(text: String): AnnotatedString {
+    val colors = MarkdownThemeColors(
+        textPrimary = iOSTextPrimary,
+        textSecondary = iOSTextSecondary,
+        textTertiary = iOSTextTertiary,
+        elevatedCard = iOSElevatedCard,
+        accent = iOSYellow
+    )
+    return parseInlineMarkdown(text, colors)
 }
 
 /**
  * Safely toggles a markdown checklist task at [targetTaskIndex], preserving indentation.
  */
 fun toggleMarkdownTask(content: String, targetTaskIndex: Int): String {
+    var inCodeBlock = false
     var currentTaskIndex = 0
-    return TASK_TOGGLE_REGEX.replace(content) { matchResult ->
-        if (currentTaskIndex == targetTaskIndex) {
-            val fullPrefix = matchResult.groupValues[1]
-            val leadingWhitespace = fullPrefix.takeWhile { it == ' ' || it == '\t' }
-            val marker = fullPrefix.trim()
-            val rest = matchResult.groupValues[2]
-            val newMarker = when {
-                marker.startsWith("○") -> "✓"
-                marker.startsWith("✓") -> "○"
-                marker.contains("[ ]") -> marker.replace("[ ]", "[x]")
-                else -> marker.replace("[x]", "[ ]").replace("[X]", "[ ]")
+    val lines = content.lines()
+    val result = ArrayList<String>(lines.size)
+
+    val singleLineTaskRegex = "^([ \\t]*(?:[-*]\\s+\\[[ xX]\\]|\\d+\\.\\s+\\[[ xX]\\]|[○✓]))(?:([ \\t]+)(.*))?$".toRegex()
+
+    for (line in lines) {
+        val trimmed = line.trim()
+        if (trimmed.startsWith("```")) {
+            inCodeBlock = !inCodeBlock
+            result.add(line)
+            continue
+        }
+        if (inCodeBlock) {
+            result.add(line)
+            continue
+        }
+
+        val match = singleLineTaskRegex.find(line)
+        if (match != null) {
+            if (currentTaskIndex == targetTaskIndex) {
+                val fullPrefix = match.groupValues[1]
+                val leadingWhitespace = fullPrefix.takeWhile { it == ' ' || it == '\t' }
+                val marker = fullPrefix.trim()
+                val space = if (match.groupValues[2].isNotEmpty()) match.groupValues[2] else " "
+                val rest = match.groupValues[3]
+
+                val newMarker = when {
+                    marker.startsWith("○") -> "✓"
+                    marker.startsWith("✓") -> "○"
+                    marker.contains("[ ]") -> marker.replace("[ ]", "[x]")
+                    else -> marker.replace("[x]", "[ ]").replace("[X]", "[ ]")
+                }
+                currentTaskIndex++
+                result.add("$leadingWhitespace$newMarker$space$rest")
+            } else {
+                currentTaskIndex++
+                result.add(line)
             }
-            currentTaskIndex++
-            "$leadingWhitespace$newMarker$rest"
         } else {
-            currentTaskIndex++
-            matchResult.value
+            result.add(line)
         }
     }
+    return result.joinToString("\n")
 }
 
 /**
@@ -895,10 +935,17 @@ fun iOSChecklistRow(
             }
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        val colors = MarkdownThemeColors(
+            textPrimary = iOSTextPrimary,
+            textSecondary = iOSTextSecondary,
+            textTertiary = iOSTextTertiary,
+            elevatedCard = iOSElevatedCard,
+            accent = iOSYellow
+        )
+        val parsedText = remember(text, colors) { parseInlineMarkdown(text, colors) }
 
         MarkdownClickableText(
-            text = parseInlineMarkdown(text),
+            text = parsedText,
             style = MonolithTypography.bodyLarge.copy(
                 textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
                 color = textColor
@@ -958,6 +1005,7 @@ fun IOSInlineImage(
     val imageModel: Any = remember(path, vaultPath) {
         when {
             path.startsWith("http://") || path.startsWith("https://") -> path
+            path.startsWith("content://") || path.startsWith("file://") -> Uri.parse(path)
             path.startsWith("/") -> File(path)
             else -> File(vaultPath, path)
         }

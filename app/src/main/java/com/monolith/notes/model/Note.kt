@@ -14,7 +14,8 @@ data class Note(
     val tags: List<String> = emptyList(),
     val lastModified: Long = System.currentTimeMillis(),
     val isPinned: Boolean = false,
-    val folder: String = "Notes"
+    val folder: String = "Notes",
+    val rawFrontmatter: String? = null
 ) {
     val folderName: String
         get() {

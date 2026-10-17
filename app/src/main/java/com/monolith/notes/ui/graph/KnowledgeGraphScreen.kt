@@ -34,7 +34,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.theme.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlin.math.*
 
 data class GraphNode(
@@ -131,74 +133,89 @@ fun KnowledgeGraphScreen(
 
     val nodes = graphData.first
     val edges = graphData.second
+    val selectedNeighbors = remember(selectedNodeIndex, edges) {
+        val target = selectedNodeIndex ?: return@remember emptySet<Int>()
+        val set = HashSet<Int>()
+        for (edge in edges) {
+            if (edge.sourceIndex == target) set.add(edge.targetIndex)
+            else if (edge.targetIndex == target) set.add(edge.sourceIndex)
+        }
+        set
+    }
 
     // 120Hz Physics Simulation Loop
     var iteration by remember { mutableIntStateOf(0) }
     LaunchedEffect(graphData) {
         if (nodes.isEmpty()) return@LaunchedEffect
 
-        // Run force simulation
-        val kRepulse = 38000f
-        val kSpring = 0.045f
-        val restLength = 160f
-        val damping = 0.85f
-        val centerForce = 0.012f
+        withContext(Dispatchers.Default) {
+            // Run force simulation
+            val kRepulse = 38000f
+            val kSpring = 0.045f
+            val restLength = 160f
+            val damping = 0.85f
+            val centerForce = 0.012f
 
-        for (step in 0 until 180) {
-            // 1. Repulsion between all pairs
-            for (i in 0 until nodes.size) {
-                val nodeA = nodes[i]
-                for (j in (i + 1) until nodes.size) {
-                    val nodeB = nodes[j]
+            for (step in 0 until 180) {
+                // 1. Repulsion between all pairs
+                for (i in 0 until nodes.size) {
+                    val nodeA = nodes[i]
+                    for (j in (i + 1) until nodes.size) {
+                        val nodeB = nodes[j]
+                        val dx = nodeB.x - nodeA.x
+                        val dy = nodeB.y - nodeA.y
+                        val distSq = dx * dx + dy * dy + 100f
+                        val dist = sqrt(distSq)
+                        val force = kRepulse / distSq
+                        val fx = (dx / dist) * force
+                        val fy = (dy / dist) * force
+
+                        nodeA.vx -= fx
+                        nodeA.vy -= fy
+                        nodeB.vx += fx
+                        nodeB.vy += fy
+                    }
+                }
+
+                // 2. Spring attraction along edges
+                for (edge in edges) {
+                    val nodeA = nodes[edge.sourceIndex]
+                    val nodeB = nodes[edge.targetIndex]
                     val dx = nodeB.x - nodeA.x
                     val dy = nodeB.y - nodeA.y
-                    val distSq = dx * dx + dy * dy + 100f
-                    val dist = sqrt(distSq)
-                    val force = kRepulse / distSq
+                    val dist = max(sqrt(dx * dx + dy * dy), 1f)
+                    val displacement = dist - restLength
+                    val force = displacement * kSpring
                     val fx = (dx / dist) * force
                     val fy = (dy / dist) * force
 
-                    nodeA.vx -= fx
-                    nodeA.vy -= fy
-                    nodeB.vx += fx
-                    nodeB.vy += fy
+                    nodeA.vx += fx
+                    nodeA.vy += fy
+                    nodeB.vx -= fx
+                    nodeB.vy -= fy
+                }
+
+                // 3. Centering force & update positions
+                for (node in nodes) {
+                    node.vx -= node.x * centerForce
+                    node.vy -= node.y * centerForce
+                    node.vx *= damping
+                    node.vy *= damping
+                    node.x += node.vx
+                    node.y += node.vy
+                }
+
+                if (step % 2 == 0) {
+                    withContext(Dispatchers.Main) {
+                        iteration = step
+                    }
+                    delay(12) // ~80-120fps fluid convergence
                 }
             }
-
-            // 2. Spring attraction along edges
-            for (edge in edges) {
-                val nodeA = nodes[edge.sourceIndex]
-                val nodeB = nodes[edge.targetIndex]
-                val dx = nodeB.x - nodeA.x
-                val dy = nodeB.y - nodeA.y
-                val dist = max(sqrt(dx * dx + dy * dy), 1f)
-                val displacement = dist - restLength
-                val force = displacement * kSpring
-                val fx = (dx / dist) * force
-                val fy = (dy / dist) * force
-
-                nodeA.vx += fx
-                nodeA.vy += fy
-                nodeB.vx -= fx
-                nodeB.vy -= fy
-            }
-
-            // 3. Centering force & update positions
-            for (node in nodes) {
-                node.vx -= node.x * centerForce
-                node.vy -= node.y * centerForce
-                node.vx *= damping
-                node.vy *= damping
-                node.x += node.vx
-                node.y += node.vy
-            }
-
-            if (step % 2 == 0) {
-                iteration = step
-                delay(12) // ~80-120fps fluid convergence
+            withContext(Dispatchers.Main) {
+                iteration++
             }
         }
-        iteration++
     }
 
     // Back button handling
@@ -332,10 +349,7 @@ fun KnowledgeGraphScreen(
                 }
 
                 val isSelected = selectedNodeIndex == i
-                val isConnectedToSelected = selectedNodeIndex != null && edges.any {
-                    (it.sourceIndex == selectedNodeIndex && it.targetIndex == i) ||
-                    (it.targetIndex == selectedNodeIndex && it.sourceIndex == i)
-                }
+                val isConnectedToSelected = selectedNeighbors.contains(i)
 
                 val isQueryMatch = searchQuery.isNotBlank() &&
                         node.note.displayTitle.contains(searchQuery, ignoreCase = true)

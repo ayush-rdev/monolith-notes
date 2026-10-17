@@ -84,42 +84,47 @@ class SyncJournal(private val context: Context) {
             }
             json.put("tombstones", tombstonesObj)
 
-            journalFile.writeText(json.toString())
+            val tempFile = File(journalFile.parentFile, "${journalFile.name}.tmp")
+            tempFile.writeText(json.toString())
+            if (!tempFile.renameTo(journalFile)) {
+                tempFile.copyTo(journalFile, overwrite = true)
+                tempFile.delete()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     @Synchronized
-    fun getRecord(fileName: String): FileSyncRecord? = records[fileName.lowercase()]
+    fun getRecord(fileName: String): FileSyncRecord? = records[fileName.lowercase(java.util.Locale.ROOT)]
 
     @Synchronized
     fun setRecord(fileName: String, record: FileSyncRecord) {
-        val key = fileName.lowercase()
+        val key = fileName.lowercase(java.util.Locale.ROOT)
         records[key] = record
         tombstones.remove(key)
     }
 
     @Synchronized
     fun removeRecord(fileName: String) {
-        val key = fileName.lowercase()
+        val key = fileName.lowercase(java.util.Locale.ROOT)
         records.remove(key)
     }
 
     @Synchronized
     fun addTombstone(fileName: String) {
-        val key = fileName.lowercase()
+        val key = fileName.lowercase(java.util.Locale.ROOT)
         tombstones[key] = System.currentTimeMillis()
         records.remove(key)
     }
 
     @Synchronized
     fun removeTombstone(fileName: String) {
-        tombstones.remove(fileName.lowercase())
+        tombstones.remove(fileName.lowercase(java.util.Locale.ROOT))
     }
 
     @Synchronized
-    fun isTombstoned(fileName: String): Boolean = tombstones.containsKey(fileName.lowercase())
+    fun isTombstoned(fileName: String): Boolean = tombstones.containsKey(fileName.lowercase(java.util.Locale.ROOT))
 
     @Synchronized
     fun getAllRecords(): Map<String, FileSyncRecord> = HashMap(records)

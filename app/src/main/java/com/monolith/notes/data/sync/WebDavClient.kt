@@ -238,7 +238,7 @@ class WebDavClient(private val config: WebDavConfig) {
             var currentEtag = ""
 
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                val tag = parser.name?.lowercase() ?: ""
+                val tag = parser.name?.substringAfterLast(':')?.lowercase() ?: ""
                 when (eventType) {
                     XmlPullParser.START_TAG -> {
                         when (tag) {
@@ -275,9 +275,10 @@ class WebDavClient(private val config: WebDavConfig) {
                     }
                     XmlPullParser.END_TAG -> {
                         if (tag == "response") {
-                            // Extract relative file name from href
+                            // Extract relative file name from href and URL-decode it
                             val cleanHref = currentHref.removeSuffix("/")
-                            val fileName = cleanHref.substringAfterLast('/')
+                            val rawName = cleanHref.substringAfterLast('/')
+                            val fileName = try { java.net.URLDecoder.decode(rawName, "UTF-8") } catch (_: Exception) { rawName }
 
                             // Skip the parent directory itself
                             if (fileName.isNotEmpty() && !isSelfReference(currentHref, requestUrl)) {

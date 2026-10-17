@@ -122,7 +122,7 @@ class MainActivity : FragmentActivity() {
             // 2. Monolith Cloud Sync
             if (isCloudConnected) {
                 try {
-                    val res = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
+                    val res = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig, applicationContext)
                     if (res.isSuccess) {
                         anySuccess = true
                         settingsManager.updateCloudLastSync(System.currentTimeMillis())
@@ -363,7 +363,7 @@ class MainActivity : FragmentActivity() {
 
                     // Biometric Lock Screen Overlay
                     if (settings.biometricLockEnabled && !isAppUnlocked) {
-                        LaunchedEffect(Unit) {
+                        LaunchedEffect(isAppUnlocked) {
                             promptBiometricAuth(
                                 title = "Unlock Monolith Notes",
                                 subtitle = "Authenticate to access your private vault",
@@ -577,7 +577,7 @@ class MainActivity : FragmentActivity() {
                                             settingsManager.setCloudConfig(config)
                                         },
                                         onPerformCloudSync = {
-                                            val result = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
+                                            val result = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig, applicationContext)
                                             if (result.isSuccess) {
                                                 settingsManager.updateCloudLastSync(System.currentTimeMillis())
                                                 repository.loadNotes()
@@ -651,13 +651,14 @@ class MainActivity : FragmentActivity() {
                                                 noteItem.displayTitle.equals(cleanTarget, ignoreCase = true) ||
                                                 (noteItem.file != null && noteItem.file.nameWithoutExtension.equals(cleanTarget, ignoreCase = true))
                                             }
+                                            val currentNoteSnapshot = repository.notes.value.firstOrNull { it.id == screen.note.id } ?: screen.note
                                             if (existing != null) {
-                                                editorBackStack.add(screen.note)
+                                                editorBackStack.add(currentNoteSnapshot)
                                                 currentScreen = Screen.Editor(existing)
                                             } else {
                                                 scope.launch {
                                                     val created = repository.getOrCreateNote(cleanTarget, selectedFolder ?: "Notes")
-                                                    editorBackStack.add(screen.note)
+                                                    editorBackStack.add(currentNoteSnapshot)
                                                     currentScreen = Screen.Editor(created)
                                                 }
                                             }
@@ -765,6 +766,14 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (settingsManager.settings.value.biometricLockEnabled) {
+            window.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE
+            )
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
         triggerAutoSync(debounceMs = 600L)
     }
 
@@ -773,6 +782,10 @@ class MainActivity : FragmentActivity() {
         if (isChangingConfigurations) return
         if (settingsManager.settings.value.biometricLockEnabled) {
             isAppUnlocked = false
+            window.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE
+            )
         }
         triggerAutoSync(debounceMs = 0L)
     }

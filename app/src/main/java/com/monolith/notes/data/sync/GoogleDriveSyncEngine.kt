@@ -101,17 +101,23 @@ object GoogleDriveSyncEngine {
                 val remoteMatch = remoteMap[key]
                 if (remoteMatch != null) {
                     onProgress("Syncing deletion of $tombstoneName...")
+                    var deletedSuccessfully = false
                     try {
-                        GoogleDriveClient.deleteFile(token, remoteMatch.id)
-                        remoteMap.remove(key)
-                        deletedCount++
+                        deletedSuccessfully = GoogleDriveClient.deleteFile(token, remoteMatch.id)
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
+                    if (deletedSuccessfully) {
+                        remoteMap.remove(key)
+                        deletedCount++
+                        journal.removeTombstone(tombstoneName)
+                        journal.removeRecord(tombstoneName)
+                    }
+                } else {
+                    // No remote file existed anyway
+                    journal.removeTombstone(tombstoneName)
+                    journal.removeRecord(tombstoneName)
                 }
-                // Tombstone is satisfied and consumed
-                journal.removeTombstone(tombstoneName)
-                journal.removeRecord(tombstoneName)
             }
 
             // 4. Form Canonical Union of Candidate Files
@@ -189,7 +195,11 @@ object GoogleDriveSyncEngine {
                         onProgress("Downloading $cleanName...")
                         val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
                         val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
-                            try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
+                            try {
+                                VaultCrypto.decrypt(rawBytes, passphrase)
+                            } catch (e: Exception) {
+                                throw IllegalStateException("Decryption failed for $cleanName: Invalid passphrase or corrupted payload", e)
+                            }
                         } else {
                             rawBytes
                         }
@@ -242,7 +252,11 @@ object GoogleDriveSyncEngine {
                         onProgress("Downloading updated ${localFile.name}...")
                         val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
                         val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
-                            try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
+                            try {
+                                VaultCrypto.decrypt(rawBytes, passphrase)
+                            } catch (e: Exception) {
+                                throw IllegalStateException("Decryption failed for ${localFile.name}: Invalid passphrase or corrupted payload", e)
+                            }
                         } else {
                             rawBytes
                         }
@@ -260,7 +274,11 @@ object GoogleDriveSyncEngine {
                     if (localChanged && remoteChanged) {
                         val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
                         val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
-                            try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
+                            try {
+                                VaultCrypto.decrypt(rawBytes, passphrase)
+                            } catch (e: Exception) {
+                                throw IllegalStateException("Decryption failed for ${localFile.name}: Invalid passphrase or corrupted payload", e)
+                            }
                         } else {
                             rawBytes
                         }
@@ -275,7 +293,8 @@ object GoogleDriveSyncEngine {
                         } else {
                             // True conflict! Never destroy data!
                             onProgress("Resolving conflict for ${localFile.name}...")
-                            val conflictName = "${localFile.nameWithoutExtension}_Conflict_${System.currentTimeMillis()}.md"
+                            val conflictExtension = localFile.extension.ifBlank { "md" }
+                            val conflictName = "${localFile.nameWithoutExtension}_Conflict_${System.currentTimeMillis()}.$conflictExtension"
                             val conflictFile = File(localFile.parentFile ?: vaultDir, conflictName)
                             localFile.copyTo(conflictFile, overwrite = true)
 

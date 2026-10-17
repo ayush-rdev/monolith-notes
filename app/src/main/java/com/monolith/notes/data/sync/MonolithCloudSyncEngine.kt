@@ -1,5 +1,6 @@
 package com.monolith.notes.data.sync
 
+import android.content.Context
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -10,6 +11,7 @@ object MonolithCloudSyncEngine {
     suspend fun sync(
         vaultDir: File,
         config: MonolithCloudConfig,
+        context: Context? = null,
         onProgress: (String) -> Unit = {}
     ): SyncResult = withContext(Dispatchers.IO) {
         if (!config.isLoggedIn) {
@@ -54,7 +56,7 @@ object MonolithCloudSyncEngine {
                         try {
                             VaultCrypto.decrypt(rawBytes, config.encryptionKey)
                         } catch (e: Exception) {
-                            rawBytes
+                            throw IllegalStateException("Decryption failed for ${remoteItem.fileName}: Invalid encryption key or corrupted data", e)
                         }
                     } else {
                         rawBytes
@@ -68,7 +70,7 @@ object MonolithCloudSyncEngine {
                 }
             }
 
-            // 2. Collect local files for push
+            // 2. Collect local files and tombstones for push
             val localFiles = mutableListOf<File>()
             vaultDir.walkTopDown()
                 .filter { it.isFile }
@@ -101,9 +103,23 @@ object MonolithCloudSyncEngine {
                 }
             }
 
+            // Also push local deletions (tombstones) so cloud server deletes them
+            val journal = context?.let { SyncJournal(it) }
+            val tombstones = journal?.getAllTombstones() ?: emptyMap()
+            for ((tombstoneName, _) in tombstones) {
+                itemsToPush.add(
+                    CloudSyncItem(
+                        fileName = tombstoneName,
+                        dataBase64 = "",
+                        clientModified = System.currentTimeMillis(),
+                        isDeleted = true
+                    )
+                )
+            }
+
             // 3. Push local changes to server
             if (itemsToPush.isNotEmpty()) {
-                onProgress("Encrypting and uploading ${itemsToPush.size} note(s)...")
+                onProgress("Encrypting and uploading ${itemsToPush.size} change(s)...")
                 val pushResult = MonolithCloudClient.push(
                     serverUrl = config.serverUrl,
                     token = config.token,
@@ -114,6 +130,14 @@ object MonolithCloudSyncEngine {
                     return@withContext SyncResult(isSuccess = false, message = pushResult.message)
                 }
                 uploaded = pushResult.pushedCount
+
+                // Purge consumed tombstones
+                if (journal != null && tombstones.isNotEmpty()) {
+                    for ((tombstoneName, _) in tombstones) {
+                        journal.removeTombstone(tombstoneName)
+                    }
+                    journal.save()
+                }
             }
 
             val newServerTime = if (pullResult.serverTime > 0) pullResult.serverTime else System.currentTimeMillis()

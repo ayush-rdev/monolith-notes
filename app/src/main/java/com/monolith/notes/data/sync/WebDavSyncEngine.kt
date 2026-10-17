@@ -101,11 +101,10 @@ object WebDavSyncEngine {
                                 try {
                                     VaultCrypto.decrypt(remoteBytes, config.encryptionPassphrase)
                                 } catch (e: Exception) {
-                                    // Password incorrect or corrupted
-                                    remoteBytes
+                                    throw IllegalStateException("Decryption failed for $relativePath: Invalid passphrase or corrupted payload", e)
                                 }
                             } else {
-                                remoteBytes
+                                throw IllegalStateException("Cannot download encrypted note $relativePath: No passphrase configured")
                             }
                         } else {
                             remoteBytes

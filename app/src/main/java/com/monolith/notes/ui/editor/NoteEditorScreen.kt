@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.monolith.notes.data.PdfPublisher
 import java.io.File
 import androidx.compose.ui.Alignment
@@ -118,7 +119,7 @@ fun NoteEditorScreen(
     val isNewNote = remember(note.id) { note.title.isEmpty() && note.content.isEmpty() }
     var isEditing by remember(note.id) { mutableStateOf(isNewNote) }
 
-    var titleState by remember(note.id) {
+    var titleState by rememberSaveable(note.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(
             TextFieldValue(
                 text = note.title,
@@ -127,7 +128,7 @@ fun NoteEditorScreen(
         )
     }
 
-    var bodyState by remember(note.id) {
+    var bodyState by rememberSaveable(note.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(
             TextFieldValue(
                 text = note.content,
@@ -333,7 +334,9 @@ fun NoteEditorScreen(
         val lineEnd = text.indexOf('\n', cursor).let {
             if (it == -1) text.length else it
         }
-        val line = text.substring(lineStart, lineEnd)
+        val fullLine = text.substring(lineStart, lineEnd)
+        val indent = fullLine.takeWhile { it == ' ' || it == '\t' }
+        val line = fullLine.substring(indent.length)
 
         val cleanLinePrefix = { input: String ->
             input
@@ -349,24 +352,25 @@ fun NoteEditorScreen(
         val (newLine, cursorOffset) = when {
             targetPrefix.isEmpty() -> {
                 val cleanLine = cleanLinePrefix(line)
-                Pair(cleanLine, cleanLine.length - line.length)
+                Pair(indent + cleanLine, (indent + cleanLine).length - fullLine.length)
             }
             line.startsWith(targetPrefix) -> {
                 if (alternatePrefix != null) {
-                    val toggled = alternatePrefix + line.removePrefix(targetPrefix)
+                    val toggled = indent + alternatePrefix + line.removePrefix(targetPrefix)
                     Pair(toggled, alternatePrefix.length - targetPrefix.length)
                 } else {
-                    val stripped = line.removePrefix(targetPrefix)
+                    val stripped = indent + line.removePrefix(targetPrefix)
                     Pair(stripped, -targetPrefix.length)
                 }
             }
             alternatePrefix != null && line.startsWith(alternatePrefix) -> {
-                val toggled = line.removePrefix(alternatePrefix)
+                val toggled = indent + line.removePrefix(alternatePrefix)
                 Pair(toggled, -alternatePrefix.length)
             }
             else -> {
                 val cleanLine = cleanLinePrefix(line)
-                Pair(targetPrefix + cleanLine, (targetPrefix + cleanLine).length - line.length)
+                val constructed = indent + targetPrefix + cleanLine
+                Pair(constructed, constructed.length - fullLine.length)
             }
         }
 
@@ -1260,18 +1264,20 @@ private fun handleSmartListContinuation(
                 if (it == -1) 0 else it + 1
             }
             val prevLine = newText.substring(prevLineStart, prevLineEnd)
+            val indent = prevLine.takeWhile { it == ' ' || it == '\t' }
+            val trimmedPrev = prevLine.substring(indent.length)
 
             // 0. Horizontal Rule on Enter: "---", "***", "___", "===", or long lines
             val separatorRegex = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
-            if (prevLine.matches(separatorRegex)) {
-                val resultText = newText.substring(0, prevLineStart) + "───\n" + newText.substring(insertPos + 1)
-                val newCursor = prevLineStart + 4
+            if (trimmedPrev.matches(separatorRegex)) {
+                val resultText = newText.substring(0, prevLineStart) + indent + "───\n" + newText.substring(insertPos + 1)
+                val newCursor = prevLineStart + indent.length + 4
                 return TextFieldValue(text = resultText, selection = TextRange(newCursor))
             }
 
             // 0b. Markdown Table Row Continuation on Enter:
-            if (prevLine.trim().startsWith('|') && prevLine.trim().endsWith('|')) {
-                val cells = com.monolith.notes.ui.components.splitTableRow(prevLine)
+            if (trimmedPrev.startsWith('|') && trimmedPrev.endsWith('|')) {
+                val cells = com.monolith.notes.ui.components.splitTableRow(trimmedPrev)
                 val isAllBlank = cells.all { it.isBlank() }
                 if (isAllBlank) {
                     val resultText = newText.removeRange(prevLineStart, prevLineEnd)
@@ -1280,11 +1286,11 @@ private fun handleSmartListContinuation(
                         text = resultText,
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
                     )
-                } else if (com.monolith.notes.ui.components.isTableDelimiter(prevLine)) {
+                } else if (com.monolith.notes.ui.components.isTableDelimiter(trimmedPrev)) {
                     val colCount = cells.size.coerceAtLeast(2)
                     val newRow = List(colCount) { " " }.joinToString(" | ", prefix = "| ", postfix = " |")
-                    val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
-                    val newCursor = insertPos + 1 + 2
+                    val resultText = newText.substring(0, insertPos + 1) + indent + newRow + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + indent.length + 2
                     return TextFieldValue(
                         text = resultText,
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
@@ -1292,8 +1298,8 @@ private fun handleSmartListContinuation(
                 } else {
                     val colCount = cells.size.coerceAtLeast(1)
                     val newRow = List(colCount) { " " }.joinToString(" | ", prefix = "| ", postfix = " |")
-                    val resultText = newText.substring(0, insertPos + 1) + newRow + newText.substring(insertPos + 1)
-                    val newCursor = insertPos + 1 + 2
+                    val resultText = newText.substring(0, insertPos + 1) + indent + newRow + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + indent.length + 2
                     return TextFieldValue(
                         text = resultText,
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
@@ -1302,8 +1308,8 @@ private fun handleSmartListContinuation(
             }
 
             // 1. Checklist item: "○ " or "✓ "
-            if (prevLine.startsWith("○ ") || prevLine.startsWith("✓ ")) {
-                val itemContent = prevLine.substring(2)
+            if (trimmedPrev.startsWith("○ ") || trimmedPrev.startsWith("✓ ")) {
+                val itemContent = trimmedPrev.substring(2)
                 if (itemContent.isBlank()) {
                     val resultText = newText.removeRange(prevLineStart, prevLineEnd)
                     val newCursor = prevLineStart
@@ -1312,7 +1318,7 @@ private fun handleSmartListContinuation(
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
                     )
                 } else {
-                    val prefix = "○ "
+                    val prefix = indent + "○ "
                     val resultText = newText.substring(0, insertPos + 1) + prefix + newText.substring(insertPos + 1)
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
@@ -1322,9 +1328,9 @@ private fun handleSmartListContinuation(
                 }
             }
 
-            // 2. Bullet list item: "• "
-            if (prevLine.startsWith("• ")) {
-                val itemContent = prevLine.substring(2)
+            // 1b. Markdown Task item: "- [ ] " or "- [x] "
+            if (trimmedPrev.startsWith("- [ ] ") || trimmedPrev.startsWith("- [x] ") || trimmedPrev.startsWith("- [X] ")) {
+                val itemContent = trimmedPrev.substring(6)
                 if (itemContent.isBlank()) {
                     val resultText = newText.removeRange(prevLineStart, prevLineEnd)
                     val newCursor = prevLineStart
@@ -1333,7 +1339,48 @@ private fun handleSmartListContinuation(
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
                     )
                 } else {
-                    val prefix = "• "
+                    val prefix = indent + "- [ ] "
+                    val resultText = newText.substring(0, insertPos + 1) + prefix + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + prefix.length
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor)
+                    )
+                }
+            }
+
+            // 2. Bullet list item: "• " or "- " or "* "
+            if (trimmedPrev.startsWith("• ")) {
+                val itemContent = trimmedPrev.substring(2)
+                if (itemContent.isBlank()) {
+                    val resultText = newText.removeRange(prevLineStart, prevLineEnd)
+                    val newCursor = prevLineStart
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                    )
+                } else {
+                    val prefix = indent + "• "
+                    val resultText = newText.substring(0, insertPos + 1) + prefix + newText.substring(insertPos + 1)
+                    val newCursor = insertPos + 1 + prefix.length
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor)
+                    )
+                }
+            }
+            if (trimmedPrev.startsWith("- ") || trimmedPrev.startsWith("* ")) {
+                val itemContent = trimmedPrev.substring(2)
+                if (itemContent.isBlank()) {
+                    val resultText = newText.removeRange(prevLineStart, prevLineEnd)
+                    val newCursor = prevLineStart
+                    return TextFieldValue(
+                        text = resultText,
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                    )
+                } else {
+                    val bulletChar = trimmedPrev[0]
+                    val prefix = "$indent$bulletChar "
                     val resultText = newText.substring(0, insertPos + 1) + prefix + newText.substring(insertPos + 1)
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
@@ -1344,7 +1391,7 @@ private fun handleSmartListContinuation(
             }
 
             // 3. Numbered list item: "1. ", "2. ", etc.
-            val numMatch = "^(\\d+)\\.\\s*(.*)$".toRegex().find(prevLine)
+            val numMatch = "^(\\d+)\\.\\s*(.*)$".toRegex().find(trimmedPrev)
             if (numMatch != null) {
                 val num = numMatch.groupValues[1].toIntOrNull() ?: 1
                 val itemContent = numMatch.groupValues[2]
@@ -1356,7 +1403,7 @@ private fun handleSmartListContinuation(
                         selection = TextRange(newCursor.coerceIn(0, resultText.length))
                     )
                 } else {
-                    val prefix = "${num + 1}. "
+                    val prefix = indent + "${num + 1}. "
                     val resultText = newText.substring(0, insertPos + 1) + prefix + newText.substring(insertPos + 1)
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
@@ -1380,6 +1427,7 @@ private fun handleSmartInput(
     oldValue: TextFieldValue,
     newValue: TextFieldValue
 ): TextFieldValue {
+    if (newValue.composition != null) return newValue
     val oldText = oldValue.text
     val newText = newValue.text
 

@@ -177,4 +177,77 @@ class MarkdownConverterTest {
         assertEquals(3, cells.size)
         assertTrue(cells.all { it.isBlank() })
     }
+
+    @Test
+    fun testFullObsidianFrontmatterPreserved() {
+        val raw = """
+            ---
+            aliases: [SuperNote, Secret]
+            tags: [research, ai, android]
+            pinned: true
+            author: Ayush
+            ---
+            # Deep Learning Notes
+            Content here
+        """.trimIndent()
+
+        val parsed = MarkdownConverter.toUiWithFrontmatter(raw)
+        assertEquals("Deep Learning Notes", parsed.title)
+        assertTrue(parsed.isPinned)
+        assertTrue(parsed.rawFrontmatter != null)
+        assertTrue(parsed.rawFrontmatter!!.contains("aliases: [SuperNote, Secret]"))
+        assertTrue(parsed.rawFrontmatter!!.contains("tags: [research, ai, android]"))
+        assertTrue(parsed.rawFrontmatter!!.contains("author: Ayush"))
+
+        // Now convert back to markdown and verify all keys are kept!
+        val backToMd = MarkdownConverter.toMarkdown(parsed.title, parsed.body, parsed.isPinned, parsed.rawFrontmatter)
+        assertTrue(backToMd.startsWith("---\n"))
+        assertTrue(backToMd.contains("aliases: [SuperNote, Secret]"))
+        assertTrue(backToMd.contains("tags: [research, ai, android]"))
+        assertTrue(backToMd.contains("author: Ayush"))
+        assertTrue(backToMd.contains("pinned: true"))
+        assertTrue(backToMd.contains("# Deep Learning Notes\n\nContent here"))
+    }
+
+    @Test
+    fun testChecklistInsideCodeBlockNotConverted() {
+        val raw = """
+            # Code Sample
+            
+            ```markdown
+            - [ ] This should stay as raw markdown
+            - [x] This too
+            ```
+            
+            - [ ] Outer Task
+        """.trimIndent()
+
+        val (title, body, _) = MarkdownConverter.toUi(raw)
+        assertEquals("Code Sample", title)
+        // Inside code block stays unchanged
+        assertTrue(body.contains("- [ ] This should stay as raw markdown"))
+        assertTrue(body.contains("- [x] This too"))
+        // Outer task converted to ○
+        assertTrue(body.contains("○ Outer Task"))
+
+        // Test toggling: toggling task 0 should toggle Outer Task, NOT the one in the code block
+        val toggled = toggleMarkdownTask(body, 0)
+        assertTrue(toggled.contains("✓ Outer Task"))
+        assertTrue(toggled.contains("- [ ] This should stay as raw markdown"))
+    }
+
+    @Test
+    fun testNestedIndentedChecklistToggling() {
+        val content = """
+            ○ Top level
+              ○ Nested 2 spaces
+                ○ Nested 4 spaces
+        """.trimIndent()
+
+        // Toggle task 1 (the 2-space nested item)
+        val toggled = toggleMarkdownTask(content, 1)
+        assertTrue(toggled.contains("  ✓ Nested 2 spaces"))
+        assertTrue(toggled.contains("○ Top level"))
+        assertTrue(toggled.contains("    ○ Nested 4 spaces"))
+    }
 }
