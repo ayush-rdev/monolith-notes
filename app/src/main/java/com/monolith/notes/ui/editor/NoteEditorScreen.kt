@@ -19,7 +19,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,6 +41,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Code
@@ -77,6 +80,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monolith.notes.data.AppSettings
@@ -1769,12 +1773,15 @@ private fun LinkedReferencesSection(
     onNavigateToNote: (Note) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(true) }
+    var showAll by remember { mutableStateOf(false) }
+    val theme = LocalMonolithTheme.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(iOSCardBackground)
+            .border(BorderStroke(0.5.dp, iOSDivider.copy(alpha = 0.6f)), RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
         Row(
@@ -1788,37 +1795,35 @@ private fun LinkedReferencesSection(
                 Icon(
                     imageVector = Icons.Default.Link,
                     contentDescription = null,
-                    tint = iOSYellow,
-                    modifier = Modifier.size(16.dp)
+                    tint = theme.accent,
+                    modifier = Modifier.size(15.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Linked References",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = iOSTextPrimary
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(iOSYellow.copy(alpha = 0.2f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = "${backlinks.size}",
-                        fontSize = 11.sp,
+                    text = "LINKED REFERENCES",
+                    style = MonolithTypography.labelMedium.copy(
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = iOSYellow
-                    )
-                }
+                        letterSpacing = 0.8.sp
+                    ),
+                    color = iOSTextTertiary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "(${backlinks.size})",
+                    style = MonolithTypography.labelMedium.copy(
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = theme.accent
+                )
             }
 
             Icon(
                 imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = if (isExpanded) "Collapse" else "Expand",
-                tint = iOSTextSecondary,
-                modifier = Modifier.size(20.dp)
+                tint = iOSTextTertiary,
+                modifier = Modifier.size(18.dp)
             )
         }
 
@@ -1826,15 +1831,29 @@ private fun LinkedReferencesSection(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(top = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                backlinks.forEach { backlinkNote ->
+                val displayedList = if (showAll || backlinks.size <= 4) backlinks else backlinks.take(4)
+                displayedList.forEach { backlinkNote ->
                     BacklinkItemCard(
                         note = backlinkNote,
                         targetTitle = targetTitle,
                         onClick = { onNavigateToNote(backlinkNote) }
                     )
+                }
+
+                if (backlinks.size > 4) {
+                    TextButton(
+                        onClick = { showAll = !showAll },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = if (showAll) "Show less" else "Show all ${backlinks.size} references",
+                            style = MonolithTypography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                            color = theme.accent
+                        )
+                    }
                 }
             }
         }
@@ -1851,6 +1870,7 @@ private fun BacklinkItemCard(
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = iOSBackground,
+        border = BorderStroke(0.5.dp, iOSDivider.copy(alpha = 0.5f)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
@@ -1858,7 +1878,7 @@ private fun BacklinkItemCard(
                 onClick()
             }
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1866,25 +1886,37 @@ private fun BacklinkItemCard(
             ) {
                 Text(
                     text = note.displayTitle,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = iOSTextPrimary
+                    style = MonolithTypography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = iOSTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
                 if (note.folderName != "Notes") {
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(iOSYellow.copy(alpha = 0.12f))
-                            .padding(horizontal = 6.dp, vertical = 1.5.dp)
-                    ) {
-                        Text(
-                            text = note.folderName,
-                            fontSize = 10.5.sp,
-                            color = iOSYellow,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = note.folderName,
+                        style = MonolithTypography.labelSmall.copy(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = iOSTextTertiary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = iOSTextTertiary.copy(alpha = 0.4f),
+                    modifier = Modifier.size(15.dp)
+                )
             }
 
             val snippet = remember(note.content, targetTitle) {
@@ -1902,13 +1934,16 @@ private fun BacklinkItemCard(
             }
 
             if (snippet.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = snippet,
-                    fontSize = 12.sp,
-                    color = iOSTextSecondary,
+                    style = MonolithTypography.bodySmall.copy(
+                        fontSize = 12.sp,
+                        lineHeight = 15.sp
+                    ),
+                    color = iOSTextTertiary,
                     maxLines = 2,
-                    lineHeight = 16.sp
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

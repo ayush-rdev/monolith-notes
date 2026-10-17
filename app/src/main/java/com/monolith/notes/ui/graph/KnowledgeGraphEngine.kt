@@ -157,7 +157,7 @@ object KnowledgeGraphEngine {
 
         // 4. Initial layout coordinates using a Golden Spiral distribution
         val goldenAngle = 2.3999632f
-        val distanceStep = (100f + 25f * log2(count.coerceAtLeast(2).toFloat())).coerceIn(100f, 220f)
+        val distanceStep = (75f + 15f * log2(count.coerceAtLeast(2).toFloat())).coerceIn(70f, 150f)
         val nodesList = ArrayList<GraphNode>(count)
 
         var orphanCount = 0
@@ -174,8 +174,8 @@ object KnowledgeGraphEngine {
             val normPR = (pageRank[i] - minPR) / prRange
             val isHub = (count <= 10 && degree >= 2) || (count > 10 && (degree >= 6 || normPR > 0.75f))
 
-            // Radius scales dynamically with degree and centrality
-            val radius = (12f + min(degree * 3.0f + normPR * 8f, 32f)).coerceIn(12f, 44f)
+            // Radius scales elegantly with degree and centrality (Obsidian-pro proportion)
+            val radius = (5.5f + min(degree * 1.0f + normPR * 5f, 14f)).coerceIn(5.5f, 20f)
 
             val clusterName = when (clusterMode) {
                 ClusterMode.FOLDER -> notes[i].folderName
@@ -276,17 +276,17 @@ object KnowledgeGraphEngine {
                 val nodeB = nodes[j]
                 val dx = nodeB.x - nodeA.x
                 val dy = nodeB.y - nodeA.y
-                val distSq = dx * dx + dy * dy + 150f
+                val distSq = dx * dx + dy * dy + 300f
                 val dist = sqrt(distSq)
 
                 // Standard inverse-square repulsion
                 var force = kRepulse / distSq
 
                 // Elastic collision cushion to prevent overlapping nodes
-                val minSeparation = nodeA.radius + nodeB.radius + 24f
+                val minSeparation = nodeA.radius + nodeB.radius + 18f
                 if (dist < minSeparation) {
                     val overlap = minSeparation - dist
-                    force += overlap * 1.8f
+                    force += overlap * 1.5f
                 }
 
                 val fx = (dx / dist) * force
@@ -339,7 +339,7 @@ object KnowledgeGraphEngine {
             node.vy *= damping
 
             // Velocity clamping to prevent sudden explosive jumps
-            val maxSpeed = 45f
+            val maxSpeed = 30f
             node.vx = node.vx.coerceIn(-maxSpeed, maxSpeed)
             node.vy = node.vy.coerceIn(-maxSpeed, maxSpeed)
 

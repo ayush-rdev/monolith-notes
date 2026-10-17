@@ -4,6 +4,7 @@ import android.graphics.Paint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -65,6 +66,7 @@ fun KnowledgeGraphScreen(
     var scale by remember { mutableFloatStateOf(1f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
+    var defaultScale by remember { mutableFloatStateOf(0.6f) }
 
     // Build Graph Data using KnowledgeGraphEngine
     val graphBundle = remember(notes) {
@@ -74,6 +76,11 @@ fun KnowledgeGraphScreen(
     val allNodes = graphBundle.nodes
     val allEdges = graphBundle.edges
     val analytics = graphBundle.analytics
+
+    // Top 4 landmark hubs with highest connectivity (for uncluttered overview labels)
+    val topLandmarkIds = remember(allNodes) {
+        allNodes.sortedByDescending { it.degree }.take(4).map { it.id }.toSet()
+    }
 
     // Neighbors of selected node for highlight aura & dimming
     val selectedNeighbors = remember(selectedNodeIndex, allEdges) {
@@ -93,14 +100,54 @@ fun KnowledgeGraphScreen(
     LaunchedEffect(graphBundle) {
         if (allNodes.isEmpty()) return@LaunchedEffect
 
-        val kRepulse = (24000f + 1400f * sqrt(nodeCount.toFloat())).coerceIn(22000f, 60000f)
-        val kSpring = 0.042f
-        val restLength = (130f + 20f * log2(nodeCount.coerceAtLeast(2).toFloat())).coerceIn(120f, 240f)
-        val damping = 0.84f
-        val centerForce = (0.016f / sqrt(nodeCount.coerceAtLeast(1).toFloat())).coerceIn(0.004f, 0.024f)
+        val kRepulse = (14000f + 600f * sqrt(nodeCount.toFloat())).coerceIn(12000f, 32000f)
+        val kSpring = 0.036f
+        val restLength = (80f + 12f * log2(nodeCount.coerceAtLeast(2).toFloat())).coerceIn(75f, 150f)
+        val damping = 0.80f
+        val centerForce = (0.012f / sqrt(nodeCount.coerceAtLeast(1).toFloat())).coerceIn(0.003f, 0.016f)
 
         withContext(Dispatchers.Default) {
-            for (step in 0 until 180) {
+            // Pre-stabilize physics silently off-screen so the graph doesn't explode when opened
+            for (step in 0 until 40) {
+                KnowledgeGraphEngine.stepPhysics(
+                    nodes = allNodes,
+                    edges = allEdges,
+                    kRepulse = kRepulse,
+                    kSpring = kSpring,
+                    restLength = restLength,
+                    damping = damping,
+                    centerForce = centerForce,
+                    draggedIndex = draggedNodeIndex
+                )
+            }
+
+            // Compute Bounding Box and set Auto-Fit Scale so whole galaxy fits viewport
+            if (allNodes.isNotEmpty()) {
+                var minX = Float.MAX_VALUE
+                var maxX = -Float.MAX_VALUE
+                var minY = Float.MAX_VALUE
+                var maxY = -Float.MAX_VALUE
+                for (n in allNodes) {
+                    if (n.x < minX) minX = n.x
+                    if (n.x > maxX) maxX = n.x
+                    if (n.y < minY) minY = n.y
+                    if (n.y > maxY) maxY = n.y
+                }
+                val spanX = (maxX - minX).coerceAtLeast(200f) + 160f
+                val spanY = (maxY - minY).coerceAtLeast(200f) + 240f
+                val autoFitScale = minOf(950f / spanX, 1600f / spanY).coerceIn(0.25f, 0.85f)
+
+                withContext(Dispatchers.Main) {
+                    defaultScale = autoFitScale
+                    scale = autoFitScale
+                    offsetX = 0f
+                    offsetY = 0f
+                    physicsIteration++
+                }
+            }
+
+            // Smoothly converge remaining steps
+            for (step in 40 until 120) {
                 val energy = KnowledgeGraphEngine.stepPhysics(
                     nodes = allNodes,
                     edges = allEdges,
@@ -112,8 +159,7 @@ fun KnowledgeGraphScreen(
                     draggedIndex = draggedNodeIndex
                 )
 
-                // Early exit if graph has settled into resting equilibrium (saves CPU & battery)
-                if (step > 25 && energy < 0.06f && draggedNodeIndex == null) {
+                if (step > 50 && energy < 0.035f && draggedNodeIndex == null) {
                     break
                 }
 
@@ -121,7 +167,7 @@ fun KnowledgeGraphScreen(
                     withContext(Dispatchers.Main) {
                         physicsIteration = step
                     }
-                    delay(12) // Smooth 60/120Hz convergence
+                    delay(16)
                 }
             }
             withContext(Dispatchers.Main) {
@@ -331,15 +377,15 @@ fun KnowledgeGraphScreen(
                         (edge.sourceIndex == selectedNodeIndex || edge.targetIndex == selectedNodeIndex)
 
                 val edgeColor = when {
-                    isConnectedToSelected -> themeAccent
-                    selectedNodeIndex != null -> Color(0xFF2C2C2E).copy(alpha = 0.20f)
-                    else -> srcNode.clusterColor.copy(alpha = 0.30f)
+                    isConnectedToSelected -> themeAccent.copy(alpha = 0.95f)
+                    selectedNodeIndex != null -> Color(0xFF2C2C2E).copy(alpha = 0.08f)
+                    else -> srcNode.clusterColor.copy(alpha = 0.18f)
                 }
 
                 val strokeWidth = when {
-                    isConnectedToSelected -> 3.2f * scale
-                    else -> 1.4f * scale
-                }.coerceIn(1f, 6.5f)
+                    isConnectedToSelected -> (2.2f * scale).coerceIn(1.8f, 5.0f)
+                    else -> (0.85f * scale).coerceIn(0.6f, 2.5f)
+                }
 
                 // Base Link Line
                 drawLine(
@@ -356,7 +402,7 @@ fun KnowledgeGraphScreen(
                     val py = sy + (dy - sy) * pulseProgress
                     drawCircle(
                         color = Color.White,
-                        radius = (3.5f * scale).coerceIn(2.5f, 6.5f),
+                        radius = (3.0f * scale).coerceIn(2.0f, 5.5f),
                         center = Offset(px, py)
                     )
                 }
@@ -367,7 +413,7 @@ fun KnowledgeGraphScreen(
                 val node = allNodes[nodeIndex]
                 val sx = toScreenX(node.x)
                 val sy = toScreenY(node.y)
-                val nodeRadius = (node.radius * scale).coerceIn(8f, 75f)
+                val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
 
                 // Frustum culling: skip off-screen nodes
                 if (sx + nodeRadius < -30f || sx - nodeRadius > canvasWidth + 30f ||
@@ -383,15 +429,15 @@ fun KnowledgeGraphScreen(
                 val nodeAlpha = when {
                     isSelected || isQueryMatch -> 1.0f
                     isConnectedToSelected -> 0.95f
-                    selectedNodeIndex != null -> 0.22f
+                    selectedNodeIndex != null -> 0.15f
                     else -> 0.88f
                 }
 
                 // Selection Glow Ring
                 if (isSelected || isQueryMatch) {
                     drawCircle(
-                        color = themeAccent.copy(alpha = 0.30f),
-                        radius = nodeRadius + 14f * scale,
+                        color = themeAccent.copy(alpha = 0.25f),
+                        radius = nodeRadius + 10f * scale,
                         center = Offset(sx, sy)
                     )
                 }
@@ -409,38 +455,41 @@ fun KnowledgeGraphScreen(
                     center = Offset(sx, sy)
                 )
 
-                // Node Outline
-                drawCircle(
-                    color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.4f * nodeAlpha),
-                    radius = nodeRadius,
-                    center = Offset(sx, sy),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = (if (node.isHub) 2.2f else 1.2f) * scale)
-                )
+                // Node Outline (Hubs and selected nodes only to prevent visual clutter)
+                if (node.isHub || isSelected) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.35f * nodeAlpha),
+                        radius = nodeRadius,
+                        center = Offset(sx, sy),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = (if (isSelected) 2.0f else 1.0f) * scale)
+                    )
+                }
 
                 // Pinned indicator dot inside core
                 if (node.isPinned) {
                     drawCircle(
                         color = Color.White,
-                        radius = (3f * scale).coerceIn(2f, 7f),
+                        radius = (2.5f * scale).coerceIn(1.8f, 5.0f),
                         center = Offset(sx, sy)
                     )
                 }
 
-                // Title Labels (Obsidian-grade spatial filtering: shows core hubs at overview, neighbors on select, and deep labels on zoom)
+                // Title Labels (Obsidian-grade spatial filtering: shows landmark hubs at overview, neighbors on select, and deep labels on zoom)
                 val shouldDrawLabel = isSelected || isQueryMatch || isConnectedToSelected ||
-                        (node.isHub && scale >= 0.75f) ||
-                        (scale >= 1.45f && node.degree >= 3) ||
-                        (scale >= 2.1f)
+                        (topLandmarkIds.contains(node.id) && scale >= 0.45f) ||
+                        (node.isHub && scale >= 1.25f) ||
+                        (scale >= 1.65f && node.degree >= 3) ||
+                        (scale >= 2.3f)
 
                 if (shouldDrawLabel) {
                     val label = node.note.displayTitle
                     val paint = if (isSelected || isQueryMatch) selectedLabelPaint else labelPaint
-                    paint.textSize = (13.sp.toPx() * scale).coerceIn(16f, 36f)
+                    paint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 28f)
 
                     drawContext.canvas.nativeCanvas.drawText(
                         label,
                         sx,
-                        sy + nodeRadius + (16f * scale).coerceIn(12f, 26f),
+                        sy + nodeRadius + (12f * scale).coerceIn(10f, 22f),
                         paint
                     )
                 }
@@ -515,7 +564,7 @@ fun KnowledgeGraphScreen(
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            scale = 1f
+                            scale = defaultScale
                             offsetX = 0f
                             offsetY = 0f
                             selectedNodeIndex = null
@@ -596,7 +645,7 @@ fun KnowledgeGraphScreen(
             }
         }
 
-        // Selected Note Detail Float Card
+        // Selected Note Detail Float Card (Compact, Non-Intrusive Obsidian Capsule)
         val selectedNode = selectedNodeIndex?.let { if (it in allNodes.indices) allNodes[it] else null }
         AnimatedVisibility(
             visible = selectedNode != null,
@@ -604,85 +653,61 @@ fun KnowledgeGraphScreen(
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             if (selectedNode != null) {
                 Surface(
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = iOSCardBackground,
-                    shadowElevation = 10.dp,
+                    border = BorderStroke(0.5.dp, iOSDivider.copy(alpha = 0.5f)),
+                    shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Title & Actions Bar
+                        // Left: Cluster Color Dot + Title + Degree
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(9.dp)
+                                    .clip(CircleShape)
+                                    .background(selectedNode.clusterColor)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        text = selectedNode.note.displayTitle,
-                                        fontSize = 17.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = primaryTextColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    if (selectedNode.isHub) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(4.dp))
-                                                .background(themeAccent.copy(alpha = 0.2f))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "CORE HUB",
-                                                style = MonolithTypography.labelSmall.copy(
-                                                    fontSize = 9.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontFamily = FontFamily.Monospace
-                                                ),
-                                                color = themeAccent
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(top = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "${selectedNode.degree} Links (${selectedNode.inDegree} in • ${selectedNode.outDegree} out)",
-                                        fontSize = 12.sp,
-                                        color = themeAccent
-                                    )
-                                    Text(
-                                        text = "•",
-                                        fontSize = 12.sp,
-                                        color = iOSTextTertiary
-                                    )
-                                    Text(
-                                        text = selectedNode.clusterName,
-                                        fontSize = 12.sp,
-                                        color = iOSTextSecondary
-                                    )
-                                }
+                                Text(
+                                    text = selectedNode.note.displayTitle,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = primaryTextColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${selectedNode.degree} links • ${selectedNode.clusterName}",
+                                    fontSize = 11.5.sp,
+                                    color = iOSTextSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
+                        }
 
-                            // Open Note Button
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Right: Open Button + Dismiss [X] Button
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             Button(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -692,20 +717,35 @@ fun KnowledgeGraphScreen(
                                     containerColor = themeAccent,
                                     contentColor = Color.Black
                                 ),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Text(
                                     text = "Open",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                     contentDescription = "Open Note",
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedNodeIndex = null
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Deselect",
+                                    tint = iOSTextTertiary,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
