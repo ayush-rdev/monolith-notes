@@ -7,7 +7,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -484,7 +483,6 @@ private fun TrashNoteRow(
             modifier = Modifier
                 .clip(CircleShape)
                 .background(Color(0xFF2C2C2E))
-                .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
                 .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
             Text(

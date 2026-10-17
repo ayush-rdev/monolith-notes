@@ -4,7 +4,6 @@ import android.graphics.Paint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -448,7 +447,6 @@ fun KnowledgeGraphScreen(
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
                     .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
                 Icon(
@@ -499,7 +497,6 @@ fun KnowledgeGraphScreen(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = iOSCardBackground,
-                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                     shadowElevation = 8.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {

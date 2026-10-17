@@ -7,9 +7,7 @@ import android.widget.Toast
 import kotlinx.coroutines.launch
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
@@ -20,10 +18,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -98,7 +92,6 @@ fun NotesListScreen(
     folders: List<String> = emptyList(),
     onOpenFolders: () -> Unit = {},
     onOpenGraph: () -> Unit = {},
-    onToggleGalleryView: () -> Unit = {},
     onMoveNoteToFolder: (Note, String) -> Unit = { _, _ -> },
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
@@ -336,21 +329,6 @@ fun NotesListScreen(
                     IconButton(
                         onClick = {
                             performHaptic(HapticFeedbackType.TextHandleMove)
-                            onToggleGalleryView()
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (settings.isGalleryView) Icons.Default.ViewAgenda else Icons.Default.GridView,
-                            contentDescription = if (settings.isGalleryView) "Switch to List View" else "Switch to Gallery View",
-                            tint = iOSYellow,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = {
-                            performHaptic(HapticFeedbackType.TextHandleMove)
                             showSettings = true
                         },
                         modifier = Modifier.size(36.dp)
@@ -381,7 +359,6 @@ fun NotesListScreen(
                     .height(35.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(iOSSearchPill)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 10.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -481,82 +458,6 @@ fun NotesListScreen(
                                     text = "Tap the pencil icon to write your first note",
                                     style = MonolithTypography.bodyMedium,
                                     color = iOSTextTertiary
-                                )
-                            }
-                        }
-                    }
-                }
-            } else if (settings.isGalleryView) {
-                // GALLERY / GRID VIEW (2-column responsive layout)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(top = 4.dp, bottom = 60.dp)
-                ) {
-                    if (pinnedNotes.isNotEmpty()) {
-                        item(key = "grid_header_pinned", span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "PINNED",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = iOSTextSecondary,
-                                modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp)
-                            )
-                        }
-                        items(
-                            items = pinnedNotes,
-                            key = { "grid_pinned_${it.id}" },
-                            contentType = { "grid_card" }
-                        ) { note ->
-                            IOSNoteGridCard(
-                                note = note,
-                                searchQuery = searchQuery,
-                                showFolderBadge = (currentFolder == null),
-                                onClick = {
-                                    performHaptic(HapticFeedbackType.TextHandleMove)
-                                    onNoteClick(note)
-                                },
-                                onLongClick = {
-                                    performHaptic(HapticFeedbackType.LongPress)
-                                    noteActionTarget = note
-                                }
-                            )
-                        }
-                    }
-
-                    if (unpinnedNotes.isNotEmpty()) {
-                        groupedUnpinnedNotes.forEach { (sectionTitle, sectionNotes) ->
-                            item(key = "grid_header_$sectionTitle", span = { GridItemSpan(maxLineSpan) }) {
-                                Text(
-                                    text = sectionTitle,
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = iOSTextSecondary,
-                                    modifier = Modifier.padding(start = 4.dp, top = 10.dp, bottom = 4.dp)
-                                )
-                            }
-                            items(
-                                items = sectionNotes,
-                                key = { "grid_${it.id}" },
-                                contentType = { "grid_card" }
-                            ) { note ->
-                                IOSNoteGridCard(
-                                    note = note,
-                                    searchQuery = searchQuery,
-                                    showFolderBadge = (currentFolder == null),
-                                    onClick = {
-                                        performHaptic(HapticFeedbackType.TextHandleMove)
-                                        onNoteClick(note)
-                                    },
-                                    onLongClick = {
-                                        performHaptic(HapticFeedbackType.LongPress)
-                                        noteActionTarget = note
-                                    }
                                 )
                             }
                         }
@@ -751,7 +652,6 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column {
@@ -891,7 +791,6 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -1047,7 +946,6 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1108,7 +1006,6 @@ fun NotesListScreen(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = iOSCardBackground,
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
@@ -1195,11 +1092,6 @@ fun IOSTagChip(
         modifier = Modifier
             .clip(TagChipShape)
             .drawBehind { drawRect(chipBgState.value) }
-            .border(
-                width = 0.5.dp,
-                color = if (isSelected) iOSYellow.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f),
-                shape = TagChipShape
-            )
             .clickable(onClick = onClick)
             .padding(horizontal = 11.dp, vertical = 4.dp)
     ) {
@@ -1301,11 +1193,6 @@ fun IOSNoteRow(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(if (isAllDone) iOSEmerald.copy(alpha = 0.2f) else iOSYellowContainer)
-                            .border(
-                                0.5.dp,
-                                (if (isAllDone) iOSEmerald else iOSYellow).copy(alpha = 0.35f),
-                                CircleShape
-                            )
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
@@ -1334,7 +1221,6 @@ fun IOSNoteRow(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(iOSYellow.copy(alpha = 0.12f))
-                            .border(0.5.dp, iOSYellow.copy(alpha = 0.25f), CircleShape)
                             .padding(horizontal = 6.dp, vertical = 1.5.dp)
                     ) {
                         Text(
@@ -1652,193 +1538,6 @@ fun IOSSwipeableNoteRow(
                     thickness = 0.5.dp,
                     color = iOSDivider
                 )
-            }
-        }
-    }
-}
-
-/**
- * Apple Notes Gallery View: High-density luxury 2-column index cards
- * - Uniform fixed height (152.dp) for mathematically perfect grid rhythm
- * - Inset document paper canvas preview with hairline highlight
- * - Specular translucent glass perimeter border (0.5.dp, Color.White.copy(alpha = 0.09f))
- * - Lower metadata footer with bold title, date, folder pill, and checklist badge
- */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-fun IOSNoteGridCard(
-    note: Note,
-    searchQuery: String = "",
-    showFolderBadge: Boolean = false,
-    onClick: () -> Unit,
-    onLongClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.965f else 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
-        label = "gridCardPressScale"
-    )
-
-    val highlightColor = iOSYellow
-    val titleText = remember(note.displayTitle, searchQuery, highlightColor) {
-        if (searchQuery.isBlank()) AnnotatedString(note.displayTitle)
-        else highlightQuery(note.displayTitle, searchQuery, highlightColor)
-    }
-    val snippetText = remember(note.previewSnippet, searchQuery, highlightColor) {
-        if (note.previewSnippet.isBlank()) null
-        else if (searchQuery.isBlank()) AnnotatedString(note.previewSnippet)
-        else highlightQuery(note.previewSnippet, searchQuery, highlightColor)
-    }
-
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = iOSCardBackground,
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.09f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(152.dp)
-            .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
-            }
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-                onLongClick = onLongClick
-            )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp)
-        ) {
-            // 1. Inset Document Paper Canvas Preview (simulates Apple physical index note sheet)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(88.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF222225))
-                    .border(0.5.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
-                    .padding(8.dp)
-            ) {
-                // Snippet text inside paper canvas
-                Text(
-                    text = snippetText ?: titleText,
-                    style = MonolithTypography.bodySmall.copy(
-                        fontSize = 11.5.sp,
-                        lineHeight = 15.sp
-                    ),
-                    color = iOSTextSecondary.copy(alpha = 0.9f),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Top-right micro badges (Pinned / Checklist)
-                Row(
-                    modifier = Modifier.align(Alignment.TopEnd),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    note.taskStats?.let { (completed, total) ->
-                        val isAllDone = completed == total
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(if (isAllDone) iOSEmerald.copy(alpha = 0.22f) else iOSYellowContainer)
-                                .border(
-                                    0.5.dp,
-                                    (if (isAllDone) iOSEmerald else iOSYellow).copy(alpha = 0.4f),
-                                    CircleShape
-                                )
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = if (isAllDone) "✓" else "$completed/$total",
-                                style = MonolithTypography.labelSmall.copy(fontSize = 9.sp),
-                                color = if (isAllDone) iOSEmerald else iOSYellow,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    if (note.isPinned) {
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(iOSYellow.copy(alpha = 0.2f))
-                                .border(0.5.dp, iOSYellow.copy(alpha = 0.4f), CircleShape)
-                                .padding(3.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PushPin,
-                                contentDescription = "Pinned",
-                                tint = iOSYellow,
-                                modifier = Modifier.size(10.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // 2. Metadata Footer (Title + Date + Folder Pill)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = titleText,
-                    style = MonolithTypography.titleMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.5.sp
-                    ),
-                    color = iOSTextPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = note.formattedDate,
-                        style = MonolithTypography.labelSmall.copy(fontSize = 11.sp),
-                        color = iOSTextTertiary
-                    )
-
-                    if (showFolderBadge && note.folderName != "Notes") {
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(iOSYellow.copy(alpha = 0.12f))
-                                .border(0.5.dp, iOSYellow.copy(alpha = 0.3f), CircleShape)
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "📁 ${note.folderName}",
-                                style = MonolithTypography.bodySmall.copy(fontSize = 9.5.sp),
-                                color = iOSYellow,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
             }
         }
     }

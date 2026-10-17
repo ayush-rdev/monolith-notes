@@ -166,7 +166,6 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     // Editor Font Size
@@ -304,7 +303,6 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     // 1. Google Drive (Zero-Config, Free 15GB, User's Google Account)
@@ -527,7 +525,6 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     SettingsDetailRow(
@@ -599,7 +596,6 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                     .padding(vertical = 22.dp, horizontal = 16.dp)
             ) {
                 Column(
@@ -630,7 +626,6 @@ fun SettingsSheet(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(iOSElevatedCard)
-                            .border(0.5.dp, Color.White.copy(alpha = 0.08f), CircleShape)
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
@@ -667,7 +662,6 @@ fun SettingsSheet(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(iOSCardBackground)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
             ) {
                 Column {
                     SettingsDetailRow(
@@ -975,8 +969,8 @@ private fun ThemeCard(
             .clip(RoundedCornerShape(12.dp))
             .background(theme.cardBackground)
             .border(
-                width = if (isSelected) 2.dp else 0.5.dp,
-                color = if (isSelected) theme.accent else theme.divider,
+                width = if (isSelected) 2.dp else 0.dp,
+                color = if (isSelected) theme.accent else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable(onClick = onClick)

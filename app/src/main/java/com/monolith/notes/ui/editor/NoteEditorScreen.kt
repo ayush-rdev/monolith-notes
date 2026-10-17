@@ -19,9 +19,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -583,7 +581,6 @@ fun NoteEditorScreen(
                                 onDismissRequest = { showShareMenu = false },
                                 modifier = Modifier
                                     .background(iOSCardBackground)
-                                    .border(0.5.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(12.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = { Text("Share Text / Markdown", color = Color.White, fontSize = 14.sp) },
@@ -1621,7 +1618,6 @@ private fun WikiLinkAutocompleteBar(
                         Surface(
                             shape = CircleShape,
                             color = iOSYellow.copy(alpha = 0.15f),
-                            border = BorderStroke(0.5.dp, iOSYellow.copy(alpha = 0.5f)),
                             modifier = Modifier.clickable {
                                 onSelect(trimmedQuery)
                             }
@@ -1652,7 +1648,6 @@ private fun WikiLinkAutocompleteBar(
                     Surface(
                         shape = CircleShape,
                         color = iOSCardBackground,
-                        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
                         modifier = Modifier.clickable {
                             onSelect(targetNote.displayTitle)
                         }
@@ -1696,7 +1691,6 @@ private fun LinkedReferencesSection(
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(iOSCardBackground)
-            .border(0.5.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
             .padding(14.dp)
     ) {
         Row(
@@ -1773,7 +1767,6 @@ private fun BacklinkItemCard(
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = iOSBackground,
-        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
             .clickable {
@@ -1798,7 +1791,6 @@ private fun BacklinkItemCard(
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(iOSYellow.copy(alpha = 0.12f))
-                            .border(0.5.dp, iOSYellow.copy(alpha = 0.25f), CircleShape)
                             .padding(horizontal = 6.dp, vertical = 1.5.dp)
                     ) {
                         Text(

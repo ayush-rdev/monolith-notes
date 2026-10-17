@@ -1,7 +1,6 @@
 package com.monolith.notes.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -59,7 +58,6 @@ fun WebDavConfigDialog(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = iOSCardBackground,
-            border = androidx.compose.foundation.BorderStroke(1.dp, iOSDivider),
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight()
