@@ -37,6 +37,7 @@ fun AppleFormatSheet(
     onToggleQuote: () -> Unit,
     onInsertDivider: () -> Unit = {},
     onInsertTable: () -> Unit = {},
+    onInsertLink: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -134,6 +135,24 @@ fun AppleFormatSheet(
                 InlineFormatButton(label = "<>", fontFamily = FontFamily.Monospace) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     onToggleInline("`")
+                }
+                Box(
+                    modifier = Modifier
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onInsertLink()
+                        }
+                        .padding(horizontal = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = "Link",
+                        tint = Color(0xFF60A5FA),
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 

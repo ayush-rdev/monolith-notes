@@ -249,6 +249,49 @@ class AppleNotesVisualTransformation(
             builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.last - 1, range.last + 1)
         }
 
+        // 8. Markdown Links: "[label](url)"
+        for (match in MARKDOWN_LINK_REGEX.findAll(raw)) {
+            val range = match.range
+            val closeBracketIndex = match.value.indexOf("](")
+            if (closeBracketIndex != -1) {
+                val labelStart = range.first + 1
+                val labelEnd = range.first + closeBracketIndex
+                val urlEnd = range.last
+
+                // Dim opening bracket "["
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, labelStart)
+                // Highlight label with link styling
+                builder.addStyle(
+                    SpanStyle(
+                        color = Color(0xFF60A5FA),
+                        fontWeight = FontWeight.Medium,
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    labelStart,
+                    labelEnd
+                )
+                // Dim "](url)"
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.65f), fontSize = 12.sp), labelEnd, urlEnd + 1)
+            }
+        }
+
+        // 9. Bare URLs: "https://..." or "http://..."
+        for (match in BARE_URL_REGEX.findAll(raw)) {
+            val range = match.range
+            val isInsideMarkdownLink = range.first > 0 && raw[range.first - 1] == '('
+            if (!isInsideMarkdownLink) {
+                builder.addStyle(
+                    SpanStyle(
+                        color = Color(0xFF60A5FA),
+                        fontWeight = FontWeight.Medium,
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    range.first,
+                    range.last + 1
+                )
+            }
+        }
+
         return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
     }
 
@@ -261,5 +304,7 @@ class AppleNotesVisualTransformation(
         private val TAG_REGEX = "(?:^|\\s)(#[a-zA-Z0-9_\\-]+)".toRegex()
         private val SEPARATOR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
         private val WIKILINK_REGEX = "(?<!\\!)\\[\\[([^\\]\\|\\n]+)(?:\\|([^\\]\\n]+))?\\]\\]".toRegex()
+        private val MARKDOWN_LINK_REGEX = "(?<!\\!)\\[([^\\]\\n]+)\\]\\(([^)\\n]+)\\)".toRegex()
+        private val BARE_URL_REGEX = "https?://[a-zA-Z0-9_\\-.~:/?#\\[\\]@!$&'()*+,;=%]+".toRegex()
     }
 }

@@ -1093,6 +1093,26 @@ fun NoteEditorScreen(
                                     bodyFocusRequester.requestFocus()
                                     showFormatSheet = false
                                 },
+                                onInsertLink = {
+                                    pushUndoState(bodyState)
+                                    val current = bodyState
+                                    val text = current.text
+                                    val start = current.selection.min.coerceIn(0, text.length)
+                                    val end = current.selection.max.coerceIn(0, text.length)
+                                    if (start != end) {
+                                        val selected = text.substring(start, end)
+                                        val wrapped = "[$selected](https://)"
+                                        val newText = text.replaceRange(start, end, wrapped)
+                                        val urlCursor = start + selected.length + 3 + 8
+                                        bodyState = TextFieldValue(text = newText, selection = TextRange(urlCursor))
+                                    } else {
+                                        val insert = "[link](https://)"
+                                        val newText = text.replaceRange(start, start, insert)
+                                        bodyState = TextFieldValue(text = newText, selection = TextRange(start + 1, start + 5))
+                                    }
+                                    bodyFocusRequester.requestFocus()
+                                    showFormatSheet = false
+                                },
                                 onDismiss = {
                                     showFormatSheet = false
                                 }

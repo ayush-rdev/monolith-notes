@@ -1,5 +1,8 @@
 package com.monolith.notes.ui.components
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -48,7 +51,7 @@ import coil.request.ImageRequest
 import com.monolith.notes.ui.theme.*
 import java.io.File
 
-private val INLINE_MARKDOWN_REGEX = "(\\[\\[[^\\]\\|\\n]+(?:\\|[^\\]\\n]+)?\\]\\]|\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|#[a-zA-Z0-9_\\-/]+)".toRegex()
+private val INLINE_MARKDOWN_REGEX = "(\\[\\[[^\\]\\|\\n]+(?:\\|[^\\]\\n]+)?\\]\\]|(?<!\\!)\\[[^\\]\\n]+\\]\\([^\\)\\n]+\\)|https?://[a-zA-Z0-9_\\-.~:/?#\\[\\]@!$&'()*+,;=%]+|\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|==.*?==|#[a-zA-Z0-9_\\-/]+)".toRegex()
 private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\t]+.*$)".toRegex(RegexOption.MULTILINE)
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
 private val HEADING_REGEX = "^(#{1,6})\\s+(.+)$".toRegex()
@@ -89,6 +92,51 @@ fun parseInlineMarkdown(text: String): AnnotatedString {
                     )
                     append(label)
                     pop()
+                    pop()
+                }
+                // Standard Markdown Link: [label](url)
+                matchValue.startsWith("[") && matchValue.contains("](") && matchValue.endsWith(")") -> {
+                    val closeBracket = matchValue.indexOf("](")
+                    val label = matchValue.substring(1, closeBracket)
+                    val url = matchValue.substring(closeBracket + 2, matchValue.length - 1).trim()
+
+                    pushStringAnnotation(tag = "URL", annotation = url)
+                    pushStyle(
+                        SpanStyle(
+                            color = Color(0xFF60A5FA),
+                            fontWeight = FontWeight.Medium,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    )
+                    append(label)
+                    pop()
+                    pop()
+                }
+                // Bare URL: https://... or http://...
+                matchValue.startsWith("http://") || matchValue.startsWith("https://") -> {
+                    pushStringAnnotation(tag = "URL", annotation = matchValue)
+                    pushStyle(
+                        SpanStyle(
+                            color = Color(0xFF60A5FA),
+                            fontWeight = FontWeight.Medium,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    )
+                    append(matchValue)
+                    pop()
+                    pop()
+                }
+                // Highlight: ==text==
+                matchValue.startsWith("==") && matchValue.endsWith("==") && matchValue.length >= 4 -> {
+                    val inner = matchValue.substring(2, matchValue.length - 2)
+                    pushStyle(
+                        SpanStyle(
+                            background = iOSYellow.copy(alpha = 0.28f),
+                            color = iOSYellow,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    append(inner)
                     pop()
                 }
                 // Bold: **text**
@@ -320,18 +368,45 @@ fun MarkdownClickableText(
     lineHeight: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
     onNavigateToNote: ((String) -> Unit)? = null
 ) {
+    val context = LocalContext.current
     val hasWikiLinks = remember(text) {
         text.getStringAnnotations("WIKILINK", 0, text.length).isNotEmpty()
     }
-    if (hasWikiLinks && onNavigateToNote != null) {
+    val hasUrls = remember(text) {
+        text.getStringAnnotations("URL", 0, text.length).isNotEmpty()
+    }
+
+    if (hasWikiLinks || hasUrls) {
         ClickableText(
             text = text,
             style = style.copy(lineHeight = lineHeight),
             modifier = modifier,
             onClick = { offset ->
-                val annotations = text.getStringAnnotations("WIKILINK", offset, offset)
-                if (annotations.isNotEmpty()) {
-                    onNavigateToNote(annotations.first().item)
+                val urlAnnotations = text.getStringAnnotations("URL", offset, offset)
+                if (urlAnnotations.isNotEmpty()) {
+                    val rawUrl = urlAnnotations.first().item
+                    val validUrl = if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+                        "https://$rawUrl"
+                    } else {
+                        rawUrl
+                    }
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(validUrl)).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        Toast.makeText(context, "Cannot open link: $validUrl", Toast.LENGTH_SHORT).show()
+                    }
+                    return@ClickableText
+                }
+
+                if (onNavigateToNote != null) {
+                    val wikiAnnotations = text.getStringAnnotations("WIKILINK", offset, offset)
+                    if (wikiAnnotations.isNotEmpty()) {
+                        onNavigateToNote(wikiAnnotations.first().item)
+                    }
                 }
             }
         )
