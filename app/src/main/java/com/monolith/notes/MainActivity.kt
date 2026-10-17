@@ -381,8 +381,8 @@ class MainActivity : FragmentActivity() {
                             }
                         )
                     } else {
-                        // iOS UIKit fluid spring curve for page transitions (Apple 30% parallax slide)
-                        val iosSpringCurve = remember { CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f) }
+                        // iOS UIKit fluid spring curve for page transitions (Apple 30% parallax slide, ProMotion 120Hz)
+                        val iosSpringCurve = remember { CubicBezierEasing(0.20f, 0.0f, 0.0f, 1.0f) }
 
                         AnimatedContent(
                             targetState = currentScreen,
@@ -391,22 +391,22 @@ class MainActivity : FragmentActivity() {
                                 if (forward) {
                                     (slideInHorizontally(
                                         initialOffsetX = { fullWidth -> fullWidth },
-                                        animationSpec = tween(durationMillis = 350, easing = iosSpringCurve)
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 200))).togetherWith(
+                                        animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 160))).togetherWith(
                                         slideOutHorizontally(
                                             targetOffsetX = { fullWidth -> -(fullWidth * 0.30f).toInt() },
-                                            animationSpec = tween(durationMillis = 350, easing = iosSpringCurve)
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                            animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 160))
                                     ).using(SizeTransform(clip = false))
                                 } else {
                                     (slideInHorizontally(
                                         initialOffsetX = { fullWidth -> -(fullWidth * 0.30f).toInt() },
-                                        animationSpec = tween(durationMillis = 350, easing = iosSpringCurve)
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 200))).togetherWith(
+                                        animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 160))).togetherWith(
                                         slideOutHorizontally(
                                             targetOffsetX = { fullWidth -> fullWidth },
-                                            animationSpec = tween(durationMillis = 350, easing = iosSpringCurve)
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                                            animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 160))
                                     ).using(SizeTransform(clip = false))
                                 }
                             },

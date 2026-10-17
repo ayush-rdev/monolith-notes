@@ -848,19 +848,19 @@ fun iOSChecklistRow(
 ) {
     val checkboxBg by animateColorAsState(
         targetValue = if (checked) iOSYellow else Color.Transparent,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 500f),
+        animationSpec = spring(dampingRatio = 0.78f, stiffness = 650f),
         label = "iosCheckColor"
     )
 
     val checkScale by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (checked) 1f else 0.2f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 600f),
+        animationSpec = spring(dampingRatio = 0.55f, stiffness = 780f),
         label = "iosCheckScale"
     )
 
     val textColor by animateColorAsState(
         targetValue = if (checked) iOSTextTertiary else iOSTextPrimary,
-        animationSpec = androidx.compose.animation.core.tween(200),
+        animationSpec = androidx.compose.animation.core.tween(160),
         label = "iosTextColor"
     )
 

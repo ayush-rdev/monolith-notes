@@ -1081,12 +1081,12 @@ fun IOSTagChip(
 ) {
     val chipBg by animateColorAsState(
         targetValue = if (isSelected) iOSYellowContainer else iOSCardBackground,
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = tween(durationMillis = 120),
         label = "chipBg"
     )
     val chipTextColor by animateColorAsState(
         targetValue = if (isSelected) iOSYellow else iOSTextSecondary,
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = tween(durationMillis = 120),
         label = "chipTextColor"
     )
 
@@ -1119,13 +1119,13 @@ fun IOSNoteRow(
 
     val rowBg by animateColorAsState(
         targetValue = if (isPressed) Color(0xFF2C2C2E) else Color.Transparent,
-        animationSpec = tween(durationMillis = 100),
+        animationSpec = tween(durationMillis = 80),
         label = "iosRowPressBg"
     )
 
     val pressScale by animateFloatAsState(
         targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 400f),
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
         label = "iosRowPressScale"
     )
 

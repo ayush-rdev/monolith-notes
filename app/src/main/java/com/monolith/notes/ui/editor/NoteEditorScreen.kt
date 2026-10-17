@@ -1038,13 +1038,13 @@ fun NoteEditorScreen(
                         AnimatedVisibility(
                             visible = showFormatSheet,
                             enter = expandVertically(
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 450f),
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 580f),
                                 expandFrom = Alignment.Bottom
-                            ) + fadeIn(animationSpec = tween(150)),
+                            ) + fadeIn(animationSpec = tween(120)),
                             exit = shrinkVertically(
-                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 650f),
                                 shrinkTowards = Alignment.Bottom
-                            ) + fadeOut(animationSpec = tween(120))
+                            ) + fadeOut(animationSpec = tween(95))
                         ) {
                             AppleFormatSheet(
                                 onSetStyle = { prefix ->
@@ -1122,13 +1122,13 @@ fun NoteEditorScreen(
                         AnimatedVisibility(
                             visible = isEditing && wikiLinkMatch != null,
                             enter = expandVertically(
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 450f),
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 580f),
                                 expandFrom = Alignment.Bottom
-                            ) + fadeIn(animationSpec = tween(150)),
+                            ) + fadeIn(animationSpec = tween(120)),
                             exit = shrinkVertically(
-                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 650f),
                                 shrinkTowards = Alignment.Bottom
-                            ) + fadeOut(animationSpec = tween(120))
+                            ) + fadeOut(animationSpec = tween(95))
                         ) {
                             if (wikiLinkMatch != null) {
                                 WikiLinkAutocompleteBar(
