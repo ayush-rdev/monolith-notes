@@ -101,6 +101,7 @@ class MainActivity : FragmentActivity() {
                     val scope = rememberCoroutineScope()
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
                     var selectedFolder by remember { mutableStateOf<String?>(null) }
+                    val editorBackStack = remember { mutableStateListOf<Note>() }
 
                     // Sync sort order and load both active and trash notes on launch
                     LaunchedEffect(Unit) {
@@ -242,6 +243,7 @@ class MainActivity : FragmentActivity() {
                                             }
                                         },
                                         onNewNoteClick = {
+                                            editorBackStack.clear()
                                             val newNote = Note(
                                                 title = "",
                                                 content = "",
@@ -314,9 +316,11 @@ class MainActivity : FragmentActivity() {
                                         },
                                         onUpdateTheme = { settingsManager.setTheme(it) },
                                         onNoteClick = { note ->
+                                            editorBackStack.clear()
                                             currentScreen = Screen.Editor(note)
                                         },
                                         onNewNoteClick = {
+                                            editorBackStack.clear()
                                             val newNote = Note(
                                                 title = "",
                                                 content = "",
@@ -364,12 +368,37 @@ class MainActivity : FragmentActivity() {
                                     )
                                 }
                                 is Screen.Editor -> {
+                                    val notes by repository.notes.collectAsState()
                                     NoteEditorScreen(
                                         note = screen.note,
+                                        allNotes = notes,
                                         vaultPath = repository.notesDir.absolutePath,
                                         settings = settings,
                                         onBack = {
-                                            currentScreen = Screen.List
+                                            if (editorBackStack.isNotEmpty()) {
+                                                val prevNote = editorBackStack.removeLast()
+                                                val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
+                                                currentScreen = Screen.Editor(freshNote)
+                                            } else {
+                                                currentScreen = Screen.List
+                                            }
+                                        },
+                                        onNavigateToNote = { targetTitle ->
+                                            val cleanTarget = targetTitle.trim()
+                                            val existing = notes.firstOrNull { noteItem ->
+                                                noteItem.displayTitle.equals(cleanTarget, ignoreCase = true) ||
+                                                (noteItem.file != null && noteItem.file.nameWithoutExtension.equals(cleanTarget, ignoreCase = true))
+                                            }
+                                            if (existing != null) {
+                                                editorBackStack.add(screen.note)
+                                                currentScreen = Screen.Editor(existing)
+                                            } else {
+                                                scope.launch {
+                                                    val created = repository.getOrCreateNote(cleanTarget, selectedFolder ?: "Notes")
+                                                    editorBackStack.add(screen.note)
+                                                    currentScreen = Screen.Editor(created)
+                                                }
+                                            }
                                         },
                                         onSave = { updatedNote ->
                                             scope.launch {
@@ -384,7 +413,13 @@ class MainActivity : FragmentActivity() {
                                             scope.launch {
                                                 repository.deleteNote(noteToDelete)
                                                 QuickCaptureWidgetProvider.updateAllWidgets(applicationContext)
-                                                currentScreen = Screen.List
+                                                if (editorBackStack.isNotEmpty()) {
+                                                    val prevNote = editorBackStack.removeLast()
+                                                    val freshNote = repository.notes.value.firstOrNull { it.id == prevNote.id } ?: prevNote
+                                                    currentScreen = Screen.Editor(freshNote)
+                                                } else {
+                                                    currentScreen = Screen.List
+                                                }
                                             }
                                         }
                                     )

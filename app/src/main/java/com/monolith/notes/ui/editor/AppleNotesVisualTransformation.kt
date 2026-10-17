@@ -209,6 +209,46 @@ class AppleNotesVisualTransformation(
             }
         }
 
+        // 7. WikiLinks: "[[Note Title]]" or "[[Note Title|Display Alias]]"
+        for (match in WIKILINK_REGEX.findAll(raw)) {
+            val range = match.range
+            val alias = match.groupValues[2]
+
+            // Dim opening brackets "[["
+            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, range.first + 2)
+
+            if (alias.isNotEmpty()) {
+                val pipeIdx = match.value.indexOf('|')
+                val pipePos = range.first + pipeIdx
+                // Dim target and pipe: "Target|"
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.6f), fontSize = 12.sp), range.first + 2, pipePos + 1)
+                // Highlight alias
+                builder.addStyle(
+                    SpanStyle(
+                        color = accentColor,
+                        fontWeight = FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    pipePos + 1,
+                    range.last - 1
+                )
+            } else {
+                // Highlight target note title
+                builder.addStyle(
+                    SpanStyle(
+                        color = accentColor,
+                        fontWeight = FontWeight.SemiBold,
+                        textDecoration = TextDecoration.Underline
+                    ),
+                    range.first + 2,
+                    range.last - 1
+                )
+            }
+
+            // Dim closing brackets "]]"
+            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.last - 1, range.last + 1)
+        }
+
         return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
     }
 
@@ -220,5 +260,6 @@ class AppleNotesVisualTransformation(
         private val CODE_REGEX = "`([^`\\n]+)`".toRegex()
         private val TAG_REGEX = "(?:^|\\s)(#[a-zA-Z0-9_\\-]+)".toRegex()
         private val SEPARATOR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
+        private val WIKILINK_REGEX = "(?<!\\!)\\[\\[([^\\]\\|\\n]+)(?:\\|([^\\]\\n]+))?\\]\\]".toRegex()
     }
 }

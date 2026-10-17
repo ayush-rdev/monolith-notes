@@ -39,6 +39,7 @@ fun FormattingBar(
     onToggleChecklist: () -> Unit,
     onToggleBullet: () -> Unit,
     onToggleBold: () -> Unit,
+    onInsertWikiLink: () -> Unit = {},
     onInsertTag: () -> Unit,
     onAttachImage: () -> Unit = {},
     onDismissKeyboard: () -> Unit
@@ -107,7 +108,27 @@ fun FormattingBar(
                 onToggleBold()
             }
 
-            // 5. Hashtag Button
+            // 5. WikiLink [[ ]] Button
+            Box(
+                modifier = Modifier
+                    .height(32.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onInsertWikiLink()
+                    }
+                    .padding(horizontal = 4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "[[ ]]",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = iOSYellow
+                )
+            }
+
+            // 6. Hashtag Button
             IOSToolbarButton(
                 icon = Icons.Default.Tag,
                 contentDescription = "Hashtag",
@@ -117,7 +138,7 @@ fun FormattingBar(
                 onInsertTag()
             }
 
-            // 6. Photo / Attachment Button
+            // 7. Photo / Attachment Button
             IOSToolbarButton(
                 icon = Icons.Default.AddPhotoAlternate,
                 contentDescription = "Attach Photo",

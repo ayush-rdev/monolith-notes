@@ -467,6 +467,50 @@ class NoteRepository(private val context: Context) {
         saveNote(duplicated)
     }
 
+    suspend fun getOrCreateNote(title: String, folder: String = "Notes"): Note = withContext(Dispatchers.IO) {
+        val cleanTitle = title.trim()
+        val existing = _notes.value.firstOrNull { note ->
+            note.displayTitle.equals(cleanTitle, ignoreCase = true) ||
+            (note.file != null && note.file.nameWithoutExtension.equals(cleanTitle, ignoreCase = true))
+        }
+        if (existing != null) {
+            return@withContext existing
+        }
+        val newNote = Note(
+            title = cleanTitle,
+            content = "",
+            lastModified = System.currentTimeMillis(),
+            folder = folder
+        )
+        saveNote(newNote)
+    }
+
+    fun getBacklinks(targetNote: Note): List<Note> {
+        val targetTitle = targetNote.displayTitle.trim()
+        val targetFileName = targetNote.file?.nameWithoutExtension?.trim() ?: ""
+        val allNotes = _notes.value
+        return allNotes.filter { note ->
+            note.id != targetNote.id && note.outlinks.any { link ->
+                link.equals(targetTitle, ignoreCase = true) ||
+                (targetFileName.isNotEmpty() && link.equals(targetFileName, ignoreCase = true))
+            }
+        }
+    }
+
+    fun findLinkContext(content: String, targetTitle: String, targetFileName: String? = null): String {
+        for (line in content.lineSequence()) {
+            val trimmed = line.trim()
+            if (trimmed.isEmpty()) continue
+            val lower = trimmed.lowercase()
+            val titleMatch = lower.contains("[[${targetTitle.lowercase()}]") || lower.contains("[[${targetTitle.lowercase()}|")
+            val fileMatch = targetFileName?.let { lower.contains("[[${it.lowercase()}]") || lower.contains("[[${it.lowercase()}|") } ?: false
+            if (titleMatch || fileMatch) {
+                return trimmed.removePrefix("#").removePrefix("○").removePrefix("✓").removePrefix("•").trim()
+            }
+        }
+        return content.take(120).trim()
+    }
+
     suspend fun exportVaultToZip(): File? = withContext(Dispatchers.IO) {
         try {
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -543,6 +587,7 @@ class NoteRepository(private val context: Context) {
             • **Privacy by Design**: 0 telemetry, 0 cloud dependencies, 100% offline.
 
             ### Key Capabilities
+            • **Bi-directional WikiLinks**: Type `[[` to instantly link thoughts, autocomplete vault notes, and explore backlinks.
             • **Folders**: Tap `< Folders` to organize notes into local subdirectories.
             • **Biometric Lock**: Protect private thoughts with hardware biometric authentication.
             • **Recently Deleted**: 30-day soft-delete safety net in `.trash/`.
@@ -552,6 +597,7 @@ class NoteRepository(private val context: Context) {
             ### Quick Start
             - [x] Initialized local vault
             - [ ] Write your first note
+            - [ ] Try linking a thought with [[Ideas]]
             - [ ] Create a custom folder in the Folders drawer
             - [ ] Configure Biometric Lock in Settings
 

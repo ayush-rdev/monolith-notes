@@ -180,4 +180,19 @@ data class Note(
 
         if (total == 0) null else Pair(completed, total)
     }
+
+    val outlinks: List<String> by lazy(LazyThreadSafetyMode.NONE) {
+        if (content.isEmpty() && title.isEmpty()) return@lazy emptyList()
+        val full = if (title.isEmpty()) content else "$title\n$content"
+        WIKILINK_REGEX.findAll(full)
+            .map { it.groupValues[1].trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .toList()
+    }
+
+    companion object {
+        val WIKILINK_REGEX = """(?<!\!)\[\[([^\]\|\n]+)(?:\|([^\]\n]+))?\]\]""".toRegex()
+    }
 }
+

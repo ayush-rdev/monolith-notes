@@ -17,8 +17,12 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -30,10 +34,14 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -77,10 +85,12 @@ import java.util.Locale
 @Composable
 fun NoteEditorScreen(
     note: Note,
+    allNotes: List<Note> = emptyList(),
     vaultPath: String = "/sdcard/Documents/MonolithNotes",
     settings: AppSettings = AppSettings(),
     onBack: () -> Unit,
     onSave: (Note) -> Unit,
+    onNavigateToNote: ((String) -> Unit)? = null,
     onSaveAttachment: (suspend (Uri) -> String?)? = null,
     onDelete: ((Note) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -223,6 +233,59 @@ fun NoteEditorScreen(
             bodyState = next
             canUndo = true
             canRedo = redoStack.isNotEmpty()
+        }
+    }
+
+    val wikiLinkMatch = remember(bodyState.text, bodyState.selection, isEditing) {
+        if (!isEditing || !bodyState.selection.collapsed) null
+        else detectWikiLinkQuery(bodyState.text, bodyState.selection.start)
+    }
+
+    val wikiLinkSuggestions = remember(wikiLinkMatch, allNotes) {
+        if (wikiLinkMatch == null) emptyList()
+        else {
+            val query = wikiLinkMatch.second.trim()
+            val currentId = currentNote.id
+            allNotes
+                .asSequence()
+                .filter { it.id != currentId && it.file?.name != currentNote.file?.name }
+                .filter { noteItem ->
+                    if (query.isEmpty()) true
+                    else noteItem.displayTitle.contains(query, ignoreCase = true) ||
+                         (noteItem.file != null && noteItem.file.nameWithoutExtension.contains(query, ignoreCase = true))
+                }
+                .sortedWith(
+                    compareByDescending<Note> {
+                        if (query.isNotEmpty() && it.displayTitle.startsWith(query, ignoreCase = true)) 2
+                        else if (query.isNotEmpty() && it.displayTitle.contains(query, ignoreCase = true)) 1
+                        else 0
+                    }.thenByDescending { it.lastModified }
+                )
+                .take(10)
+                .toList()
+        }
+    }
+
+    val onSelectWikiLink: (String) -> Unit = { targetTitle ->
+        performHaptic(HapticFeedbackType.TextHandleMove)
+        pushUndoState(bodyState)
+        val match = wikiLinkMatch
+        if (match != null) {
+            val current = bodyState
+            val text = current.text
+            val cursor = current.selection.start
+            val start = match.first
+            // If cursor is followed immediately by "]]", consume them as well
+            val end = if (cursor + 1 < text.length && text.substring(cursor, cursor + 2) == "]]") {
+                cursor + 2
+            } else {
+                cursor
+            }
+            val replacement = "[[$targetTitle]] "
+            val newText = text.replaceRange(start, end, replacement)
+            val newCursor = start + replacement.length
+            bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+            bodyFocusRequester.requestFocus()
         }
     }
 
@@ -686,6 +749,11 @@ fun NoteEditorScreen(
                                             selection = TextRange(updated.length)
                                         )
                                         flushSave()
+                                    },
+                                    onNavigateToNote = { targetTitle ->
+                                        focusManager.clearFocus()
+                                        flushSave()
+                                        onNavigateToNote?.invoke(targetTitle)
                                     }
                                 )
                             }
@@ -817,6 +885,31 @@ fun NoteEditorScreen(
                         )
                     }
 
+                    // 3. Linked References (Backlinks) Section
+                    val targetTitle = currentNote.displayTitle.trim()
+                    val targetFileName = currentNote.file?.nameWithoutExtension?.trim() ?: ""
+                    val backlinks = remember(targetTitle, targetFileName, allNotes) {
+                        allNotes.filter { otherNote ->
+                            otherNote.id != currentNote.id && otherNote.outlinks.any { link ->
+                                link.equals(targetTitle, ignoreCase = true) ||
+                                (targetFileName.isNotEmpty() && link.equals(targetFileName, ignoreCase = true))
+                            }
+                        }
+                    }
+
+                    if (backlinks.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        LinkedReferencesSection(
+                            backlinks = backlinks,
+                            targetTitle = targetTitle,
+                            onNavigateToNote = { clickedNote ->
+                                focusManager.clearFocus()
+                                flushSave()
+                                onNavigateToNote?.invoke(clickedNote.displayTitle)
+                            }
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
                 }
             }
@@ -906,6 +999,26 @@ fun NoteEditorScreen(
                             )
                         }
 
+                        AnimatedVisibility(
+                            visible = isEditing && wikiLinkMatch != null,
+                            enter = expandVertically(
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = 450f),
+                                expandFrom = Alignment.Bottom
+                            ) + fadeIn(animationSpec = tween(150)),
+                            exit = shrinkVertically(
+                                animationSpec = spring(dampingRatio = 0.9f, stiffness = 500f),
+                                shrinkTowards = Alignment.Bottom
+                            ) + fadeOut(animationSpec = tween(120))
+                        ) {
+                            if (wikiLinkMatch != null) {
+                                WikiLinkAutocompleteBar(
+                                    query = wikiLinkMatch.second,
+                                    suggestions = wikiLinkSuggestions,
+                                    onSelect = onSelectWikiLink
+                                )
+                            }
+                        }
+
                         FormattingBar(
                             isFormatSheetOpen = showFormatSheet,
                             canUndo = canUndo,
@@ -923,6 +1036,26 @@ fun NoteEditorScreen(
                             },
                             onToggleBold = {
                                 wrapSelection("**")
+                            },
+                            onInsertWikiLink = {
+                                pushUndoState(bodyState)
+                                val current = bodyState
+                                val text = current.text
+                                val start = current.selection.min.coerceIn(0, text.length)
+                                val end = current.selection.max.coerceIn(0, text.length)
+                                if (start != end) {
+                                    val selected = text.substring(start, end)
+                                    val wrapped = "[[$selected]]"
+                                    val newText = text.replaceRange(start, end, wrapped)
+                                    val newCursor = (start + wrapped.length).coerceIn(0, newText.length)
+                                    bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                } else {
+                                    val insert = "[[]]"
+                                    val newText = text.replaceRange(start, start, insert)
+                                    val newCursor = (start + 2).coerceIn(0, newText.length)
+                                    bodyState = TextFieldValue(text = newText, selection = TextRange(newCursor))
+                                }
+                                bodyFocusRequester.requestFocus()
                             },
                             onInsertTag = {
                                 pushUndoState(bodyState)
@@ -1192,5 +1325,280 @@ private fun InfoRow(title: String, value: String) {
     ) {
         Text(text = title, color = iOSTextPrimary, fontSize = 16.sp)
         Text(text = value, color = iOSTextSecondary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+fun detectWikiLinkQuery(text: String, cursor: Int): Pair<Int, String>? {
+    if (cursor < 2) return null
+    val lineStart = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)).let { if (it == -1) 0 else it + 1 }
+    val lineUpToCursor = text.substring(lineStart, cursor)
+    val openIndexInLine = lineUpToCursor.lastIndexOf("[[")
+    if (openIndexInLine == -1) return null
+    val afterOpen = lineUpToCursor.substring(openIndexInLine + 2)
+    if (afterOpen.contains("]]") || afterOpen.contains("|")) return null
+    val absoluteOpenIndex = lineStart + openIndexInLine
+    return Pair(absoluteOpenIndex, afterOpen)
+}
+
+@Composable
+private fun WikiLinkAutocompleteBar(
+    query: String,
+    suggestions: List<Note>,
+    onSelect: (String) -> Unit
+) {
+    Surface(
+        color = iOSBackground,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Link,
+                    contentDescription = null,
+                    tint = iOSYellow,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (query.isBlank()) "LINK TO NOTE" else "LINK TO: \"$query\"",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = iOSTextSecondary
+                )
+            }
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp)
+            ) {
+                val trimmedQuery = query.trim()
+                val exactMatch = suggestions.any { it.displayTitle.equals(trimmedQuery, ignoreCase = true) }
+
+                if (trimmedQuery.isNotEmpty() && !exactMatch) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = iOSYellow.copy(alpha = 0.15f),
+                            border = BorderStroke(1.dp, iOSYellow.copy(alpha = 0.6f)),
+                            modifier = Modifier.clickable {
+                                onSelect(trimmedQuery)
+                            }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = iOSYellow,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Create \"$trimmedQuery\"",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = iOSYellow
+                                )
+                            }
+                        }
+                    }
+                }
+
+                items(suggestions, key = { it.id }) { targetNote ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = iOSCardBackground,
+                        border = BorderStroke(1.dp, iOSDivider),
+                        modifier = Modifier.clickable {
+                            onSelect(targetNote.displayTitle)
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = targetNote.displayTitle,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White
+                            )
+                            if (targetNote.folderName != "Notes") {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = targetNote.folderName,
+                                    fontSize = 10.sp,
+                                    color = iOSTextTertiary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinkedReferencesSection(
+    backlinks: List<Note>,
+    targetTitle: String,
+    onNavigateToNote: (Note) -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(true) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(iOSCardBackground)
+            .border(1.dp, iOSDivider, RoundedCornerShape(14.dp))
+            .padding(14.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { isExpanded = !isExpanded },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Link,
+                    contentDescription = null,
+                    tint = iOSYellow,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Linked References",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(iOSYellow.copy(alpha = 0.2f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${backlinks.size}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = iOSYellow
+                    )
+                }
+            }
+
+            Icon(
+                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                tint = iOSTextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        AnimatedVisibility(visible = isExpanded) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                backlinks.forEach { backlinkNote ->
+                    BacklinkItemCard(
+                        note = backlinkNote,
+                        targetTitle = targetTitle,
+                        onClick = { onNavigateToNote(backlinkNote) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BacklinkItemCard(
+    note: Note,
+    targetTitle: String,
+    onClick: () -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = iOSBackground,
+        border = BorderStroke(0.5.dp, iOSDivider),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = note.displayTitle,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+                if (note.folderName != "Notes") {
+                    Text(
+                        text = note.folderName,
+                        fontSize = 11.sp,
+                        color = iOSYellow,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(iOSYellow.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                    )
+                }
+            }
+
+            val snippet = remember(note.content, targetTitle) {
+                var foundSnippet = ""
+                for (line in note.content.lineSequence()) {
+                    val trimmed = line.trim()
+                    if (trimmed.isEmpty()) continue
+                    val lower = trimmed.lowercase()
+                    if (lower.contains("[[${targetTitle.lowercase()}")) {
+                        foundSnippet = trimmed.removePrefix("#").removePrefix("○").removePrefix("✓").removePrefix("•").trim()
+                        break
+                    }
+                }
+                if (foundSnippet.isEmpty()) note.previewSnippet else foundSnippet
+            }
+
+            if (snippet.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = snippet,
+                    fontSize = 12.sp,
+                    color = iOSTextSecondary,
+                    maxLines = 2,
+                    lineHeight = 16.sp
+                )
+            }
+        }
     }
 }

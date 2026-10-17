@@ -41,12 +41,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.TextStyle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.monolith.notes.ui.theme.*
 import java.io.File
 
-private val INLINE_MARKDOWN_REGEX = "(\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|#[a-zA-Z0-9_\\-/]+)".toRegex()
+private val INLINE_MARKDOWN_REGEX = "(\\[\\[[^\\]\\|\\n]+(?:\\|[^\\]\\n]+)?\\]\\]|\\*\\*.*?\\*\\*|__.*?__|\\*.*?\\*|_.*?_|`.*?`|~~.*?~~|#[a-zA-Z0-9_\\-/]+)".toRegex()
 private val TASK_TOGGLE_REGEX = "(^[ \\t]*(?:[-*]\\s+\\[[ xX]\\]|[○✓]))([ \\t]+.*$)".toRegex(RegexOption.MULTILINE)
 private val IMAGE_REGEX = """!\[(.*?)\]\((.*?)\)""".toRegex()
 private val HEADING_REGEX = "^(#{1,6})\\s+(.+)$".toRegex()
@@ -70,6 +72,25 @@ fun parseInlineMarkdown(text: String): AnnotatedString {
             }
             val matchValue = match.value
             when {
+                // WikiLink: [[Target]] or [[Target|Alias]]
+                matchValue.startsWith("[[") && matchValue.endsWith("]]") && matchValue.length >= 4 -> {
+                    val inner = matchValue.substring(2, matchValue.length - 2)
+                    val pipeIdx = inner.indexOf('|')
+                    val target = if (pipeIdx != -1) inner.substring(0, pipeIdx).trim() else inner.trim()
+                    val label = if (pipeIdx != -1) inner.substring(pipeIdx + 1).trim() else inner.trim()
+
+                    pushStringAnnotation(tag = "WIKILINK", annotation = target)
+                    pushStyle(
+                        SpanStyle(
+                            color = iOSYellow,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    )
+                    append(label)
+                    pop()
+                    pop()
+                }
                 // Bold: **text**
                 (matchValue.startsWith("**") && matchValue.endsWith("**") && matchValue.length >= 4) ||
                 (matchValue.startsWith("__") && matchValue.endsWith("__") && matchValue.length >= 4) -> {
@@ -292,11 +313,45 @@ fun iOSTableCard(
 }
 
 @Composable
+fun MarkdownClickableText(
+    text: AnnotatedString,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+    lineHeight: androidx.compose.ui.unit.TextUnit = androidx.compose.ui.unit.TextUnit.Unspecified,
+    onNavigateToNote: ((String) -> Unit)? = null
+) {
+    val hasWikiLinks = remember(text) {
+        text.getStringAnnotations("WIKILINK", 0, text.length).isNotEmpty()
+    }
+    if (hasWikiLinks && onNavigateToNote != null) {
+        ClickableText(
+            text = text,
+            style = style.copy(lineHeight = lineHeight),
+            modifier = modifier,
+            onClick = { offset ->
+                val annotations = text.getStringAnnotations("WIKILINK", offset, offset)
+                if (annotations.isNotEmpty()) {
+                    onNavigateToNote(annotations.first().item)
+                }
+            }
+        )
+    } else {
+        Text(
+            text = text,
+            style = style,
+            lineHeight = lineHeight,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
 fun MarkdownRenderView(
     content: String,
     vaultPath: String = "/sdcard/Documents/MonolithNotes",
     modifier: Modifier = Modifier,
-    onTaskToggled: ((taskIndex: Int) -> Unit)? = null
+    onTaskToggled: ((taskIndex: Int) -> Unit)? = null,
+    onNavigateToNote: ((String) -> Unit)? = null
 ) {
     val haptic = LocalHapticFeedback.current
     val lines = content.lines()
@@ -374,10 +429,11 @@ fun MarkdownRenderView(
                         4 -> MonolithTypography.titleLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold) to 6.dp
                         else -> MonolithTypography.bodyLarge.copy(fontWeight = FontWeight.SemiBold) to 4.dp
                     }
-                    Text(
+                    MarkdownClickableText(
                         text = parseInlineMarkdown(headingText.trim()),
                         style = style.copy(color = Color.White),
-                        modifier = Modifier.padding(top = topPadding, bottom = 2.dp)
+                        modifier = Modifier.padding(top = topPadding, bottom = 2.dp),
+                        onNavigateToNote = onNavigateToNote
                     )
                 }
                 // Circular Apple Notes Task Checkbox (supports both ○/✓ and - [ ]/- [x])
@@ -396,7 +452,8 @@ fun MarkdownRenderView(
                         onToggle = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onTaskToggled?.invoke(currentIndex)
-                        }
+                        },
+                        onNavigateToNote = onNavigateToNote
                     )
                 }
                 // Bullet List
@@ -415,10 +472,11 @@ fun MarkdownRenderView(
                                 .clip(CircleShape)
                                 .background(iOSYellow)
                         )
-                        Text(
+                        MarkdownClickableText(
                             text = parseInlineMarkdown(bulletText),
                             style = MonolithTypography.bodyLarge,
-                            lineHeight = 24.sp
+                            lineHeight = 24.sp,
+                            onNavigateToNote = onNavigateToNote
                         )
                     }
                 }
@@ -441,11 +499,13 @@ fun MarkdownRenderView(
                                 .background(iOSYellow)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
-                        Text(
+                        MarkdownClickableText(
                             text = parseInlineMarkdown(quoteText),
-                            style = MonolithTypography.bodyMedium,
-                            fontStyle = FontStyle.Italic,
-                            color = iOSTextSecondary
+                            style = MonolithTypography.bodyMedium.copy(
+                                fontStyle = FontStyle.Italic,
+                                color = iOSTextSecondary
+                            ),
+                            onNavigateToNote = onNavigateToNote
                         )
                     }
                 }
@@ -481,10 +541,11 @@ fun MarkdownRenderView(
                     Spacer(modifier = Modifier.height(4.dp))
                 }
                 else -> {
-                    Text(
+                    MarkdownClickableText(
                         text = parseInlineMarkdown(trimmed),
                         style = MonolithTypography.bodyLarge,
-                        lineHeight = 24.sp
+                        lineHeight = 24.sp,
+                        onNavigateToNote = onNavigateToNote
                     )
                 }
             }
@@ -504,7 +565,8 @@ fun MarkdownRenderView(
 fun iOSChecklistRow(
     checked: Boolean,
     text: String,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onNavigateToNote: ((String) -> Unit)? = null
 ) {
     val checkboxBg by animateColorAsState(
         targetValue = if (checked) iOSYellow else Color.Transparent,
@@ -558,13 +620,14 @@ fun iOSChecklistRow(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Text(
+        MarkdownClickableText(
             text = parseInlineMarkdown(text),
             style = MonolithTypography.bodyLarge.copy(
-                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None
+                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
+                color = textColor
             ),
-            color = textColor,
-            lineHeight = 22.sp
+            lineHeight = 22.sp,
+            onNavigateToNote = onNavigateToNote
         )
     }
 }
