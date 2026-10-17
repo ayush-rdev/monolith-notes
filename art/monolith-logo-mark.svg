@@ -1,172 +1,93 @@
-<svg id="monolith-svg" xmlns="http://www.w3.org/2000/svg" viewBox="190 175 644 674" width="1024" height="1024">
-          <defs id="svg-defs">
-            <!-- 1. Pure #000000 AMOLED Wallpaper Gradient -->
-            <radialGradient id="amoled-wallpaper-grad" cx="50%" cy="48%" r="60%">
-              <stop offset="0%" stop-color="#1c180c" id="bg-core-glow"/>
-              <stop offset="58%" stop-color="#060503"/>
-              <stop offset="100%" stop-color="#000000"/>
-            </radialGradient>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 1. Pure AMOLED Deep Obsidian Squircle Background -->
+    <radialGradient id="bgObsidian" cx="50%" cy="38%" r="72%">
+      <stop offset="0%" stop-color="#15151C" />
+      <stop offset="55%" stop-color="#08080B" />
+      <stop offset="100%" stop-color="#020203" />
+    </radialGradient>
 
-            <!-- 2. iOS 18 Dark Mode Squircle Surface (#141417 to #060608) -->
-            <linearGradient id="squircle-surface-grad" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stop-color="#17171c" id="sq-top-tint"/>
-              <stop offset="35%" stop-color="#0d0d11"/>
-              <stop offset="100%" stop-color="#050507"/>
-            </linearGradient>
+    <!-- 2. Subtle Outer Metallic Bezel -->
+    <linearGradient id="squircleRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3E3E50" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#20202A" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#0A0A10" stop-opacity="0.4" />
+    </linearGradient>
 
-            <!-- iOS Top-Surface Subtle Ambient Sheen -->
-            <radialGradient id="squircle-top-sheen" cx="50%" cy="8%" r="65%">
-              <stop offset="0%" stop-color="#FCF2CF" stop-opacity="0.10" class="c-cream" id="sq-sheen-stop"/>
-              <stop offset="55%" stop-color="#7C5513" stop-opacity="0.02" class="c-mid"/>
-              <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
-            </radialGradient>
+    <!-- 3. Left Monolith Wing (Brushed Titanium Specular) -->
+    <linearGradient id="leftWingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="35%" stop-color="#DCDCE6" />
+      <stop offset="70%" stop-color="#9A9AAA" />
+      <stop offset="100%" stop-color="#606070" />
+    </linearGradient>
 
-            <!-- 3. Authentic iOS 18 Top-Lit Metallic Glass Bezel Rim (Outer Squircle) -->
-            <linearGradient id="ios-squircle-rim" x1="35%" y1="0%" x2="65%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.92" id="sq-rim-top"/>
-              <stop offset="14%" stop-color="#F6D979" stop-opacity="0.72" class="c-spec" id="sq-rim-upper"/>
-              <stop offset="48%" stop-color="#7C5513" stop-opacity="0.18" class="c-mid" id="sq-rim-mid"/>
-              <stop offset="82%" stop-color="#452E0D" stop-opacity="0.16" class="c-deep"/>
-              <stop offset="100%" stop-color="#EBB11E" stop-opacity="0.48" class="c-bright" id="sq-rim-bot"/>
-            </linearGradient>
+    <!-- 4. Left Downward Bevel Facet (Darker Metal) -->
+    <linearGradient id="leftDownFacet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8E8E9E" />
+      <stop offset="60%" stop-color="#4A4A5A" />
+      <stop offset="100%" stop-color="#242430" />
+    </linearGradient>
 
-            <!-- Recessed iOS Inner Hairline Rim -->
-            <linearGradient id="ios-squircle-inner-rim" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" stop-color="#FCF2CF" stop-opacity="0.32" class="c-cream"/>
-              <stop offset="35%" stop-color="#ffffff" stop-opacity="0.05"/>
-              <stop offset="100%" stop-color="#7C5513" stop-opacity="0.15" class="c-mid"/>
-            </linearGradient>
+    <!-- 5. Center Diagonal Light Blade -->
+    <linearGradient id="centerBladeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8E8F2" />
+      <stop offset="50%" stop-color="#B0B0C4" />
+      <stop offset="100%" stop-color="#6E6E82" />
+    </linearGradient>
 
-            <!-- 4. Front Note Card Surface (Rich Obsidian-Graphite #1f1f24 to #0d0d10) -->
-            <linearGradient id="front-card-grad" x1="20%" y1="0%" x2="80%" y2="100%">
-              <stop offset="0%" stop-color="#232329" id="front-stop-1"/>
-              <stop offset="48%" stop-color="#151519" id="front-stop-2"/>
-              <stop offset="100%" stop-color="#0c0c0f" id="front-stop-3"/>
-            </linearGradient>
+    <!-- 6. Right Pillar (Deep Shadow Titanium) -->
+    <linearGradient id="rightPillarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#B8B8C8" />
+      <stop offset="50%" stop-color="#727284" />
+      <stop offset="100%" stop-color="#323240" />
+    </linearGradient>
 
-            <!-- Front Note Card iOS Top-Lit Specular Border Rim -->
-            <linearGradient id="ios-front-card-rim" x1="18%" y1="0%" x2="82%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88" id="fc-rim-1"/>
-              <stop offset="22%" stop-color="#F6D979" stop-opacity="0.65" class="c-spec" id="fc-rim-2"/>
-              <stop offset="60%" stop-color="#7C5513" stop-opacity="0.22" class="c-mid" id="fc-rim-3"/>
-              <stop offset="100%" stop-color="#EBB11E" stop-opacity="0.38" class="c-bright" id="fc-rim-4"/>
-            </linearGradient>
+    <!-- 7. Warm Amber Gold Core Crevice Glow -->
+    <linearGradient id="goldCrevice" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE066" />
+      <stop offset="50%" stop-color="#F5A623" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
 
-            <!-- 5. Back Offset Card Satin Champagne-Yellow Metallic Gradient -->
-            <linearGradient id="back-accent-grad" x1="12%" y1="0%" x2="88%" y2="100%">
-              <stop offset="0%" stop-color="#FCF2CF" class="c-cream" id="accent-stop-1"/>
-              <stop offset="28%" stop-color="#F6D979" class="c-spec" id="accent-stop-2"/>
-              <stop offset="68%" stop-color="#EBB11E" class="c-bright" id="accent-stop-3"/>
-              <stop offset="100%" stop-color="#A9760F" class="c-primary" id="accent-stop-4"/>
-            </linearGradient>
+    <!-- Drop Shadow filter for floating depth -->
+    <filter id="monolithGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.8" />
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#F5A623" flood-opacity="0.15" />
+    </filter>
+  </defs>
 
-            <!-- Back Card Anodized Specular Rim Border -->
-            <linearGradient id="ios-back-card-rim" x1="15%" y1="0%" x2="85%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
-              <stop offset="35%" stop-color="#FCF2CF" stop-opacity="0.75" class="c-cream"/>
-              <stop offset="75%" stop-color="#A9760F" stop-opacity="0.45" class="c-primary"/>
-              <stop offset="100%" stop-color="#F6D979" stop-opacity="0.8" class="c-spec"/>
-            </linearGradient>
+  <!-- Squircle Base -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgObsidian)" stroke="url(#squircleRim)" stroke-width="2.5" />
 
-            <!-- Tertiary Card Gradient (3-Layer Cascade Mode) -->
-            <linearGradient id="tertiary-accent-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#EBB11E" class="c-bright"/>
-              <stop offset="100%" stop-color="#452E0D" class="c-deep"/>
-            </linearGradient>
+  <!-- Monolith Hex-M Architectural Emblem -->
+  <g transform="translate(152, 114)" filter="url(#monolithGlow)">
+    
+    <!-- LEFT WING OF 'M': Monolithic Hex Pillar & Inner Diagonal Slope -->
+    <path d="M 0 68 L 78 0 L 84 0 L 84 148 L 40 220 L 40 284 L 0 248 Z" 
+          fill="url(#leftWingGrad)" />
 
-            <!-- 6. Horizontal Pill Note Lines Gradients -->
-            <!-- Standard Warm-White / Slight-Yellow Tactile Pill Line -->
-            <linearGradient id="pill-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.96"/>
-              <stop offset="70%" stop-color="#fefce8" stop-opacity="0.92" id="line-warm-stop"/>
-              <stop offset="100%" stop-color="#F6D979" stop-opacity="0.84" class="c-spec"/>
-            </linearGradient>
+    <!-- Left Wing 3D Bevel Facet -->
+    <path d="M 0 68 L 40 102 L 40 284 L 0 248 Z" 
+          fill="url(#leftDownFacet)" 
+          opacity="0.85" />
 
-            <!-- Active First-Line Slight-Yellow Header Pill Gradient -->
-            <linearGradient id="pill-header-accent-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#FCF2CF" class="c-cream"/>
-              <stop offset="50%" stop-color="#F6D979" class="c-spec"/>
-              <stop offset="100%" stop-color="#EBB11E" class="c-bright"/>
-            </linearGradient>
+    <!-- Golden Edge Line on the Inner Crevice (Left edge of V) -->
+    <line x1="84" y1="18" x2="84" y2="152" stroke="url(#goldCrevice)" stroke-width="3" stroke-linecap="round" />
+    <line x1="84" y1="152" x2="40" y2="224" stroke="url(#goldCrevice)" stroke-width="3" stroke-linecap="round" />
 
-            <!-- 7. Optical & Elevation Filters -->
-            <filter id="squircle-shadow" x="-20%" y="-20%" width="140%" height="145%">
-              <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#000000" flood-opacity="0.95"/>
-            </filter>
+    <!-- CENTER DIAGONAL ASCENT OF 'M' -->
+    <path d="M 94 158 L 132 80 L 132 284 L 88 284 L 88 234 Z" 
+          fill="url(#centerBladeGrad)" />
 
-            <filter id="card-drop-shadow" x="-25%" y="-20%" width="150%" height="150%">
-              <feDropShadow dx="-6" dy="18" stdDeviation="16" flood-color="#000000" flood-opacity="0.82"/>
-            </filter>
+    <!-- Golden Highlight in the Center Slit -->
+    <line x1="94" y1="160" x2="132" y2="84" stroke="url(#goldCrevice)" stroke-width="2.5" stroke-linecap="round" />
 
-            <filter id="ambient-aura-filter" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur stdDeviation="40" id="aura-blur"/>
-            </filter>
+    <!-- RIGHT PILLAR OF 'M': Standing Monolith Column -->
+    <path d="M 142 34 L 196 66 L 196 248 L 142 284 Z" 
+          fill="url(#rightPillarGrad)" />
 
-            <filter id="header-line-glow" x="-30%" y="-80%" width="160%" height="260%">
-              <feGaussianBlur stdDeviation="4" result="b1"/>
-              <feMerge>
-                <feMergeNode in="b1"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-
-          <!-- ============================================================= -->
-          <!-- LAYER 1: OPTIONAL PURE #000000 AMOLED BACKDROP                -->
-          <!-- ============================================================= -->
-          
-
-          <!-- ============================================================= -->
-          <!-- LAYER 2: AUTHENTIC iOS 18 DARK MODE SQUIRCLE CONTAINER        -->
-          <!-- (680x680 with rx=154 -> exact 22.6% iOS continuous curvature) -->
-          <!-- ============================================================= -->
-          
-
-          <!-- ============================================================= -->
-          <!-- LAYER 3: SUBSURFACE WARM CHAMPAGNE BACKLIGHT                  -->
-          <!-- ============================================================= -->
-          <g id="layer-ambient-glow">
-            <g id="gfx-ambient-glow" opacity="0.70">
-              <circle id="glow-back-orb" cx="436" cy="598" r="160" fill="#F6D979" class="c-spec-fill" filter="url(#ambient-aura-filter)" opacity="0.34"/>
-            </g>
-          </g>
-
-          <!-- ============================================================= -->
-          <!-- LAYER 4: STACKED NOTE CARDS WITH iOS SPECULAR BORDERS & MASK  -->
-          <!-- ============================================================= -->
-          <g id="layer-mark">
-            <g id="gfx-mark">
-          <!-- True Negative-Space Knockout Mask -->
-          <mask id="knockout-mask-main" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-            <rect x="0" y="0" width="1024" height="1024" fill="#ffffff"/>
-            <rect x="342" y="238" width="404" height="484" rx="44" fill="#000000"/>
-          </mask>
-
-          <g id="stack-offset-group" filter="url(#card-drop-shadow)">
-            <!-- 1. Back Slight-Yellow Card + iOS Specular Rim (Clipped by Knockout Mask) -->
-            <g mask="url(#knockout-mask-main)">
-              <rect id="back-accent-sheet" x="296" y="320" width="368" height="448" rx="26" fill="url(#back-accent-grad)"/>
-              
-              <rect x="297" y="321" width="366" height="446" rx="25" fill="none" stroke="url(#ios-back-card-rim)" stroke-width="2.32"/>
-              <!-- Specular Rim Along Knockout Cutout Edge -->
-              <rect x="342" y="238" width="404" height="484" rx="44" fill="none" stroke="url(#ios-back-card-rim)" stroke-width="2.67"/>
-            </g>
-
-            <!-- 2. Front Dark Obsidian Note Sheet + iOS Top-Lit Specular Border -->
-            <rect id="front-dark-sheet" x="360" y="256" width="368" height="448" rx="26" fill="url(#front-card-grad)" stroke="url(#ios-front-card-rim)" stroke-width="2.78"/>
-
-            <!-- Recessed iOS Inner Glass Hairline on Front Sheet -->
-            
-            <rect x="365" y="261" width="358" height="438" rx="21" fill="none" stroke="url(#ios-squircle-inner-rim)" stroke-width="1" opacity="0.33"/>
-
-            <!-- 3. Horizontal Pill Note Lines -->
-            <g id="front-note-lines"><rect x="413" y="317" width="262" height="16" rx="8" fill="url(#pill-header-accent-grad)" filter="url(#header-line-glow)"/><rect x="413" y="379" width="262" height="16" rx="8" fill="url(#pill-line-grad)"/><rect x="413" y="441" width="262" height="16" rx="8" fill="url(#pill-line-grad)"/><rect x="413" y="503" width="262" height="16" rx="8" fill="url(#pill-line-grad)"/><rect x="413" y="565" width="262" height="16" rx="8" fill="url(#pill-line-grad)"/><rect x="413" y="627" width="262" height="16" rx="8" fill="url(#pill-line-grad)"/></g>
-          </g>
-        </g>
-          </g>
-
-          <!-- ============================================================= -->
-          <!-- LAYER 5: iOS 18 ICON GRID & KEYLINE OVERLAY                   -->
-          <!-- ============================================================= -->
-          
-        </svg>
+    <!-- Right Pillar Top Chamfer Light Bevel -->
+    <polygon points="142,34 196,66 186,74 142,48" fill="#FFFFFF" opacity="0.6" />
+  </g>
+</svg>

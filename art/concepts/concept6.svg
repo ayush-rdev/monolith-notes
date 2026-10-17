@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad6" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#121216" />
+      <stop offset="100%" stop-color="#050507" />
+    </linearGradient>
+    <linearGradient id="lightFacet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#C5C5D2" />
+      <stop offset="100%" stop-color="#727282" />
+    </linearGradient>
+    <linearGradient id="darkFacet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2A2A36" />
+      <stop offset="100%" stop-color="#14141B" />
+    </linearGradient>
+    <linearGradient id="goldDot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD60A" />
+      <stop offset="100%" stop-color="#FF9F0A" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad6)" stroke="#22222E" stroke-width="2" />
+
+  <!-- Monolith: Two-tone Architectural Obelisk (Standing Monument) -->
+  <g transform="translate(186, 120)">
+    <!-- Left Illuminated Facet -->
+    <path d="M 0 272 L 70 272 L 70 0 L 24 46 Z" fill="url(#lightFacet)" />
+
+    <!-- Right Shadow Facet -->
+    <path d="M 70 272 L 140 272 L 116 46 L 70 0 Z" fill="url(#darkFacet)" />
+
+    <!-- Center Spine Hairline -->
+    <line x1="70" y1="0" x2="70" y2="272" stroke="#FFFFFF" stroke-opacity="0.3" stroke-width="1.5" />
+
+    <!-- Golden Eye at apex -->
+    <circle cx="70" cy="50" r="10" fill="url(#goldDot)" />
+  </g>
+</svg>

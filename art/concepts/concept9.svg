@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background AMOLED Obsidian Gradient -->
+    <radialGradient id="bgGrad9" cx="50%" cy="36%" r="72%">
+      <stop offset="0%" stop-color="#161622" />
+      <stop offset="55%" stop-color="#08080C" />
+      <stop offset="100%" stop-color="#020203" />
+    </radialGradient>
+
+    <!-- Squircle Hairline Border -->
+    <linearGradient id="sqBezel9" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3C3C50" />
+      <stop offset="50%" stop-color="#1A1A24" />
+      <stop offset="100%" stop-color="#0A0A0F" />
+    </linearGradient>
+
+    <!-- Outer Left Pillar (Illuminated Titanium) -->
+    <linearGradient id="titaniumLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="50%" stop-color="#D4D4E0" />
+      <stop offset="100%" stop-color="#8E8E9E" />
+    </linearGradient>
+
+    <!-- Outer Right Pillar (Deep Shadow Titanium) -->
+    <linearGradient id="titaniumRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9C9CAE" />
+      <stop offset="50%" stop-color="#58586A" />
+      <stop offset="100%" stop-color="#22222E" />
+    </linearGradient>
+
+    <!-- Center Obelisk V-Chevron (Core Monolith) -->
+    <linearGradient id="centerMonolith" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#B0B0C0" />
+    </linearGradient>
+
+    <!-- Golden Core Eye -->
+    <linearGradient id="goldGleam9" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD60A" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Obsidian Squircle -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad9)" stroke="url(#sqBezel9)" stroke-width="2.5" />
+
+  <!-- Monolith M Icon: 3 Standing Pillars forming architectural 'M' -->
+  <g transform="translate(136, 126)">
+    <!-- Left Pillar with 45° Chamfered Top -->
+    <path d="M 0 54 L 54 0 L 64 0 C 70 0, 74 4, 74 10 L 74 250 C 74 256, 70 260, 64 260 L 10 260 C 4 260, 0 256, 0 250 Z" 
+          fill="url(#titaniumLeft)" />
+
+    <!-- Right Pillar with Inverted 45° Chamfered Top -->
+    <path d="M 166 0 L 176 0 L 240 54 L 240 250 C 240 256, 236 260, 230 260 L 176 260 C 170 260, 166 256, 166 250 Z" 
+          fill="url(#titaniumRight)" />
+
+    <!-- Center Monolith Chevron (The Obelisk Core that plunges down) -->
+    <path d="M 88 12 L 120 76 L 152 12 L 152 70 L 120 190 L 88 70 Z" 
+          fill="url(#centerMonolith)" />
+
+    <!-- Amber Gold Core Jewel in Negative Space -->
+    <circle cx="120" cy="115" r="10" fill="url(#goldGleam9)" />
+  </g>
+</svg>

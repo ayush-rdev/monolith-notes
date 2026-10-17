@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0E0E12" />
+      <stop offset="100%" stop-color="#030304" />
+    </linearGradient>
+    <linearGradient id="slabLeft5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#8E8E9A" />
+    </linearGradient>
+    <linearGradient id="slabRight5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D0D0DC" />
+      <stop offset="100%" stop-color="#4A4A58" />
+    </linearGradient>
+    <linearGradient id="coreLine5" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F5A623" />
+      <stop offset="100%" stop-color="#D0021B" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad5)" stroke="#262632" stroke-width="2" />
+
+  <!-- Two Intersecting Monolithic Chiseled Pillars forming "M" -->
+  <g transform="translate(136, 136)">
+    <!-- Left Monolith Slab with 45 deg chamfer -->
+    <path d="M 0 50 L 50 0 L 100 0 L 100 240 L 0 240 Z" fill="url(#slabLeft5)" />
+
+    <!-- Right Monolith Slab with inverted 45 deg chamfer -->
+    <path d="M 140 0 L 190 0 L 240 50 L 240 240 L 140 240 Z" fill="url(#slabRight5)" />
+
+    <!-- Center Floating Obelisk Diamond connecting them -->
+    <polygon points="120,40 148,80 120,180 92,80" fill="#FFFFFF" />
+    <circle cx="120" cy="110" r="8" fill="#F5A623" />
+  </g>
+</svg>

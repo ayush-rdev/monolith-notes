@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Deep obsidian squircle background -->
+    <linearGradient id="bgGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141418" />
+      <stop offset="100%" stop-color="#070709" />
+    </linearGradient>
+    <!-- Outer hairline rim -->
+    <linearGradient id="rimGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3A3A48" />
+      <stop offset="50%" stop-color="#1E1E26" />
+      <stop offset="100%" stop-color="#0F0F14" />
+    </linearGradient>
+    <!-- Monolith left pillar -->
+    <linearGradient id="pillarLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#D0D0D8" />
+    </linearGradient>
+    <!-- Monolith right pillar (subtle shadow) -->
+    <linearGradient id="pillarRight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E2E2EA" />
+      <stop offset="100%" stop-color="#9A9AA6" />
+    </linearGradient>
+    <!-- Center chevron -->
+    <linearGradient id="centerCore" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#F2A63B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad1)" stroke="url(#rimGrad1)" stroke-width="2.5" />
+
+  <!-- Monolith M Emblem (Pure, bold, mathematical geometric vector) -->
+  <g transform="translate(136, 126)">
+    <!-- Left Pillar -->
+    <rect x="0" y="0" width="56" height="260" rx="16" fill="url(#pillarLeft)" />
+    
+    <!-- Right Pillar -->
+    <rect x="184" y="0" width="56" height="260" rx="16" fill="url(#pillarRight)" />
+    
+    <!-- Center Monolith Obelisk (Chiseled Diamond V-Chevron) -->
+    <path d="M 56 60 L 120 180 L 184 60 L 184 130 L 120 250 L 56 130 Z" fill="#F4F4F8" />
+    
+    <!-- Subtle Golden Core Highlight in Center Notch -->
+    <circle cx="120" cy="100" r="14" fill="url(#centerCore)" />
+  </g>
+</svg>

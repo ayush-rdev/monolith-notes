@@ -6,6 +6,7 @@ import com.google.android.gms.auth.GoogleAuthUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -108,31 +109,17 @@ object GoogleDriveClient {
      * Uploads a new file into the hidden appDataFolder using multipart/related upload.
      */
     suspend fun uploadNewFile(accessToken: String, fileName: String, data: ByteArray): String = withContext(Dispatchers.IO) {
-        val boundary = "====MonolithDriveBoundary${System.currentTimeMillis()}===="
         val metadataJson = JSONObject().apply {
             put("name", fileName)
             put("parents", org.json.JSONArray().put("appDataFolder"))
         }.toString()
 
-        val CRLF = "\r\n"
-        val headerPart = "--$boundary$CRLF" +
-                "Content-Type: application/json; charset=UTF-8$CRLF$CRLF" +
-                metadataJson + CRLF +
-                "--$boundary$CRLF" +
-                "Content-Type: application/octet-stream$CRLF$CRLF"
-
-        val footerPart = "$CRLF--$boundary--$CRLF"
-
-        val headerBytes = headerPart.toByteArray(Charsets.UTF_8)
-        val footerBytes = footerPart.toByteArray(Charsets.UTF_8)
-
-        val totalBytes = ByteArray(headerBytes.size + data.size + footerBytes.size)
-        System.arraycopy(headerBytes, 0, totalBytes, 0, headerBytes.size)
-        System.arraycopy(data, 0, totalBytes, headerBytes.size, data.size)
-        System.arraycopy(footerBytes, 0, totalBytes, headerBytes.size + data.size, footerBytes.size)
-
-        val mediaType = "multipart/related; boundary=$boundary".toMediaType()
-        val body = totalBytes.toRequestBody(mediaType)
+        val relatedMediaType = "multipart/related".toMediaType()
+        val body = MultipartBody.Builder()
+            .setType(relatedMediaType)
+            .addPart(metadataJson.toRequestBody("application/json; charset=UTF-8".toMediaType()))
+            .addPart(data.toRequestBody("application/octet-stream".toMediaType()))
+            .build()
 
         val request = Request.Builder()
             .url("$UPLOAD_URL?uploadType=multipart")
@@ -164,7 +151,11 @@ object GoogleDriveClient {
             .build()
 
         val response = httpClient.newCall(request).execute()
-        response.isSuccessful
+        if (!response.isSuccessful) {
+            val errorBody = response.body?.string() ?: ""
+            throw IOException("Failed to update file $fileId on Google Drive: ${response.code} - $errorBody")
+        }
+        true
     }
 
     /**

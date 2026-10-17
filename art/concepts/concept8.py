@@ -1,0 +1,68 @@
+import subprocess
+
+concepts_dir = "/home/rdev/Monolith/art/concepts"
+
+# Concept 8: The Monolith Pen-Nib Monument (The ultimate fusion of Monolith & Notes)
+# Clean, bold, iconic vector silhouette.
+svg8 = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background AMOLED Obsidian Gradient -->
+    <radialGradient id="bgGrad8" cx="50%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="#181822" />
+      <stop offset="60%" stop-color="#09090D" />
+      <stop offset="100%" stop-color="#020203" />
+    </radialGradient>
+
+    <!-- Outer Squircle Bezel -->
+    <linearGradient id="sqBezel8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38384A" />
+      <stop offset="50%" stop-color="#1C1C26" />
+      <stop offset="100%" stop-color="#0E0E14" />
+    </linearGradient>
+
+    <!-- Left Facet: Brushed Titanium Light -->
+    <linearGradient id="leftFacet8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#D0D0DC" />
+      <stop offset="100%" stop-color="#8C8C9E" />
+    </linearGradient>
+
+    <!-- Right Facet: Dark Titanium Shadow -->
+    <linearGradient id="rightFacet8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#9C9CAE" />
+      <stop offset="50%" stop-color="#565668" />
+      <stop offset="100%" stop-color="#242430" />
+    </linearGradient>
+
+    <!-- Golden Breather Hole / Core -->
+    <linearGradient id="goldCore8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD60A" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Obsidian Squircle -->
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#bgGrad8)" stroke="url(#sqBezel8)" stroke-width="2.5" />
+
+  <!-- Monolith Nib / Obelisk Totem -->
+  <g transform="translate(166, 106)">
+    <!-- Left Facet (Light) -->
+    <path d="M 0 290 L 84 290 L 84 0 L 16 76 L 0 290 Z" fill="url(#leftFacet8)" />
+
+    <!-- Right Facet (Shadow) -->
+    <path d="M 96 0 L 96 290 L 180 290 L 180 290 L 164 76 L 96 0 Z" fill="url(#rightFacet8)" />
+
+    <!-- Center Slit (Negative Space between 84 and 96 = 12px) -->
+    <!-- Golden Core Eye at Golden Ratio -->
+    <circle cx="90" cy="115" r="14" fill="url(#goldCore8)" />
+
+    <!-- Top Apex Accent Cut -->
+    <polygon points="90,-4 96,0 84,0" fill="#FFFFFF" />
+  </g>
+</svg>"""
+
+with open(f"{concepts_dir}/concept8.svg", "w") as f:
+    f.write(svg8)
+
+subprocess.run(["rsvg-convert", "-w", "512", "-h", "512", f"{concepts_dir}/concept8.svg", "-o", f"{concepts_dir}/concept8.png"], check=True)
+print("Concept 8 generated!")
