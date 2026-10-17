@@ -30,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -1073,13 +1074,15 @@ fun NotesListScreen(
     }
 }
 
+private val TagChipShape = RoundedCornerShape(8.dp)
+
 @Composable
 fun IOSTagChip(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val chipBg by animateColorAsState(
+    val chipBgState = animateColorAsState(
         targetValue = if (isSelected) iOSYellowContainer else iOSCardBackground,
         animationSpec = tween(durationMillis = 120),
         label = "chipBg"
@@ -1092,8 +1095,8 @@ fun IOSTagChip(
 
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(chipBg)
+            .clip(TagChipShape)
+            .drawBehind { drawRect(chipBgState.value) }
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
@@ -1117,37 +1120,45 @@ fun IOSNoteRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val rowBg by animateColorAsState(
+    val rowBgState = animateColorAsState(
         targetValue = if (isPressed) Color(0xFF2C2C2E) else Color.Transparent,
         animationSpec = tween(durationMillis = 80),
         label = "iosRowPressBg"
     )
 
-    val pressScale by animateFloatAsState(
+    val pressScaleState = animateFloatAsState(
         targetValue = if (isPressed) 0.985f else 1f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
         label = "iosRowPressScale"
     )
 
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
-    val formattedDate = remember(note.lastModified) { dateFormat.format(Date(note.lastModified)) }
+    val formattedDate = note.formattedDate
 
     val highlightColor = iOSYellow
     val titleText = remember(note.displayTitle, searchQuery, highlightColor) {
-        highlightQuery(note.displayTitle, searchQuery, highlightColor)
+        if (searchQuery.isBlank()) AnnotatedString(note.displayTitle)
+        else highlightQuery(note.displayTitle, searchQuery, highlightColor)
     }
     val snippetText = remember(note.previewSnippet, searchQuery, highlightColor) {
-        if (note.previewSnippet.isNotBlank()) highlightQuery(note.previewSnippet, searchQuery, highlightColor) else null
+        if (note.previewSnippet.isBlank()) null
+        else if (searchQuery.isBlank()) AnnotatedString(note.previewSnippet)
+        else highlightQuery(note.previewSnippet, searchQuery, highlightColor)
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
+                val s = pressScaleState.value
+                scaleX = s
+                scaleY = s
             }
-            .background(rowBg)
+            .drawBehind {
+                val bg = rowBgState.value
+                if (bg.alpha > 0f) {
+                    drawRect(bg)
+                }
+            }
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1241,12 +1252,17 @@ fun IOSNoteRow(
     }
 }
 
+private val SingleCardShape = RoundedCornerShape(12.dp)
+private val TopCardShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+private val BottomCardShape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+private val MiddleCardShape = RoundedCornerShape(0.dp)
+
 private fun getRowShape(index: Int, total: Int): RoundedCornerShape {
     return when {
-        total <= 1 -> RoundedCornerShape(12.dp)
-        index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
-        index == total - 1 -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
-        else -> RoundedCornerShape(0.dp)
+        total <= 1 -> SingleCardShape
+        index == 0 -> TopCardShape
+        index == total - 1 -> BottomCardShape
+        else -> MiddleCardShape
     }
 }
 

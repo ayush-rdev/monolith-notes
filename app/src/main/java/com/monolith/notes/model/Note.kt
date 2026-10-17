@@ -1,6 +1,9 @@
 package com.monolith.notes.model
 
 import java.io.File
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class Note(
@@ -191,8 +194,16 @@ data class Note(
             .toList()
     }
 
+    val formattedDate: String by lazy(LazyThreadSafetyMode.NONE) {
+        val instant = Instant.ofEpochMilli(lastModified)
+        DATE_FORMATTER.format(instant)
+    }
+
     companion object {
         val WIKILINK_REGEX = """(?<!\!)\[\[([^\]\|\n]+)(?:\|([^\]\n]+))?\]\]""".toRegex()
+        private val DATE_FORMATTER = DateTimeFormatter
+            .ofPattern("dd/MM/yy")
+            .withZone(ZoneId.systemDefault())
     }
 }
 

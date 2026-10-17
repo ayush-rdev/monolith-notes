@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -193,10 +194,10 @@ fun TrashScreen(
                         contentType = { _, _ -> "trash_row" }
                     ) { index, note ->
                         val shape = when {
-                            trashNotes.size == 1 -> RoundedCornerShape(12.dp)
-                            index == 0 -> RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
-                            index == trashNotes.size - 1 -> RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
-                            else -> RoundedCornerShape(0.dp)
+                            trashNotes.size == 1 -> SingleTrashShape
+                            index == 0 -> TopTrashShape
+                            index == trashNotes.size - 1 -> BottomTrashShape
+                            else -> MiddleTrashShape
                         }
 
                         Box(
@@ -384,6 +385,11 @@ fun TrashScreen(
     }
 }
 
+private val SingleTrashShape = RoundedCornerShape(12.dp)
+private val TopTrashShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+private val BottomTrashShape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp, bottomStart = 12.dp, bottomEnd = 12.dp)
+private val MiddleTrashShape = RoundedCornerShape(0.dp)
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun TrashNoteRow(
@@ -393,24 +399,23 @@ private fun TrashNoteRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val rowBg by animateColorAsState(
+    val rowBgState = animateColorAsState(
         targetValue = if (isPressed) Color(0xFF2C2C2E) else Color.Transparent,
         animationSpec = tween(durationMillis = 80),
         label = "trashRowBg"
     )
 
-    val pressScale by animateFloatAsState(
+    val pressScaleState = animateFloatAsState(
         targetValue = if (isPressed) 0.985f else 1f,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
         label = "trashPressScale"
     )
 
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yy", Locale.getDefault()) }
-    val formattedDate = remember(note.lastModified) { dateFormat.format(Date(note.lastModified)) }
+    val formattedDate = note.formattedDate
 
     // Calculate days remaining (30 - days passed)
     val daysRemaining = remember(note.lastModified) {
-        val daysPassed = ((System.currentTimeMillis() - note.lastModified) / (24L * 60 * 60 * 1000)).toInt()
+        val daysPassed = ((System.currentTimeMillis() - note.lastModified) / 86400000L).toInt()
         maxOf(1, 30 - daysPassed)
     }
 
@@ -418,10 +423,16 @@ private fun TrashNoteRow(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = pressScale
-                scaleY = pressScale
+                val s = pressScaleState.value
+                scaleX = s
+                scaleY = s
             }
-            .background(rowBg)
+            .drawBehind {
+                val bg = rowBgState.value
+                if (bg.alpha > 0f) {
+                    drawRect(bg)
+                }
+            }
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
