@@ -81,7 +81,7 @@ fun SettingsSheet(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    var showThemeGallery by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     fun performHaptic(type: HapticFeedbackType) {
         if (settings.hapticsEnabled) {
@@ -136,134 +136,25 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Section 0: Minimal Premium Theme Selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                SettingsSectionHeader(title = "MINIMAL PREMIUM THEMES")
-                TextButton(
-                    onClick = {
-                        performHaptic(HapticFeedbackType.TextHandleMove)
-                        showThemeGallery = true
-                    },
-                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp)
-                ) {
-                    Text(
-                        text = "Gallery (${AppTheme.entries.size}) →",
-                        color = iOSYellow,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // Featured Active Theme Card with Live Mini Palette
+            // Section 0: Appearance / Theme (Clean & minimal, like Google Notes)
+            SettingsSectionHeader(title = "APPEARANCE")
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(settings.theme.cardBackground)
-                    .clickable {
+                    .background(iOSCardBackground)
+            ) {
+                SettingsRow(
+                    icon = Icons.Default.Palette,
+                    iconTint = iOSYellow,
+                    title = "Theme",
+                    value = settings.theme.displayName,
+                    trailingIcon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    onClick = {
                         performHaptic(HapticFeedbackType.TextHandleMove)
-                        showThemeGallery = true
+                        showThemeDialog = true
                     }
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = settings.theme.displayName,
-                                style = MonolithTypography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
-                                color = settings.theme.textPrimary
-                            )
-                            val badgeText = when {
-                                !settings.theme.isDark -> "LIGHT PAPER"
-                                settings.theme.category == ThemeCategory.OLED -> "OLED 0%"
-                                settings.theme.category == ThemeCategory.BRUTALIST -> "HARDWARE"
-                                else -> "DEV CLASSIC"
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(settings.theme.accentContainer)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = badgeText,
-                                    style = MonolithTypography.labelSmall.copy(fontSize = 9.sp, fontWeight = FontWeight.Bold),
-                                    color = settings.theme.accent
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "${settings.theme.subtitle} • Tap to browse gallery",
-                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
-                            color = settings.theme.textSecondary
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(settings.theme.background)
-                                .border(0.5.dp, settings.theme.divider, CircleShape)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .size(14.dp)
-                                .clip(CircleShape)
-                                .background(settings.theme.accent)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "Open Gallery",
-                            tint = settings.theme.textTertiary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Quick horizontal carousel of all themes
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                AppTheme.entries.forEach { themeOption ->
-                    val isSelected = settings.theme == themeOption
-                    ThemeCard(
-                        theme = themeOption,
-                        isSelected = isSelected,
-                        onClick = {
-                            performHaptic(HapticFeedbackType.TextHandleMove)
-                            onUpdateTheme(themeOption)
-                        }
-                    )
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -824,11 +715,102 @@ fun SettingsSheet(
         }
     }
 
-    if (showThemeGallery) {
-        ThemeGallerySheet(
-            settings = settings,
-            onUpdateTheme = onUpdateTheme,
-            onDismiss = { showThemeGallery = false }
+    if (showThemeDialog) {
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            containerColor = iOSCardBackground,
+            title = {
+                Text(
+                    text = "Choose theme",
+                    style = MonolithTypography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold),
+                    color = iOSTextPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    ThemeCategory.entries.forEach { category ->
+                        val categoryThemes = AppTheme.entries.filter { it.category == category }
+                        if (categoryThemes.isNotEmpty()) {
+                            Text(
+                                text = category.displayName.uppercase(),
+                                style = MonolithTypography.labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 0.8.sp
+                                ),
+                                color = iOSYellow,
+                                modifier = Modifier.padding(top = 10.dp, bottom = 4.dp, start = 4.dp)
+                            )
+                            categoryThemes.forEach { themeOption ->
+                                val isSelected = settings.theme == themeOption
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable {
+                                            performHaptic(HapticFeedbackType.TextHandleMove)
+                                            onUpdateTheme(themeOption)
+                                            showThemeDialog = false
+                                        }
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = {
+                                            performHaptic(HapticFeedbackType.TextHandleMove)
+                                            onUpdateTheme(themeOption)
+                                            showThemeDialog = false
+                                        },
+                                        colors = RadioButtonDefaults.colors(
+                                            selectedColor = iOSYellow,
+                                            unselectedColor = iOSTextTertiary
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(themeOption.accent)
+                                            .border(
+                                                width = 0.5.dp,
+                                                color = themeOption.divider.copy(alpha = 0.6f),
+                                                shape = CircleShape
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = themeOption.displayName,
+                                            style = MonolithTypography.bodyLarge.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 15.sp
+                                            ),
+                                            color = iOSTextPrimary
+                                        )
+                                        Text(
+                                            text = themeOption.subtitle,
+                                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp),
+                                            color = iOSTextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showThemeDialog = false }) {
+                    Text("Cancel", color = iOSYellow, fontWeight = FontWeight.SemiBold)
+                }
+            }
         )
     }
 }
@@ -1074,71 +1056,6 @@ private fun SettingsToggleRow(
     }
 }
 
-@Composable
-private fun ThemeCard(
-    theme: AppTheme,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .width(136.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(theme.cardBackground)
-            .border(
-                width = if (isSelected) 2.dp else 1.dp,
-                color = if (isSelected) theme.accent else theme.divider.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(10.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Swatch Preview Bar (Shows Theme Background and Accent Dot)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(26.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(theme.background)
-                    .border(0.5.dp, theme.divider.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(theme.accent)
-                )
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = theme.accent,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = theme.displayName,
-                    style = MonolithTypography.titleMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.Bold),
-                    color = theme.textPrimary
-                )
-                Text(
-                    text = theme.subtitle,
-                    style = MonolithTypography.labelSmall.copy(fontSize = 10.sp),
-                    color = theme.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
 
 private fun formatTimeAgo(timeMillis: Long): String {
     if (timeMillis <= 0L) return "Never"
