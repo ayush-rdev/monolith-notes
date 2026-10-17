@@ -37,6 +37,7 @@ import androidx.fragment.app.FragmentActivity
 import com.monolith.notes.data.NoteRepository
 import com.monolith.notes.data.SettingsManager
 import com.monolith.notes.data.sync.GoogleDriveSyncEngine
+import com.monolith.notes.data.sync.MonolithCloudSyncEngine
 import com.monolith.notes.data.sync.SyncResult
 import com.monolith.notes.data.sync.WebDavSyncEngine
 import com.monolith.notes.model.Note
@@ -145,6 +146,22 @@ class MainActivity : FragmentActivity() {
                                         repository.loadTrashNotes()
                                     }
                                 }
+                            }
+                        }
+
+                        // Auto-sync Monolith Cloud Vault if logged in
+                        if (settings.cloudConfig.isLoggedIn && settings.cloudConfig.autoSyncOnLaunch) {
+                            withContext(Dispatchers.IO) {
+                                try {
+                                    val result = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
+                                    if (result.isSuccess) {
+                                        settingsManager.updateCloudLastSync(System.currentTimeMillis())
+                                        if (result.downloadedCount > 0) {
+                                            repository.loadNotes()
+                                            repository.loadTrashNotes()
+                                        }
+                                    }
+                                } catch (_: Exception) {}
                             }
                         }
 
@@ -478,6 +495,18 @@ class MainActivity : FragmentActivity() {
                                                     }
                                                 }
                                             }
+                                        },
+                                        onUpdateCloudConfig = { config ->
+                                            settingsManager.setCloudConfig(config)
+                                        },
+                                        onPerformCloudSync = {
+                                            val result = MonolithCloudSyncEngine.sync(repository.notesDir, settings.cloudConfig)
+                                            if (result.isSuccess) {
+                                                settingsManager.updateCloudLastSync(System.currentTimeMillis())
+                                                repository.loadNotes()
+                                                repository.loadTrashNotes()
+                                            }
+                                            result
                                         },
                                         onUpdateGoogleDriveUri = { uri ->
                                             settingsManager.setGoogleDriveUri(uri)

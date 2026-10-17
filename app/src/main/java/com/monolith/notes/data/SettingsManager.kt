@@ -2,6 +2,7 @@ package com.monolith.notes.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.monolith.notes.data.sync.MonolithCloudConfig
 import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,7 @@ data class AppSettings(
     val sortOrder: NoteSortOrder = NoteSortOrder.DATE_EDITED,
     val biometricLockEnabled: Boolean = false,
     val theme: AppTheme = AppTheme.OBSIDIAN,
+    val cloudConfig: MonolithCloudConfig = MonolithCloudConfig(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val googleDriveUri: String? = null,
     val lastSyncTimestamp: Long = 0L
@@ -78,6 +80,22 @@ class SettingsManager(context: Context) {
             autoSyncOnLaunch = webDavAutoSync
         )
 
+        val cloudServer = prefs.getString(KEY_CLOUD_SERVER, MonolithCloudConfig.DEFAULT_SERVER_URL) ?: MonolithCloudConfig.DEFAULT_SERVER_URL
+        val cloudEmail = prefs.getString(KEY_CLOUD_EMAIL, "") ?: ""
+        val cloudToken = prefs.getString(KEY_CLOUD_TOKEN, "") ?: ""
+        val cloudKey = prefs.getString(KEY_CLOUD_KEY, "") ?: ""
+        val cloudAutoSync = prefs.getBoolean(KEY_CLOUD_AUTOSYNC, true)
+        val cloudLastSync = prefs.getLong(KEY_CLOUD_LAST_SYNC, 0L)
+
+        val cloudConfig = MonolithCloudConfig(
+            serverUrl = cloudServer,
+            email = cloudEmail,
+            token = cloudToken,
+            encryptionKey = cloudKey,
+            autoSyncOnLaunch = cloudAutoSync,
+            lastServerSyncTime = cloudLastSync
+        )
+
         val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
 
         return AppSettings(
@@ -89,6 +107,7 @@ class SettingsManager(context: Context) {
             sortOrder = sortOrder,
             biometricLockEnabled = biometricLock,
             theme = theme,
+            cloudConfig = cloudConfig,
             webDavConfig = webDavConfig,
             googleDriveUri = gDriveUri,
             lastSyncTimestamp = lastSync
@@ -147,6 +166,27 @@ class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(webDavConfig = config)
     }
 
+    fun setCloudConfig(config: MonolithCloudConfig) {
+        prefs.edit()
+            .putString(KEY_CLOUD_SERVER, config.serverUrl)
+            .putString(KEY_CLOUD_EMAIL, config.email)
+            .putString(KEY_CLOUD_TOKEN, config.token)
+            .putString(KEY_CLOUD_KEY, config.encryptionKey)
+            .putBoolean(KEY_CLOUD_AUTOSYNC, config.autoSyncOnLaunch)
+            .putLong(KEY_CLOUD_LAST_SYNC, config.lastServerSyncTime)
+            .apply()
+        _settings.value = _settings.value.copy(cloudConfig = config)
+    }
+
+    fun updateCloudLastSync(timestamp: Long) {
+        prefs.edit().putLong(KEY_CLOUD_LAST_SYNC, timestamp).apply()
+        val current = _settings.value.cloudConfig
+        _settings.value = _settings.value.copy(
+            cloudConfig = current.copy(lastServerSyncTime = timestamp),
+            lastSyncTimestamp = timestamp
+        )
+    }
+
     fun setGoogleDriveUri(uri: String?) {
         if (uri != null) {
             prefs.edit().putString(KEY_GDRIVE_URI, uri).apply()
@@ -170,6 +210,12 @@ class SettingsManager(context: Context) {
         private const val KEY_SORT_ORDER = "key_sort_order"
         private const val KEY_BIOMETRIC_LOCK = "key_biometric_lock"
         private const val KEY_APP_THEME = "key_app_theme"
+        private const val KEY_CLOUD_SERVER = "key_cloud_server"
+        private const val KEY_CLOUD_EMAIL = "key_cloud_email"
+        private const val KEY_CLOUD_TOKEN = "key_cloud_token"
+        private const val KEY_CLOUD_KEY = "key_cloud_key"
+        private const val KEY_CLOUD_AUTOSYNC = "key_cloud_autosync"
+        private const val KEY_CLOUD_LAST_SYNC = "key_cloud_last_sync"
         private const val KEY_GDRIVE_URI = "key_gdrive_uri"
         private const val KEY_WEBDAV_URL = "key_webdav_url"
         private const val KEY_WEBDAV_USER = "key_webdav_user"

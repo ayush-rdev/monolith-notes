@@ -1,0 +1,12 @@
+{
+  "name": "monolith-cloud-vault-server",
+  "version": "1.0.0",
+  "description": "Zero-dependency, high-performance E2EE sync server for Monolith Notes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["notes", "sync", "monolith", "e2ee"],
+  "author": "Ayush",
+  "license": "MIT"
+}

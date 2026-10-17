@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  monolith-sync:
+    build: .
+    container_name: monolith-cloud-vault
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=8080
+      - DB_PATH=/app/data/vault.db

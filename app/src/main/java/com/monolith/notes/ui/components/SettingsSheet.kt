@@ -44,6 +44,7 @@ import com.monolith.notes.data.AppSettings
 import com.monolith.notes.data.EditorFontSize
 import com.monolith.notes.data.NewNoteStartStyle
 import com.monolith.notes.data.NoteSortOrder
+import com.monolith.notes.data.sync.MonolithCloudConfig
 import com.monolith.notes.data.sync.SyncResult
 import com.monolith.notes.data.sync.WebDavConfig
 import com.monolith.notes.ui.theme.*
@@ -67,6 +68,8 @@ fun SettingsSheet(
     onOpenTrash: () -> Unit = {},
     onUpdateBiometricLock: (Boolean) -> Unit = {},
     onUpdateTheme: (AppTheme) -> Unit = {},
+    onUpdateCloudConfig: (MonolithCloudConfig) -> Unit = {},
+    onPerformCloudSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateGoogleDriveUri: (String?) -> Unit = {},
     onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
@@ -277,30 +280,15 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 2B: Cloud Vault Sync (Google Drive 1-Tap & WebDAV)
+            // Section 2B: Cloud Vault Sync (Monolith Cloud Vault & WebDAV)
+            var showCloudDialog by remember { mutableStateOf(false) }
+            var isCloudSyncing by remember { mutableStateOf(false) }
+            var cloudSyncStatusMessage by remember { mutableStateOf<String?>(null) }
+
             var showWebDavDialog by remember { mutableStateOf(false) }
             var isWebDavSyncing by remember { mutableStateOf(false) }
             var webDavSyncStatusMessage by remember { mutableStateOf<String?>(null) }
-
-            var isGDriveSyncing by remember { mutableStateOf(false) }
-            var gDriveSyncStatusMessage by remember { mutableStateOf<String?>(null) }
             val coroutineScope = rememberCoroutineScope()
-
-            val gDrivePickerLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree()
-            ) { uri: Uri? ->
-                if (uri != null) {
-                    try {
-                        val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        context.contentResolver.takePersistableUriPermission(uri, takeFlags)
-                        onUpdateGoogleDriveUri(uri.toString())
-                        performHaptic(HapticFeedbackType.LongPress)
-                        Toast.makeText(context, "Google Drive linked! Ready to sync.", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "Permission error: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
 
             SettingsSectionHeader(title = "CLOUD VAULT SYNC")
             Box(
@@ -310,58 +298,56 @@ fun SettingsSheet(
                     .background(iOSCardBackground)
             ) {
                 Column {
-                    // 1. Google Drive (1-Tap Zero-Config)
-                    val isGDriveLinked = !settings.googleDriveUri.isNullOrBlank()
-                    val gDriveSubtitle = when {
-                        isGDriveSyncing -> gDriveSyncStatusMessage ?: "Syncing with Google Drive..."
-                        !isGDriveLinked -> "1-Tap seamless sync with your Google account"
-                        gDriveSyncStatusMessage != null -> gDriveSyncStatusMessage!!
-                        settings.lastSyncTimestamp > 0L -> "Linked • Synced ${formatTimeAgo(settings.lastSyncTimestamp)}"
-                        else -> "Linked to Google Drive • Ready to sync"
+                    // 1. Monolith Cloud Vault (Built-In 1-Tap Zero-Config E2EE)
+                    val isCloudLoggedIn = settings.cloudConfig.isLoggedIn
+                    val cloudSubtitle = when {
+                        isCloudSyncing -> cloudSyncStatusMessage ?: "Syncing with Monolith Cloud..."
+                        !isCloudLoggedIn -> "Instant E2EE encrypted cloud sync (1-tap setup)"
+                        cloudSyncStatusMessage != null -> cloudSyncStatusMessage!!
+                        settings.lastSyncTimestamp > 0L -> "Connected (${settings.cloudConfig.email}) • Synced ${formatTimeAgo(settings.lastSyncTimestamp)}"
+                        else -> "Connected (${settings.cloudConfig.email}) • Ready to sync"
                     }
 
                     SettingsDetailRow(
-                        icon = if (isGDriveLinked) Icons.Default.CloudDone else Icons.Default.CloudQueue,
-                        iconTint = if (isGDriveLinked) Color(0xFF4285F4) else iOSYellow,
-                        title = "Google Drive (1-Tap)",
-                        subtitle = gDriveSubtitle,
+                        icon = if (isCloudLoggedIn) Icons.Default.CloudDone else Icons.Default.Cloud,
+                        iconTint = if (isCloudLoggedIn) iOSEmerald else iOSYellow,
+                        title = "Monolith Cloud Vault",
+                        subtitle = cloudSubtitle,
                         actionLabel = when {
-                            isGDriveSyncing -> "SYNCING..."
-                            isGDriveLinked -> "SYNC NOW"
+                            isCloudSyncing -> "SYNCING..."
+                            isCloudLoggedIn -> "SYNC NOW"
                             else -> "CONNECT"
                         },
-                        trailingIcon = if (isGDriveLinked) Icons.Default.Sync else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        trailingIcon = if (isCloudLoggedIn) Icons.Default.Sync else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         onClick = {
-                            if (!isGDriveLinked) {
+                            if (!isCloudLoggedIn) {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
-                                gDrivePickerLauncher.launch(null)
-                            } else if (!isGDriveSyncing) {
+                                showCloudDialog = true
+                            } else if (!isCloudSyncing) {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
-                                isGDriveSyncing = true
-                                gDriveSyncStatusMessage = "Syncing with Google Drive..."
+                                isCloudSyncing = true
+                                cloudSyncStatusMessage = "Syncing with Cloud Vault..."
                                 coroutineScope.launch {
-                                    val result = onPerformGoogleDriveSync()
-                                    isGDriveSyncing = false
-                                    gDriveSyncStatusMessage = result.message
+                                    val result = onPerformCloudSync()
+                                    isCloudSyncing = false
+                                    cloudSyncStatusMessage = result.message
                                     Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
                     )
 
-                    if (isGDriveLinked) {
+                    if (isCloudLoggedIn) {
                         HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
                         SettingsDetailRow(
-                            icon = Icons.Default.LinkOff,
-                            iconTint = Color(0xFFFF453A),
-                            title = "Disconnect Google Drive",
-                            subtitle = "Unlink cloud folder from this device",
-                            actionLabel = "DISCONNECT",
+                            icon = Icons.Default.ManageAccounts,
+                            iconTint = iOSTextSecondary,
+                            title = "Account & Security",
+                            subtitle = "${settings.cloudConfig.email} • Tap to manage or disconnect",
+                            actionLabel = "MANAGE",
                             onClick = {
-                                performHaptic(HapticFeedbackType.LongPress)
-                                onUpdateGoogleDriveUri(null)
-                                gDriveSyncStatusMessage = null
-                                Toast.makeText(context, "Google Drive disconnected", Toast.LENGTH_SHORT).show()
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                showCloudDialog = true
                             }
                         )
                     }
@@ -421,6 +407,22 @@ fun SettingsSheet(
                         )
                     }
                 }
+            }
+
+            if (showCloudDialog) {
+                MonolithCloudDialog(
+                    initialConfig = settings.cloudConfig,
+                    onSave = { newConfig ->
+                        showCloudDialog = false
+                        onUpdateCloudConfig(newConfig)
+                        if (newConfig.isLoggedIn) {
+                            coroutineScope.launch {
+                                onPerformCloudSync()
+                            }
+                        }
+                    },
+                    onDismiss = { showCloudDialog = false }
+                )
             }
 
             if (showWebDavDialog) {

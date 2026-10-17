@@ -7,3 +7,8 @@
 */build
 *.apk
 *.ap_
+*.db
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+node_modules/
