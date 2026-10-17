@@ -1,0 +1,349 @@
+package com.monolith.notes.ui.graph
+
+import androidx.compose.ui.graphics.Color
+import com.monolith.notes.model.Note
+import kotlin.math.*
+
+/**
+ * Node representation within the Monolith personal knowledge graph.
+ */
+data class GraphNode(
+    val id: String,
+    val note: Note,
+    var x: Float,
+    var y: Float,
+    var vx: Float = 0f,
+    var vy: Float = 0f,
+    val radius: Float,
+    val inDegree: Int,
+    val outDegree: Int,
+    val degree: Int,
+    val centralityScore: Float,
+    val isHub: Boolean,
+    val clusterColor: Color,
+    val clusterName: String,
+    var isPinned: Boolean = false
+)
+
+/**
+ * Directed edge pointing from source note (containing wikilink) to target referenced note.
+ */
+data class GraphEdge(
+    val sourceIndex: Int,
+    val targetIndex: Int,
+    val isDirected: Boolean = true
+)
+
+/**
+ * Intelligent recommendation connecting unlinked notes based on shared tags or text mentions.
+ */
+data class SuggestedConnection(
+    val targetNote: Note,
+    val reason: String
+)
+
+/**
+ * High-level intelligence metrics for the user's knowledge vault.
+ */
+data class GraphAnalytics(
+    val totalNotes: Int,
+    val totalLinks: Int,
+    val hubCount: Int,
+    val orphanCount: Int,
+    val densityPercentage: Int,
+    val topHubs: List<GraphNode>,
+    val suggestions: Map<String, List<SuggestedConnection>>
+)
+
+data class KnowledgeGraphBundle(
+    val nodes: List<GraphNode>,
+    val edges: List<GraphEdge>,
+    val analytics: GraphAnalytics
+)
+
+enum class ClusterMode {
+    FOLDER,
+    TAG
+}
+
+object KnowledgeGraphEngine {
+
+    // Curated harmonious cluster colors for visual segmentation
+    val CLUSTER_PALETTE = listOf(
+        Color(0xFFE5A93C), // Amber Gold
+        Color(0xFF38BDF8), // Nordic Sky
+        Color(0xFF30D158), // Emerald Green
+        Color(0xFFBF5AF2), // Electric Violet
+        Color(0xFFFF453A), // Vermilion Red
+        Color(0xFF34D399), // Sage Mint
+        Color(0xFFFB923C), // Warm Tangerine
+        Color(0xFF818CF8), // Royal Indigo
+        Color(0xFFFB7185), // Rose Pink
+        Color(0xFF2DD4BF)  // Deep Teal
+    )
+
+    fun getClusterColor(key: String): Color {
+        if (key.isBlank() || key.equals("Notes", ignoreCase = true)) {
+            return CLUSTER_PALETTE[0]
+        }
+        val hash = abs(key.hashCode())
+        return CLUSTER_PALETTE[hash % CLUSTER_PALETTE.size]
+    }
+
+    /**
+     * Builds nodes, edges, centrality scores, and suggested connections from the notes collection.
+     */
+    fun buildGraph(
+        notes: List<Note>,
+        clusterMode: ClusterMode = ClusterMode.FOLDER
+    ): KnowledgeGraphBundle {
+        val count = notes.size
+        if (count == 0) {
+            return KnowledgeGraphBundle(
+                nodes = emptyList(),
+                edges = emptyList(),
+                analytics = GraphAnalytics(0, 0, 0, 0, 0, emptyList(), emptyMap())
+            )
+        }
+
+        // 1. Build lookup index by note display title, filename, and id
+        val titleMap = HashMap<String, Int>(count * 2)
+        notes.forEachIndexed { index, note ->
+            titleMap[note.displayTitle.lowercase().trim()] = index
+            note.file?.nameWithoutExtension?.let {
+                titleMap[it.lowercase().trim()] = index
+            }
+            titleMap[note.id] = index
+        }
+
+        val inDegrees = IntArray(count)
+        val outDegrees = IntArray(count)
+        val edgesList = ArrayList<GraphEdge>()
+        val edgeSet = HashSet<Pair<Int, Int>>()
+
+        // 2. Discover directional outlinks (wikilinks)
+        notes.forEachIndexed { srcIndex, note ->
+            for (outlink in note.outlinks) {
+                val targetIndex = titleMap[outlink.lowercase().trim()]
+                if (targetIndex != null && targetIndex != srcIndex) {
+                    val pair = Pair(srcIndex, targetIndex)
+                    if (edgeSet.add(pair)) {
+                        edgesList.add(GraphEdge(srcIndex, targetIndex, isDirected = true))
+                        outDegrees[srcIndex]++
+                        inDegrees[targetIndex]++
+                    }
+                }
+            }
+        }
+
+        // 3. PageRank Centrality Calculation (15 iterations)
+        val totalDeg = IntArray(count) { inDegrees[it] + outDegrees[it] }
+        var pageRank = FloatArray(count) { 1.0f / count }
+        val damping = 0.85f
+
+        for (iter in 0 until 15) {
+            val nextPR = FloatArray(count) { (1f - damping) / count }
+            for (edge in edgesList) {
+                val outDeg = max(outDegrees[edge.sourceIndex], 1)
+                nextPR[edge.targetIndex] += damping * (pageRank[edge.sourceIndex] / outDeg)
+            }
+            pageRank = nextPR
+        }
+
+        // Normalize PageRank between 0f and 1f
+        val maxPR = pageRank.maxOrNull() ?: 1f
+        val minPR = pageRank.minOrNull() ?: 0f
+        val prRange = max(maxPR - minPR, 0.0001f)
+
+        // 4. Initial layout coordinates using a Golden Spiral distribution
+        val goldenAngle = 2.3999632f
+        val distanceStep = (100f + 25f * log2(count.coerceAtLeast(2).toFloat())).coerceIn(100f, 220f)
+        val nodesList = ArrayList<GraphNode>(count)
+
+        var orphanCount = 0
+
+        for (i in 0 until count) {
+            val dist = sqrt(i.toFloat() + 1f) * distanceStep
+            val theta = i * goldenAngle
+            val initX = dist * cos(theta)
+            val initY = dist * sin(theta)
+
+            val degree = totalDeg[i]
+            if (degree == 0) orphanCount++
+
+            val normPR = (pageRank[i] - minPR) / prRange
+            val isHub = degree >= 3 || (count > 8 && normPR > 0.65f)
+
+            // Radius scales dynamically with degree and centrality
+            val radius = (12f + min(degree * 3.5f + normPR * 8f, 32f)).coerceIn(12f, 44f)
+
+            val clusterName = when (clusterMode) {
+                ClusterMode.FOLDER -> notes[i].folderName
+                ClusterMode.TAG -> notes[i].tags.firstOrNull() ?: notes[i].folderName
+            }
+            val clusterColor = getClusterColor(clusterName)
+
+            nodesList.add(
+                GraphNode(
+                    id = notes[i].id,
+                    note = notes[i],
+                    x = initX,
+                    y = initY,
+                    radius = radius,
+                    inDegree = inDegrees[i],
+                    outDegree = outDegrees[i],
+                    degree = degree,
+                    centralityScore = normPR,
+                    isHub = isHub,
+                    clusterColor = clusterColor,
+                    clusterName = clusterName
+                )
+            )
+        }
+
+        // 5. Intelligent Suggestions Engine: Discover unlinked mentions & shared tag synergy
+        val suggestionsMap = HashMap<String, MutableList<SuggestedConnection>>()
+
+        for (i in 0 until count) {
+            val noteA = notes[i]
+            val list = mutableListOf<SuggestedConnection>()
+            val noteATags = noteA.tags.toSet()
+            val lowerContent = noteA.content.lowercase()
+
+            for (j in 0 until count) {
+                if (i == j) continue
+                val noteB = notes[j]
+                val pair1 = Pair(i, j)
+                val pair2 = Pair(j, i)
+                val isAlreadyLinked = edgeSet.contains(pair1) || edgeSet.contains(pair2)
+
+                if (!isAlreadyLinked) {
+                    val bTitle = noteB.displayTitle.lowercase().trim()
+                    // Case 1: Unlinked mention of Note B title in Note A text
+                    if (bTitle.length >= 4 && lowerContent.contains(bTitle) && !lowerContent.contains("[[$bTitle]]")) {
+                        list.add(SuggestedConnection(noteB, "Mentions '${noteB.displayTitle}'"))
+                    } else if (noteATags.isNotEmpty() && noteB.tags.isNotEmpty()) {
+                        // Case 2: Shared tags
+                        val shared = noteATags.intersect(noteB.tags.toSet())
+                        if (shared.isNotEmpty()) {
+                            list.add(SuggestedConnection(noteB, "Shares #${shared.first()}"))
+                        }
+                    }
+                }
+            }
+            if (list.isNotEmpty()) {
+                suggestionsMap[noteA.id] = list.take(3).toMutableList()
+            }
+        }
+
+        val topHubs = nodesList.filter { it.isHub }.sortedByDescending { it.degree }.take(5)
+        val density = if (count > 1) ((2.0 * edgesList.size) / (count * (count - 1)) * 100.0).toInt() else 0
+
+        val analytics = GraphAnalytics(
+            totalNotes = count,
+            totalLinks = edgesList.size,
+            hubCount = nodesList.count { it.isHub },
+            orphanCount = orphanCount,
+            densityPercentage = density,
+            topHubs = topHubs,
+            suggestions = suggestionsMap
+        )
+
+        return KnowledgeGraphBundle(nodesList, edgesList, analytics)
+    }
+
+    /**
+     * Executes one iteration of self-tuning organic force-directed physics.
+     * Repulsion, spring tension, and collision radii adapt automatically to node density.
+     */
+    fun stepPhysics(
+        nodes: List<GraphNode>,
+        edges: List<GraphEdge>,
+        kRepulse: Float,
+        kSpring: Float,
+        restLength: Float,
+        damping: Float,
+        centerForce: Float,
+        draggedIndex: Int? = null
+    ) {
+        val count = nodes.size
+        if (count == 0) return
+
+        // 1. Repulsion between all pairs + collision cushion
+        for (i in 0 until count) {
+            val nodeA = nodes[i]
+            for (j in (i + 1) until count) {
+                val nodeB = nodes[j]
+                val dx = nodeB.x - nodeA.x
+                val dy = nodeB.y - nodeA.y
+                val distSq = dx * dx + dy * dy + 150f
+                val dist = sqrt(distSq)
+
+                // Standard inverse-square repulsion
+                var force = kRepulse / distSq
+
+                // Elastic collision cushion to prevent overlapping nodes
+                val minSeparation = nodeA.radius + nodeB.radius + 24f
+                if (dist < minSeparation) {
+                    val overlap = minSeparation - dist
+                    force += overlap * 1.8f
+                }
+
+                val fx = (dx / dist) * force
+                val fy = (dy / dist) * force
+
+                if (i != draggedIndex && !nodeA.isPinned) {
+                    nodeA.vx -= fx
+                    nodeA.vy -= fy
+                }
+                if (j != draggedIndex && !nodeB.isPinned) {
+                    nodeB.vx += fx
+                    nodeB.vy += fy
+                }
+            }
+        }
+
+        // 2. Spring attraction along connected links
+        for (edge in edges) {
+            val nodeA = nodes[edge.sourceIndex]
+            val nodeB = nodes[edge.targetIndex]
+            val dx = nodeB.x - nodeA.x
+            val dy = nodeB.y - nodeA.y
+            val dist = max(sqrt(dx * dx + dy * dy), 1f)
+            val displacement = dist - restLength
+            val force = displacement * kSpring
+
+            val fx = (dx / dist) * force
+            val fy = (dy / dist) * force
+
+            if (edge.sourceIndex != draggedIndex && !nodeA.isPinned) {
+                nodeA.vx += fx
+                nodeA.vy += fy
+            }
+            if (edge.targetIndex != draggedIndex && !nodeB.isPinned) {
+                nodeB.vx -= fx
+                nodeB.vy -= fy
+            }
+        }
+
+        // 3. Centering gravity & velocity integration
+        for (i in 0 until count) {
+            if (i == draggedIndex) continue
+            val node = nodes[i]
+            if (node.isPinned) continue
+
+            node.vx -= node.x * centerForce
+            node.vy -= node.y * centerForce
+            node.vx *= damping
+            node.vy *= damping
+
+            // Velocity clamping to prevent sudden explosive jumps
+            val maxSpeed = 45f
+            node.vx = node.vx.coerceIn(-maxSpeed, maxSpeed)
+            node.vy = node.vy.coerceIn(-maxSpeed, maxSpeed)
+
+            node.x += node.vx
+            node.y += node.vy
+        }
+    }
+}

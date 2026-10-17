@@ -109,4 +109,76 @@ class KnowledgeGraphTest {
             tempFile.delete()
         }
     }
+
+    @Test
+    fun `test KnowledgeGraphEngine buildGraph and suggestions`() {
+        val noteHub = Note(
+            id = "hub",
+            title = "Central Architecture",
+            content = "Connecting to [[Sync Engine]] and [[Database Engine]] and [[UI Layout]]",
+            folder = "Architecture"
+        )
+        val noteSync = Note(
+            id = "sync",
+            title = "Sync Engine",
+            content = "Part of Central Architecture #network",
+            folder = "Backend"
+        )
+        val noteDb = Note(
+            id = "db",
+            title = "Database Engine",
+            content = "Uses disk persistence #storage",
+            folder = "Backend"
+        )
+        val noteUI = Note(
+            id = "ui",
+            title = "UI Layout",
+            content = "Renders UI components #design",
+            folder = "Frontend"
+        )
+        val noteOrphan = Note(
+            id = "orphan",
+            title = "Orphan Note",
+            content = "This mentions Database Engine in passing without wikilink #storage",
+            folder = "Drafts"
+        )
+
+        val bundle = com.monolith.notes.ui.graph.KnowledgeGraphEngine.buildGraph(
+            listOf(noteHub, noteSync, noteDb, noteUI, noteOrphan)
+        )
+
+        assertEquals(5, bundle.nodes.size)
+        assertEquals(3, bundle.edges.size)
+        assertEquals(1, bundle.analytics.orphanCount)
+
+        // Hub verification
+        val hubNode = bundle.nodes.first { it.id == "hub" }
+        assertTrue("Hub node should be identified as isHub", hubNode.isHub)
+        assertEquals(3, hubNode.outDegree)
+
+        // Suggestions verification: orphan note shares #storage with db, and mentions Database Engine
+        val orphanSuggestions = bundle.analytics.suggestions["orphan"]
+        assertNotNull("Orphan note should have intelligent link suggestions", orphanSuggestions)
+        assertTrue(orphanSuggestions!!.any { it.targetNote.id == "db" })
+
+        // Test one step of self-tuning physics
+        com.monolith.notes.ui.graph.KnowledgeGraphEngine.stepPhysics(
+            nodes = bundle.nodes,
+            edges = bundle.edges,
+            kRepulse = 30000f,
+            kSpring = 0.04f,
+            restLength = 150f,
+            damping = 0.85f,
+            centerForce = 0.01f
+        )
+
+        // Verify coordinates remain valid numbers
+        for (node in bundle.nodes) {
+            assertFalse(node.x.isNaN())
+            assertFalse(node.y.isNaN())
+            assertFalse(node.vx.isNaN())
+            assertFalse(node.vy.isNaN())
+        }
+    }
 }
+
