@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -478,7 +479,7 @@ fun NotesListScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Folders & Recently Deleted button
+                        // Folders navigation button (clean Apple Notes aesthetic)
                         IconButton(
                             onClick = {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
@@ -486,29 +487,12 @@ fun NotesListScreen(
                             },
                             modifier = Modifier.size(40.dp)
                         ) {
-                            BadgedBox(
-                                badge = {
-                                    if (trashNotesCount > 0) {
-                                        Badge(
-                                            containerColor = Color(0xFFFF453A),
-                                            contentColor = Color.White
-                                        ) {
-                                            Text(
-                                                text = "$trashNotesCount",
-                                                fontSize = 9.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.FolderOpen,
-                                    contentDescription = "Folders and Recently Deleted",
-                                    tint = iOSYellow,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Outlined.Folder,
+                                contentDescription = "Folders",
+                                tint = iOSYellow,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                         val countLabel = if (searchQuery.isNotBlank()) {
                             "${filteredNotes.size} ${if (filteredNotes.size == 1) "Result" else "Results"}"

@@ -10,6 +10,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
@@ -39,6 +41,7 @@ class NoteRepository(private val context: Context) {
 
     private var currentSortOrder = NoteSortOrder.DATE_EDITED
     private val noteFileMap = ConcurrentHashMap<String, File>()
+    private val saveMutex = Mutex()
 
     private val fastCacheFile: File by lazy {
         File(context.cacheDir, "monolith_notes_cache.json")
@@ -242,51 +245,53 @@ class NoteRepository(private val context: Context) {
             return@withContext note
         }
 
-        val targetFolderDir = if (note.folder != "Notes" && note.folder.isNotBlank()) {
-            File(notesDir, note.folder).apply { if (!exists()) mkdirs() }
-        } else {
-            notesDir
+        saveMutex.withLock {
+            val targetFolderDir = if (note.folder != "Notes" && note.folder.isNotBlank()) {
+                File(notesDir, note.folder).apply { if (!exists()) mkdirs() }
+            } else {
+                notesDir
+            }
+
+            // Resolves target file: check note.file first, then noteFileMap by note.id, then create new file
+            val targetFile = note.file ?: noteFileMap[note.id] ?: run {
+                val safeTitle = note.title.ifBlank { "Note" }
+                    .replace("[^a-zA-Z0-9_-]".toRegex(), "_")
+                    .take(30)
+                val shortId = note.id.replace("-", "").take(8)
+                File(targetFolderDir, "${safeTitle}_$shortId.md")
+            }
+
+            // Anchor the mapping so any subsequent or concurrent save to this note ID writes to the SAME file
+            noteFileMap[note.id] = targetFile
+            noteFileMap[targetFile.absolutePath] = targetFile
+
+            // Convert Apple Notes UI text back to standard Obsidian Markdown
+            val markdownContent = MarkdownConverter.toMarkdown(note.title, note.content, isPinned = note.isPinned)
+
+            try {
+                targetFile.writeText(markdownContent)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            val parsed = parseNoteFromFile(targetFile, markdownContent)
+            // Keep note.id stable so Composable state isn't reset
+            val updatedNote = parsed.copy(id = note.id, file = targetFile, folder = parsed.folder)
+
+            val currentList = _notes.value.toMutableList()
+            val index = currentList.indexOfFirst {
+                it.id == note.id || it.id == targetFile.absolutePath || it.file?.path == targetFile.path
+            }
+            if (index >= 0) {
+                currentList[index] = updatedNote
+            } else {
+                currentList.add(0, updatedNote)
+            }
+            _notes.value = sortNotesList(currentList, currentSortOrder)
+            saveFastCache(_notes.value)
+            refreshFolders()
+            updatedNote
         }
-
-        // Resolves target file: check note.file first, then noteFileMap by note.id, then create new file
-        val targetFile = note.file ?: noteFileMap[note.id] ?: run {
-            val safeTitle = note.title.ifBlank { "Note" }
-                .replace("[^a-zA-Z0-9_-]".toRegex(), "_")
-                .take(30)
-            val shortId = note.id.replace("-", "").take(8)
-            File(targetFolderDir, "${safeTitle}_$shortId.md")
-        }
-
-        // Anchor the mapping so any subsequent or concurrent save to this note ID writes to the SAME file
-        noteFileMap[note.id] = targetFile
-        noteFileMap[targetFile.absolutePath] = targetFile
-
-        // Convert Apple Notes UI text back to standard Obsidian Markdown
-        val markdownContent = MarkdownConverter.toMarkdown(note.title, note.content, isPinned = note.isPinned)
-
-        try {
-            targetFile.writeText(markdownContent)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        val parsed = parseNoteFromFile(targetFile, markdownContent)
-        // Keep note.id stable so Composable state isn't reset
-        val updatedNote = parsed.copy(id = note.id, file = targetFile, folder = parsed.folder)
-
-        val currentList = _notes.value.toMutableList()
-        val index = currentList.indexOfFirst {
-            it.id == note.id || it.id == targetFile.absolutePath || it.file?.path == targetFile.path
-        }
-        if (index >= 0) {
-            currentList[index] = updatedNote
-        } else {
-            currentList.add(0, updatedNote)
-        }
-        _notes.value = sortNotesList(currentList, currentSortOrder)
-        saveFastCache(_notes.value)
-        refreshFolders()
-        updatedNote
     }
 
     suspend fun moveNoteToFolder(note: Note, targetFolderName: String): Note = withContext(Dispatchers.IO) {
