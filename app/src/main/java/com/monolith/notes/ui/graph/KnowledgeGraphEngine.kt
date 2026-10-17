@@ -265,9 +265,9 @@ object KnowledgeGraphEngine {
         damping: Float,
         centerForce: Float,
         draggedIndex: Int? = null
-    ) {
+    ): Float {
         val count = nodes.size
-        if (count == 0) return
+        if (count == 0) return 0f
 
         // 1. Repulsion between all pairs + collision cushion
         for (i in 0 until count) {
@@ -327,6 +327,7 @@ object KnowledgeGraphEngine {
         }
 
         // 3. Centering gravity & velocity integration
+        var totalKineticEnergy = 0f
         for (i in 0 until count) {
             if (i == draggedIndex) continue
             val node = nodes[i]
@@ -344,6 +345,9 @@ object KnowledgeGraphEngine {
 
             node.x += node.vx
             node.y += node.vy
+
+            totalKineticEnergy += node.vx * node.vx + node.vy * node.vy
         }
+        return totalKineticEnergy
     }
 }

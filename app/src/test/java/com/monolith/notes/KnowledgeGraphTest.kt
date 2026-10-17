@@ -162,7 +162,7 @@ class KnowledgeGraphTest {
         assertTrue(orphanSuggestions!!.any { it.targetNote.id == "db" })
 
         // Test one step of self-tuning physics
-        com.monolith.notes.ui.graph.KnowledgeGraphEngine.stepPhysics(
+        val energy = com.monolith.notes.ui.graph.KnowledgeGraphEngine.stepPhysics(
             nodes = bundle.nodes,
             edges = bundle.edges,
             kRepulse = 30000f,
@@ -171,6 +171,9 @@ class KnowledgeGraphTest {
             damping = 0.85f,
             centerForce = 0.01f
         )
+
+        assertTrue("Kinetic energy should be non-negative", energy >= 0f)
+        assertFalse("Kinetic energy should be a valid number", energy.isNaN())
 
         // Verify coordinates remain valid numbers
         for (node in bundle.nodes) {

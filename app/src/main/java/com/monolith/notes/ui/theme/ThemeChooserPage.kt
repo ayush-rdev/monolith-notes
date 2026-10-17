@@ -1,10 +1,7 @@
 package com.monolith.notes.ui.theme
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -27,7 +23,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -37,9 +37,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Minimal, ultra-responsive theme chooser page with live visual previews.
- * Features 2-column grid of compact theme cards displaying real palette swatches,
- * category filters, zero-latency switching, and fluid 120 FPS scrolling.
+ * Pre-computed category counts to prevent recalculation during rendering.
+ */
+private val CATEGORY_COUNTS = ThemeCategory.entries.associateWith { category ->
+    AppTheme.entries.count { it.category == category }
+}
+
+/**
+ * Ultra-optimized minimal theme chooser page with direct hardware Canvas previews.
+ * Features 2-column grid of lightweight theme cards with 0 layout overhead,
+ * zero-latency switching, and buttery 120 FPS scrolling.
  */
 @Composable
 fun ThemeChooserPage(
@@ -52,7 +59,7 @@ fun ThemeChooserPage(
     val haptic = LocalHapticFeedback.current
     var selectedCategory by remember { mutableStateOf<ThemeCategory?>(null) }
 
-    // Intercept back gesture to return cleanly
+    // Intercept back gesture cleanly
     BackHandler {
         onBack()
     }
@@ -159,7 +166,7 @@ fun ThemeChooserPage(
             )
         }
 
-        // Minimal Category Filter Chips
+        // Category Filter Chips
         val categoryScrollState = rememberScrollState()
         Row(
             modifier = Modifier
@@ -168,9 +175,8 @@ fun ThemeChooserPage(
                 .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val allCount = AppTheme.entries.size
             CategoryFilterChip(
-                label = "All ($allCount)",
+                label = "All (${AppTheme.entries.size})",
                 isSelected = selectedCategory == null,
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -179,7 +185,7 @@ fun ThemeChooserPage(
             )
 
             ThemeCategory.entries.forEach { category ->
-                val count = AppTheme.entries.count { it.category == category }
+                val count = CATEGORY_COUNTS[category] ?: 0
                 val label = when (category) {
                     ThemeCategory.OLED -> "OLED ($count)"
                     ThemeCategory.CLASSICS -> "Classics ($count)"
@@ -249,9 +255,9 @@ private fun CategoryFilterChip(
 }
 
 /**
- * Visual Theme Preview Card:
- * Renders a compact, high-fidelity miniature note with authentic background, card surface,
- * accent dot, text colors, and 4-dot palette swatch.
+ * High-Performance Theme Preview Card:
+ * Uses a single direct hardware Canvas draw call for the mini note canvas preview,
+ * eliminating 15+ nested layout nodes and clipping passes per card for native 120 FPS scrolling.
  */
 @Composable
 private fun ThemePreviewCard(
@@ -259,17 +265,21 @@ private fun ThemePreviewCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isSelected) {
-        theme.accent
-    } else {
-        theme.divider.copy(alpha = 0.5f)
-    }
+    val borderColor = if (isSelected) theme.accent else theme.divider.copy(alpha = 0.5f)
+    val cardBg = theme.cardBackground
+    val themeBg = theme.background
+    val accentColor = theme.accent
+    val accentContainerColor = theme.accentContainer
+    val textPrimary = theme.textPrimary
+    val textSecondary = theme.textSecondary
+    val textTertiary = theme.textTertiary
+    val dividerColor = theme.divider
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(theme.cardBackground)
+            .background(cardBg)
             .border(
                 width = if (isSelected) 2.dp else 1.dp,
                 color = borderColor,
@@ -278,103 +288,109 @@ private fun ThemePreviewCard(
             .clickable(onClick = onClick)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // Miniature Note Mockup Canvas (Visual live preview)
-            Box(
+            // Direct Hardware Canvas Mini Mockup (Zero nested layout passes)
+            Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(84.dp)
-                    .clip(RoundedCornerShape(topStart = 13.dp, topEnd = 13.dp))
-                    .background(theme.background)
-                    .padding(8.dp)
+                    .height(80.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Mini header: accent dot + simulated title bar + accent tag
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(theme.accent)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Box(
-                            modifier = Modifier
-                                .height(5.dp)
-                                .width(44.dp)
-                                .clip(RoundedCornerShape(2.5.dp))
-                                .background(theme.textPrimary)
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                        Box(
-                            modifier = Modifier
-                                .height(5.dp)
-                                .width(16.dp)
-                                .clip(RoundedCornerShape(2.5.dp))
-                                .background(theme.accentContainer)
-                        )
-                    }
+                val canvasW = size.width
+                val canvasH = size.height
+                val pad = 8.dp.toPx()
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                // 1. Theme background surface with rounded top corners
+                drawRoundRect(
+                    color = themeBg,
+                    size = Size(canvasW, canvasH),
+                    cornerRadius = CornerRadius(13.dp.toPx(), 13.dp.toPx())
+                )
 
-                    // Simulated body lines
-                    Box(
-                        modifier = Modifier
-                            .height(3.5.dp)
-                            .fillMaxWidth(0.85f)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(theme.textSecondary.copy(alpha = 0.75f))
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .height(3.5.dp)
-                            .fillMaxWidth(0.55f)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(theme.textTertiary.copy(alpha = 0.55f))
-                    )
+                // 2. Mini Header: Accent indicator dot + Title Bar + Tag Pill
+                val dotY = pad + 4.dp.toPx()
+                drawCircle(
+                    color = accentColor,
+                    radius = 3.dp.toPx(),
+                    center = Offset(pad + 3.dp.toPx(), dotY)
+                )
 
-                    Spacer(modifier = Modifier.weight(1f))
+                val barX = pad + 10.dp.toPx()
+                val barW = (canvasW * 0.42f).coerceIn(40.dp.toPx(), 70.dp.toPx())
+                drawRoundRect(
+                    color = textPrimary,
+                    topLeft = Offset(barX, dotY - 2.5.dp.toPx()),
+                    size = Size(barW, 5.dp.toPx()),
+                    cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx())
+                )
 
-                    // Bottom Palette Swatch Bar (4 core colors: Background, Card, Accent, Text)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Background dot
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(theme.background)
-                                .border(0.5.dp, theme.divider, CircleShape)
-                        )
-                        // Card surface dot
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(theme.cardBackground)
-                                .border(0.5.dp, theme.divider, CircleShape)
-                        )
-                        // Accent dot
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(theme.accent)
-                        )
-                        // Text primary dot
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(theme.textPrimary)
-                        )
-                    }
-                }
+                val tagW = 18.dp.toPx()
+                drawRoundRect(
+                    color = accentContainerColor,
+                    topLeft = Offset(canvasW - pad - tagW, dotY - 2.5.dp.toPx()),
+                    size = Size(tagW, 5.dp.toPx()),
+                    cornerRadius = CornerRadius(2.5.dp.toPx(), 2.5.dp.toPx())
+                )
+
+                // 3. Mini Content Preview Lines
+                val line1Y = dotY + 11.dp.toPx()
+                drawRoundRect(
+                    color = textSecondary.copy(alpha = 0.75f),
+                    topLeft = Offset(pad, line1Y),
+                    size = Size((canvasW - pad * 2) * 0.82f, 3.5.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                )
+
+                val line2Y = line1Y + 7.dp.toPx()
+                drawRoundRect(
+                    color = textTertiary.copy(alpha = 0.55f),
+                    topLeft = Offset(pad, line2Y),
+                    size = Size((canvasW - pad * 2) * 0.54f, 3.5.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                )
+
+                // 4. Mini Checklist Row
+                val checkY = line2Y + 10.dp.toPx()
+                val checkRadius = 3.5.dp.toPx()
+                drawCircle(
+                    color = accentColor,
+                    radius = checkRadius,
+                    center = Offset(pad + checkRadius, checkY + checkRadius),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+                drawCircle(
+                    color = accentColor,
+                    radius = 1.8.dp.toPx(),
+                    center = Offset(pad + checkRadius, checkY + checkRadius)
+                )
+
+                drawRoundRect(
+                    color = textSecondary.copy(alpha = 0.7f),
+                    topLeft = Offset(pad + checkRadius * 2 + 5.dp.toPx(), checkY + 1.5.dp.toPx()),
+                    size = Size(36.dp.toPx(), 3.5.dp.toPx()),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                )
+
+                // 5. 4-Dot Palette Swatch Row (Bottom-Left)
+                val swatchY = canvasH - pad - 4.dp.toPx()
+                val dotRadius = 4.dp.toPx()
+                val dotSpacing = 11.dp.toPx()
+                var dotX = pad + dotRadius
+
+                // Swatch 1: Background
+                drawCircle(color = themeBg, radius = dotRadius, center = Offset(dotX, swatchY))
+                drawCircle(color = dividerColor, radius = dotRadius, center = Offset(dotX, swatchY), style = Stroke(0.5.dp.toPx()))
+                dotX += dotSpacing
+
+                // Swatch 2: Card
+                drawCircle(color = cardBg, radius = dotRadius, center = Offset(dotX, swatchY))
+                drawCircle(color = dividerColor, radius = dotRadius, center = Offset(dotX, swatchY), style = Stroke(0.5.dp.toPx()))
+                dotX += dotSpacing
+
+                // Swatch 3: Accent
+                drawCircle(color = accentColor, radius = dotRadius, center = Offset(dotX, swatchY))
+                dotX += dotSpacing
+
+                // Swatch 4: Text Primary
+                drawCircle(color = textPrimary, radius = dotRadius, center = Offset(dotX, swatchY))
             }
 
             // Theme Label & Selection Status Row

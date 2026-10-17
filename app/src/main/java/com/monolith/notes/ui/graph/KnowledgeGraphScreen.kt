@@ -7,12 +7,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,16 +37,14 @@ import com.monolith.notes.model.Note
 import com.monolith.notes.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.*
 
-enum class GraphFilterMode {
-    ALL,
-    CONNECTED_ONLY,
-    HUBS_ONLY
-}
-
+/**
+ * Obsidian-grade Personal Knowledge Graph.
+ * Features unified touch processor (focal-centered pinch zoom & 1-finger node drag/pan),
+ * zero-fluff professional top bar, Vault Intelligence Sheet ('i'), and frustum-culled rendering.
+ */
 @Composable
 fun KnowledgeGraphScreen(
     notes: List<Note>,
@@ -60,10 +54,9 @@ fun KnowledgeGraphScreen(
 ) {
     val haptic = LocalHapticFeedback.current
 
-    var clusterMode by remember { mutableStateOf(ClusterMode.FOLDER) }
-    var filterMode by remember { mutableStateOf(GraphFilterMode.ALL) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    var showIntelligenceSheet by remember { mutableStateOf(false) }
 
     var selectedNodeIndex by remember { mutableStateOf<Int?>(null) }
     var draggedNodeIndex by remember { mutableStateOf<Int?>(null) }
@@ -74,31 +67,13 @@ fun KnowledgeGraphScreen(
     var offsetY by remember { mutableFloatStateOf(0f) }
 
     // Build Graph Data using KnowledgeGraphEngine
-    val graphBundle = remember(notes, clusterMode) {
-        KnowledgeGraphEngine.buildGraph(notes, clusterMode)
+    val graphBundle = remember(notes) {
+        KnowledgeGraphEngine.buildGraph(notes, ClusterMode.FOLDER)
     }
 
     val allNodes = graphBundle.nodes
     val allEdges = graphBundle.edges
     val analytics = graphBundle.analytics
-
-    // Active nodes taking filterMode into account
-    val visibleNodeIndices = remember(graphBundle, filterMode) {
-        allNodes.indices.filter { i ->
-            val node = allNodes[i]
-            when (filterMode) {
-                GraphFilterMode.ALL -> true
-                GraphFilterMode.CONNECTED_ONLY -> node.degree > 0
-                GraphFilterMode.HUBS_ONLY -> node.isHub
-            }
-        }.toSet()
-    }
-
-    val visibleEdges = remember(allEdges, visibleNodeIndices) {
-        allEdges.filter {
-            visibleNodeIndices.contains(it.sourceIndex) && visibleNodeIndices.contains(it.targetIndex)
-        }
-    }
 
     // Neighbors of selected node for highlight aura & dimming
     val selectedNeighbors = remember(selectedNodeIndex, allEdges) {
@@ -111,14 +86,13 @@ fun KnowledgeGraphScreen(
         set
     }
 
-    // 120Hz Physics Simulation Loop with Adaptive Self-Tuning Parameters
+    // 120Hz Physics Simulation Loop with Early Equilibrium Convergence
     var physicsIteration by remember { mutableIntStateOf(0) }
     val nodeCount = allNodes.size
 
-    LaunchedEffect(graphBundle, filterMode) {
+    LaunchedEffect(graphBundle) {
         if (allNodes.isEmpty()) return@LaunchedEffect
 
-        // Adaptive forces based on node density
         val kRepulse = (24000f + 1400f * sqrt(nodeCount.toFloat())).coerceIn(22000f, 60000f)
         val kSpring = 0.042f
         val restLength = (130f + 20f * log2(nodeCount.coerceAtLeast(2).toFloat())).coerceIn(120f, 240f)
@@ -127,9 +101,9 @@ fun KnowledgeGraphScreen(
 
         withContext(Dispatchers.Default) {
             for (step in 0 until 180) {
-                KnowledgeGraphEngine.stepPhysics(
+                val energy = KnowledgeGraphEngine.stepPhysics(
                     nodes = allNodes,
-                    edges = visibleEdges,
+                    edges = allEdges,
                     kRepulse = kRepulse,
                     kSpring = kSpring,
                     restLength = restLength,
@@ -138,11 +112,16 @@ fun KnowledgeGraphScreen(
                     draggedIndex = draggedNodeIndex
                 )
 
+                // Early exit if graph has settled into resting equilibrium (saves CPU & battery)
+                if (step > 25 && energy < 0.06f && draggedNodeIndex == null) {
+                    break
+                }
+
                 if (step % 2 == 0) {
                     withContext(Dispatchers.Main) {
                         physicsIteration = step
                     }
-                    delay(12) // Fluid convergence
+                    delay(12) // Smooth 60/120Hz convergence
                 }
             }
             withContext(Dispatchers.Main) {
@@ -151,13 +130,13 @@ fun KnowledgeGraphScreen(
         }
     }
 
-    // Traveling Energy Pulse Animation along Directed Links
+    // Traveling Energy Pulse Animation along Directed Links (Active only when a node is selected)
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
+            animation = tween(2000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "pulseProgress"
@@ -182,7 +161,7 @@ fun KnowledgeGraphScreen(
     val labelPaint = remember(primaryTextColor) {
         Paint().apply {
             color = primaryTextColor.toArgb()
-            textSize = 30f
+            textSize = 28f
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
             setShadowLayer(4f, 0f, 2f, Color.Black.copy(alpha = 0.6f).toArgb())
@@ -192,7 +171,7 @@ fun KnowledgeGraphScreen(
     val selectedLabelPaint = remember(themeAccent) {
         Paint().apply {
             color = themeAccent.toArgb()
-            textSize = 34f
+            textSize = 32f
             isAntiAlias = true
             isFakeBoldText = true
             textAlign = Paint.Align.CENTER
@@ -207,113 +186,117 @@ fun KnowledgeGraphScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        // Main Interactive Visual Canvas
+        // Main Interactive Visual Canvas with Unified Obsidian Touch Engine
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                // Transform: Pan & Pinch-to-Zoom
                 .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(0.2f, 4.0f)
-                        offsetX += pan.x
-                        offsetY += pan.y
-                    }
-                }
-                // Tap & Long-Press (Pin/Unpin)
-                .pointerInput(allNodes, scale, offsetX, offsetY) {
-                    detectTapGestures(
-                        onTap = { tapOffset ->
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val graphX = (tapOffset.x - centerX - offsetX) / scale
-                            val graphY = (tapOffset.y - centerY - offsetY) / scale
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        val downPos = down.position
+                        var isTransforming = false
+                        var activeDraggedNode: Int? = null
 
-                            var closestIndex: Int? = null
-                            var minDistance = Float.MAX_VALUE
+                        val canvasW = size.width.toFloat()
+                        val canvasH = size.height.toFloat()
+                        val centerX = canvasW / 2f
+                        val centerY = canvasH / 2f
 
-                            for (i in visibleNodeIndices) {
-                                val node = allNodes[i]
-                                val dx = node.x - graphX
-                                val dy = node.y - graphY
-                                val dist = sqrt(dx * dx + dy * dy)
-                                if (dist < (node.radius + 24f) && dist < minDistance) {
-                                    minDistance = dist
-                                    closestIndex = i
+                        // Convert touch coordinate to graph space
+                        val currentScale = scale
+                        val currentOffX = offsetX
+                        val currentOffY = offsetY
+                        val graphDownX = (downPos.x - centerX - currentOffX) / currentScale
+                        val graphDownY = (downPos.y - centerY - currentOffY) / currentScale
+
+                        // Hit-test nodes (with a comfortable 26px touch target margin)
+                        for (i in allNodes.indices) {
+                            val node = allNodes[i]
+                            val dx = node.x - graphDownX
+                            val dy = node.y - graphDownY
+                            val dist = sqrt(dx * dx + dy * dy)
+                            if (dist < (node.radius + 26f)) {
+                                activeDraggedNode = i
+                                draggedNodeIndex = i
+                                node.vx = 0f
+                                node.vy = 0f
+                                break
+                            }
+                        }
+
+                        var pastTouchSlop = false
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val pressedPointers = event.changes.filter { it.pressed }
+                            if (pressedPointers.isEmpty()) break
+
+                            if (pressedPointers.size >= 2) {
+                                // Multi-finger pinch-to-zoom & two-finger pan
+                                activeDraggedNode = null
+                                draggedNodeIndex = null
+                                isTransforming = true
+
+                                val zoomChange = event.calculateZoom()
+                                val panChange = event.calculatePan()
+                                val centroid = event.calculateCentroid()
+
+                                val oldScale = scale
+                                val newScale = (oldScale * zoomChange).coerceIn(0.18f, 4.5f)
+                                scale = newScale
+
+                                // Zoom centered around focal point (centroid)
+                                val focalX = centroid.x - centerX
+                                val focalY = centroid.y - centerY
+                                offsetX += panChange.x + focalX * (1f - newScale / oldScale)
+                                offsetY += panChange.y + focalY * (1f - newScale / oldScale)
+
+                                event.changes.forEach { it.consume() }
+                            } else if (pressedPointers.size == 1) {
+                                val change = pressedPointers[0]
+                                val panChange = change.position - change.previousPosition
+                                val totalDragDist = (change.position - downPos).getDistance()
+
+                                if (!pastTouchSlop && totalDragDist > 8f) {
+                                    pastTouchSlop = true
+                                    isTransforming = true
+                                }
+
+                                if (pastTouchSlop) {
+                                    change.consume()
+                                    if (activeDraggedNode != null && activeDraggedNode in allNodes.indices) {
+                                        // Drag specific node smoothly
+                                        val node = allNodes[activeDraggedNode]
+                                        val deltaX = panChange.x / scale
+                                        val deltaY = panChange.y / scale
+                                        node.x += deltaX
+                                        node.y += deltaY
+                                        node.vx = deltaX * 0.45f
+                                        node.vy = deltaY * 0.45f
+                                        physicsIteration++
+                                    } else {
+                                        // Pan entire graph canvas
+                                        offsetX += panChange.x
+                                        offsetY += panChange.y
+                                    }
                                 }
                             }
+                        } while (event.changes.any { it.pressed })
 
-                            if (closestIndex != null) {
+                        draggedNodeIndex = null
+
+                        // Tap handling (when touch wasn't a drag or pinch)
+                        val elapsed = System.currentTimeMillis() - downTime
+                        if (!pastTouchSlop && !isTransforming && elapsed < 350L) {
+                            if (activeDraggedNode != null) {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                selectedNodeIndex = closestIndex
+                                selectedNodeIndex = activeDraggedNode
                             } else {
                                 selectedNodeIndex = null
                             }
-                        },
-                        onLongPress = { tapOffset ->
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val graphX = (tapOffset.x - centerX - offsetX) / scale
-                            val graphY = (tapOffset.y - centerY - offsetY) / scale
-
-                            for (i in visibleNodeIndices) {
-                                val node = allNodes[i]
-                                val dx = node.x - graphX
-                                val dy = node.y - graphY
-                                val dist = sqrt(dx * dx + dy * dy)
-                                if (dist < (node.radius + 24f)) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    node.isPinned = !node.isPinned
-                                    break
-                                }
-                            }
                         }
-                    )
-                }
-                // Direct Node Dragging & Flinging
-                .pointerInput(allNodes, scale, offsetX, offsetY) {
-                    detectDragGestures(
-                        onDragStart = { startOffset ->
-                            val centerX = size.width / 2f
-                            val centerY = size.height / 2f
-                            val graphX = (startOffset.x - centerX - offsetX) / scale
-                            val graphY = (startOffset.y - centerY - offsetY) / scale
-
-                            for (i in visibleNodeIndices) {
-                                val node = allNodes[i]
-                                val dx = node.x - graphX
-                                val dy = node.y - graphY
-                                val dist = sqrt(dx * dx + dy * dy)
-                                if (dist < (node.radius + 26f)) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    draggedNodeIndex = i
-                                    selectedNodeIndex = i
-                                    node.vx = 0f
-                                    node.vy = 0f
-                                    break
-                                }
-                            }
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            val targetIndex = draggedNodeIndex
-                            if (targetIndex != null && targetIndex in allNodes.indices) {
-                                val node = allNodes[targetIndex]
-                                val deltaX = dragAmount.x / scale
-                                val deltaY = dragAmount.y / scale
-                                node.x += deltaX
-                                node.y += deltaY
-                                node.vx = deltaX * 0.45f
-                                node.vy = deltaY * 0.45f
-                                physicsIteration++
-                            }
-                        },
-                        onDragEnd = {
-                            draggedNodeIndex = null
-                        },
-                        onDragCancel = {
-                            draggedNodeIndex = null
-                        }
-                    )
+                    }
                 }
         ) {
             val canvasWidth = size.width
@@ -327,125 +310,108 @@ fun KnowledgeGraphScreen(
             fun toScreenX(gx: Float): Float = centerX + offsetX + (gx * scale)
             fun toScreenY(gy: Float): Float = centerY + offsetY + (gy * scale)
 
-            // 1. Draw Directed Links
-            for (edgeIndex in visibleEdges.indices) {
-                val edge = visibleEdges[edgeIndex]
+            // 1. Draw Directed Links (with Viewport Frustum Culling)
+            for (edgeIndex in allEdges.indices) {
+                val edge = allEdges[edgeIndex]
                 val srcNode = allNodes[edge.sourceIndex]
                 val dstNode = allNodes[edge.targetIndex]
+
+                val sx = toScreenX(srcNode.x)
+                val sy = toScreenY(srcNode.y)
+                val dx = toScreenX(dstNode.x)
+                val dy = toScreenY(dstNode.y)
+
+                // Frustum culling: skip drawing if both ends are outside viewport bounds
+                if ((sx < -40f && dx < -40f) || (sx > canvasWidth + 40f && dx > canvasWidth + 40f) ||
+                    (sy < -40f && dy < -40f) || (sy > canvasHeight + 40f && dy > canvasHeight + 40f)) {
+                    continue
+                }
 
                 val isConnectedToSelected = selectedNodeIndex != null &&
                         (edge.sourceIndex == selectedNodeIndex || edge.targetIndex == selectedNodeIndex)
 
                 val edgeColor = when {
                     isConnectedToSelected -> themeAccent
-                    selectedNodeIndex != null -> Color(0xFF2C2C2E).copy(alpha = 0.25f)
-                    else -> srcNode.clusterColor.copy(alpha = 0.32f)
+                    selectedNodeIndex != null -> Color(0xFF2C2C2E).copy(alpha = 0.20f)
+                    else -> srcNode.clusterColor.copy(alpha = 0.30f)
                 }
 
                 val strokeWidth = when {
                     isConnectedToSelected -> 3.2f * scale
-                    else -> 1.5f * scale
-                }.coerceIn(1f, 7f)
+                    else -> 1.4f * scale
+                }.coerceIn(1f, 6.5f)
 
-                val sx = toScreenX(srcNode.x)
-                val sy = toScreenY(srcNode.y)
-                val tx = toScreenX(dstNode.x)
-                val ty = toScreenY(dstNode.y)
-
+                // Base Link Line
                 drawLine(
                     color = edgeColor,
                     start = Offset(sx, sy),
-                    end = Offset(tx, ty),
+                    end = Offset(dx, dy),
                     strokeWidth = strokeWidth,
                     cap = StrokeCap.Round
                 )
 
-                // Directional Indicator Midway along the Link
-                val midX = (sx + tx) / 2f
-                val midY = (sy + ty) / 2f
-
-                // Small directional dot indicator
-                drawCircle(
-                    color = if (isConnectedToSelected) themeAccent else srcNode.clusterColor.copy(alpha = 0.7f),
-                    radius = (2.2f * scale).coerceIn(1.5f, 5f),
-                    center = Offset(midX, midY)
-                )
-
-                // 2. Traveling Energy Pulse Particles
-                if (isConnectedToSelected || selectedNodeIndex == null) {
-                    val pulseOffset = (pulseProgress + (edgeIndex * 0.17f)) % 1f
-                    val pulseX = sx + (tx - sx) * pulseOffset
-                    val pulseY = sy + (ty - sy) * pulseOffset
-
+                // Traveling Energy Particle (Only animated for connected links to save GPU)
+                if (isConnectedToSelected) {
+                    val px = sx + (dx - sx) * pulseProgress
+                    val py = sy + (dy - sy) * pulseProgress
                     drawCircle(
-                        color = if (isConnectedToSelected) themeAccent else srcNode.clusterColor.copy(alpha = 0.85f),
-                        radius = (3.0f * scale).coerceIn(2f, 6.5f),
-                        center = Offset(pulseX, pulseY)
+                        color = Color.White,
+                        radius = (3.5f * scale).coerceIn(2.5f, 6.5f),
+                        center = Offset(px, py)
                     )
                 }
             }
 
-            // 3. Draw Nodes with Cluster Color & Glowing Auras
-            for (i in visibleNodeIndices) {
-                val node = allNodes[i]
+            // 2. Draw Nodes (with Viewport Frustum Culling)
+            for (nodeIndex in allNodes.indices) {
+                val node = allNodes[nodeIndex]
                 val sx = toScreenX(node.x)
                 val sy = toScreenY(node.y)
+                val nodeRadius = (node.radius * scale).coerceIn(8f, 75f)
 
-                // Viewport culling
-                if (sx < -120 || sx > canvasWidth + 120 || sy < -120 || sy > canvasHeight + 120) {
+                // Frustum culling: skip off-screen nodes
+                if (sx + nodeRadius < -30f || sx - nodeRadius > canvasWidth + 30f ||
+                    sy + nodeRadius < -30f || sy - nodeRadius > canvasHeight + 30f) {
                     continue
                 }
 
-                val isSelected = selectedNodeIndex == i
-                val isConnectedToSelected = selectedNeighbors.contains(i)
+                val isSelected = nodeIndex == selectedNodeIndex
+                val isConnectedToSelected = selectedNeighbors.contains(nodeIndex)
                 val isQueryMatch = searchQuery.isNotBlank() &&
                         node.note.displayTitle.contains(searchQuery, ignoreCase = true)
 
-                val nodeRadius = (node.radius * scale).coerceIn(5f, 65f)
+                val nodeAlpha = when {
+                    isSelected || isQueryMatch -> 1.0f
+                    isConnectedToSelected -> 0.95f
+                    selectedNodeIndex != null -> 0.22f
+                    else -> 0.88f
+                }
 
-                // Outer Radial Glowing Aura
-                if (isSelected || isConnectedToSelected || isQueryMatch || node.isHub) {
-                    val auraColor = when {
-                        isSelected || isQueryMatch -> themeAccent.copy(alpha = 0.38f)
-                        isConnectedToSelected -> node.clusterColor.copy(alpha = 0.28f)
-                        else -> node.clusterColor.copy(alpha = 0.18f)
-                    }
-                    val auraExtra = when {
-                        isSelected -> 14f * scale
-                        node.isHub -> 10f * scale
-                        else -> 6f * scale
-                    }.coerceIn(4f, 26f)
-
+                // Selection Glow Ring
+                if (isSelected || isQueryMatch) {
                     drawCircle(
-                        color = auraColor,
-                        radius = nodeRadius + auraExtra,
+                        color = themeAccent.copy(alpha = 0.30f),
+                        radius = nodeRadius + 14f * scale,
                         center = Offset(sx, sy)
                     )
                 }
 
-                // Core Node Fill
-                val fillColor = when {
-                    isSelected -> themeAccent
-                    isQueryMatch -> themeAccent
-                    selectedNodeIndex != null && !isConnectedToSelected -> node.clusterColor.copy(alpha = 0.25f)
+                // Node Body
+                val baseColor = when {
+                    isSelected || isQueryMatch -> themeAccent
+                    isConnectedToSelected -> node.clusterColor
                     else -> node.clusterColor
                 }
 
                 drawCircle(
-                    color = fillColor,
+                    color = baseColor.copy(alpha = nodeAlpha),
                     radius = nodeRadius,
                     center = Offset(sx, sy)
                 )
 
-                // Border Ring (Double Ring for Hubs)
-                val borderColor = when {
-                    isSelected -> Color.White
-                    isQueryMatch -> themeAccent
-                    node.isHub -> themeAccent.copy(alpha = 0.9f)
-                    else -> Color.White.copy(alpha = 0.35f)
-                }
+                // Node Outline
                 drawCircle(
-                    color = borderColor,
+                    color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.4f * nodeAlpha),
                     radius = nodeRadius,
                     center = Offset(sx, sy),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = (if (node.isHub) 2.2f else 1.2f) * scale)
@@ -462,28 +428,28 @@ fun KnowledgeGraphScreen(
 
                 // Title Labels
                 val shouldDrawLabel = isSelected || isQueryMatch || isConnectedToSelected ||
-                        (scale > 0.8f && node.degree > 0) || (scale > 1.2f)
+                        (scale > 0.85f && node.degree > 0) || (scale > 1.25f)
 
                 if (shouldDrawLabel) {
                     val label = node.note.displayTitle
                     val paint = if (isSelected || isQueryMatch) selectedLabelPaint else labelPaint
-                    paint.textSize = (13.sp.toPx() * scale).coerceIn(16f, 38f)
+                    paint.textSize = (13.sp.toPx() * scale).coerceIn(16f, 36f)
 
                     drawContext.canvas.nativeCanvas.drawText(
                         label,
                         sx,
-                        sy + nodeRadius + (16f * scale).coerceIn(12f, 28f),
+                        sy + nodeRadius + (16f * scale).coerceIn(12f, 26f),
                         paint
                     )
                 }
             }
         }
 
-        // Top Controls & Intelligence Header
+        // Top Navigation Bar (Clean, Minimal, Professional)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -499,7 +465,7 @@ fun KnowledgeGraphScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onBack()
                         }
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .padding(horizontal = 4.dp, vertical = 6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -516,34 +482,17 @@ fun KnowledgeGraphScreen(
                     )
                 }
 
-                // Vault Analytics Pill
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(iOSCardBackground)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Hub,
-                            contentDescription = null,
-                            tint = themeAccent,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "${notes.size} Notes • ${visibleEdges.size} Links • ${analytics.hubCount} Hubs",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = primaryTextColor
-                        )
-                    }
-                }
+                // Center/Title: Professional, simple "Graph"
+                Text(
+                    text = "Graph",
+                    style = MonolithTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                    color = primaryTextColor
+                )
 
-                // Header Actions: Search & Recenter View
+                // Right Actions: Search, Recenter, Vault Intelligence (i)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     IconButton(
                         onClick = {
@@ -555,7 +504,7 @@ fun KnowledgeGraphScreen(
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
-                            contentDescription = "Search Graph",
+                            contentDescription = "Search",
                             tint = if (isSearchActive) themeAccent else primaryTextColor,
                             modifier = Modifier.size(20.dp)
                         )
@@ -573,9 +522,24 @@ fun KnowledgeGraphScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CenterFocusStrong,
-                            contentDescription = "Recenter Graph",
-                            tint = themeAccent,
+                            contentDescription = "Recenter",
+                            tint = primaryTextColor,
                             modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            showIntelligenceSheet = true
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Vault Intelligence",
+                            tint = themeAccent,
+                            modifier = Modifier.size(21.dp)
                         )
                     }
                 }
@@ -613,7 +577,7 @@ fun KnowledgeGraphScreen(
                             }
                         },
                         placeholder = {
-                            Text("Search notes in knowledge graph...", fontSize = 13.5.sp, color = iOSTextTertiary)
+                            Text("Search notes in graph...", fontSize = 13.5.sp, color = iOSTextTertiary)
                         },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.Transparent,
@@ -628,63 +592,9 @@ fun KnowledgeGraphScreen(
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Intelligent Quick Filter Pills HUD
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                FilterPill(
-                    label = "All (${notes.size})",
-                    isSelected = filterMode == GraphFilterMode.ALL,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        filterMode = GraphFilterMode.ALL
-                    }
-                )
-                FilterPill(
-                    label = "Connected",
-                    isSelected = filterMode == GraphFilterMode.CONNECTED_ONLY,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        filterMode = GraphFilterMode.CONNECTED_ONLY
-                    }
-                )
-                FilterPill(
-                    label = "Core Hubs (${analytics.hubCount})",
-                    isSelected = filterMode == GraphFilterMode.HUBS_ONLY,
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        filterMode = GraphFilterMode.HUBS_ONLY
-                    }
-                )
-
-                // Cluster Mode Toggle
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100.dp))
-                        .background(iOSCardBackground)
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            clusterMode = if (clusterMode == ClusterMode.FOLDER) ClusterMode.TAG else ClusterMode.FOLDER
-                        }
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Text(
-                        text = if (clusterMode == ClusterMode.FOLDER) "Clusters: Folders" else "Clusters: Tags",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = iOSTextSecondary
-                    )
-                }
-            }
         }
 
-        // Selected Note Intelligence & Detail Float Card
+        // Selected Note Detail Float Card
         val selectedNode = selectedNodeIndex?.let { if (it in allNodes.indices) allNodes[it] else null }
         AnimatedVisibility(
             visible = selectedNode != null,
@@ -695,8 +605,6 @@ fun KnowledgeGraphScreen(
                 .padding(16.dp)
         ) {
             if (selectedNode != null) {
-                val suggestions = analytics.suggestions[selectedNode.id] ?: emptyList()
-
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = iOSCardBackground,
@@ -759,23 +667,20 @@ fun KnowledgeGraphScreen(
                                         fontSize = 12.sp,
                                         color = themeAccent
                                     )
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .background(selectedNode.clusterColor.copy(alpha = 0.15f))
-                                            .padding(horizontal = 6.dp, vertical = 1.5.dp)
-                                    ) {
-                                        Text(
-                                            text = selectedNode.clusterName,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = selectedNode.clusterColor
-                                        )
-                                    }
+                                    Text(
+                                        text = "•",
+                                        fontSize = 12.sp,
+                                        color = iOSTextTertiary
+                                    )
+                                    Text(
+                                        text = selectedNode.clusterName,
+                                        fontSize = 12.sp,
+                                        color = iOSTextSecondary
+                                    )
                                 }
                             }
 
+                            // Open Note Button
                             Button(
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -786,59 +691,19 @@ fun KnowledgeGraphScreen(
                                     contentColor = Color.Black
                                 ),
                                 shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(34.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = "Open",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.5.sp
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
                                 )
-                            }
-                        }
-
-                        // Text Snippet Preview
-                        if (selectedNode.note.previewSnippet.isNotBlank() && selectedNode.note.previewSnippet != "No additional text") {
-                            Text(
-                                text = selectedNode.note.previewSnippet,
-                                fontSize = 12.5.sp,
-                                color = iOSTextSecondary,
-                                maxLines = 2,
-                                lineHeight = 17.sp
-                            )
-                        }
-
-                        // Intelligent Connection Recommendations
-                        if (suggestions.isNotEmpty()) {
-                            HorizontalDivider(thickness = 0.5.dp, color = iOSDivider)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
-                                    imageVector = Icons.Default.Lightbulb,
-                                    contentDescription = null,
-                                    tint = themeAccent,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Suggested Connection: ",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = themeAccent
-                                )
-                                val firstSuggestion = suggestions.first()
-                                Text(
-                                    text = "[[${firstSuggestion.targetNote.displayTitle}]] (${firstSuggestion.reason})",
-                                    fontSize = 11.5.sp,
-                                    color = iOSTextSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                                    contentDescription = "Open Note",
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
@@ -846,31 +711,23 @@ fun KnowledgeGraphScreen(
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun FilterPill(
-    label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val backgroundColor = if (isSelected) iOSYellow else iOSCardBackground
-    val contentColor = if (isSelected) Color.Black else iOSTextPrimary
-
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(100.dp))
-            .background(backgroundColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 11.dp, vertical = 5.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontSize = 11.5.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = contentColor
-        )
+        // Vault Intelligence Sheet ('i' button modal)
+        if (showIntelligenceSheet) {
+            GraphIntelligenceSheet(
+                analytics = analytics,
+                nodes = allNodes,
+                onSelectHub = { hubNode ->
+                    val matchIndex = allNodes.indexOfFirst { it.id == hubNode.id }
+                    if (matchIndex != -1) {
+                        selectedNodeIndex = matchIndex
+                        // Auto-center camera on the selected hub
+                        offsetX = -hubNode.x * scale
+                        offsetY = -hubNode.y * scale
+                    }
+                },
+                onDismiss = { showIntelligenceSheet = false }
+            )
+        }
     }
 }
