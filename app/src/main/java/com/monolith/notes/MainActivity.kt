@@ -110,6 +110,39 @@ class MainActivity : FragmentActivity() {
                     var currentScreen by remember { mutableStateOf<Screen>(Screen.List) }
                     var selectedFolder by remember { mutableStateOf<String?>(null) }
                     val editorBackStack = remember { mutableStateListOf<Note>() }
+                    var showGoogleCloudSetupDialog by remember { mutableStateOf(false) }
+
+                    val googleSignInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+                    ) { result ->
+                        val task = com.google.android.gms.auth.api.signin.GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                        try {
+                            val account = task.getResult(com.google.android.gms.common.api.ApiException::class.java)
+                            val email = account.email ?: ""
+                            val displayName = account.displayName ?: ""
+                            val updatedConfig = settings.googleDriveConfig.copy(
+                                email = email,
+                                displayName = displayName
+                            )
+                            settingsManager.setGoogleDriveConfig(updatedConfig)
+                            android.widget.Toast.makeText(this@MainActivity, "Connected to Google Drive: $email", android.widget.Toast.LENGTH_SHORT).show()
+                            scope.launch(Dispatchers.IO) {
+                                val syncRes = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, updatedConfig)
+                                if (syncRes.isSuccess) {
+                                    settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
+                                    repository.loadNotes()
+                                    repository.loadTrashNotes()
+                                }
+                            }
+                        } catch (e: com.google.android.gms.common.api.ApiException) {
+                            val code = e.statusCode
+                            if (code == 10) {
+                                showGoogleCloudSetupDialog = true
+                            } else if (code != 12501) {
+                                android.widget.Toast.makeText(this@MainActivity, "Google Sign-In ($code): ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
 
                     BackHandler(enabled = currentScreen != Screen.List) {
                         when (currentScreen) {
@@ -166,13 +199,12 @@ class MainActivity : FragmentActivity() {
                         }
 
                         // Auto-sync Google Drive if connected
-                        if (!settings.googleDriveUri.isNullOrBlank()) {
+                        if (settings.googleDriveConfig.isConnected && settings.googleDriveConfig.autoSyncOnLaunch) {
                             withContext(Dispatchers.IO) {
                                 try {
-                                    val gDriveUri = Uri.parse(settings.googleDriveUri)
-                                    val result = GoogleDriveSyncEngine.sync(repository.notesDir, gDriveUri, this@MainActivity)
+                                    val result = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, settings.googleDriveConfig)
                                     if (result.isSuccess) {
-                                        settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
+                                        settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
                                         if (result.downloadedCount > 0) {
                                             repository.loadNotes()
                                             repository.loadTrashNotes()
@@ -508,23 +540,32 @@ class MainActivity : FragmentActivity() {
                                             }
                                             result
                                         },
-                                        onUpdateGoogleDriveUri = { uri ->
-                                            settingsManager.setGoogleDriveUri(uri)
+                                        onConnectGoogleDrive = {
+                                            val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                                .requestEmail()
+                                                .requestScopes(com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.appdata"))
+                                                .build()
+                                            val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this@MainActivity, gso)
+                                            googleSignInLauncher.launch(client.signInIntent)
+                                        },
+                                        onDisconnectGoogleDrive = {
+                                            val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                                            com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this@MainActivity, gso).signOut().addOnCompleteListener {
+                                                settingsManager.setGoogleDriveConfig(com.monolith.notes.data.GoogleDriveConfig())
+                                                android.widget.Toast.makeText(this@MainActivity, "Disconnected from Google Drive", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        onUpdateGoogleDriveConfig = { config ->
+                                            settingsManager.setGoogleDriveConfig(config)
                                         },
                                         onPerformGoogleDriveSync = {
-                                            val uriStr = settings.googleDriveUri
-                                            if (!uriStr.isNullOrBlank()) {
-                                                val uri = Uri.parse(uriStr)
-                                                val result = GoogleDriveSyncEngine.sync(repository.notesDir, uri, this@MainActivity)
-                                                if (result.isSuccess) {
-                                                    settingsManager.setLastSyncTimestamp(System.currentTimeMillis())
-                                                    repository.loadNotes()
-                                                    repository.loadTrashNotes()
-                                                }
-                                                result
-                                            } else {
-                                                SyncResult(false, message = "Google Drive is not connected")
+                                            val result = GoogleDriveSyncEngine.sync(this@MainActivity, repository.notesDir, settings.googleDriveConfig)
+                                            if (result.isSuccess) {
+                                                settingsManager.updateGoogleDriveLastSync(System.currentTimeMillis())
+                                                repository.loadNotes()
+                                                repository.loadTrashNotes()
                                             }
+                                            result
                                         },
                                         onUpdateWebDavConfig = { config ->
                                             settingsManager.setWebDavConfig(config)
@@ -636,6 +677,32 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
                         }
+                    }
+
+                    if (showGoogleCloudSetupDialog) {
+                        com.monolith.notes.ui.components.GoogleDriveDialog(
+                            initialConfig = settings.googleDriveConfig,
+                            onConnectGoogle = {
+                                showGoogleCloudSetupDialog = false
+                                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
+                                    .requestEmail()
+                                    .requestScopes(com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.appdata"))
+                                    .build()
+                                val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this@MainActivity, gso)
+                                googleSignInLauncher.launch(client.signInIntent)
+                            },
+                            onDisconnectGoogle = {
+                                val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+                                com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(this@MainActivity, gso).signOut().addOnCompleteListener {
+                                    settingsManager.setGoogleDriveConfig(com.monolith.notes.data.GoogleDriveConfig())
+                                }
+                            },
+                            onSaveConfig = { config ->
+                                settingsManager.setGoogleDriveConfig(config)
+                            },
+                            onDismiss = { showGoogleCloudSetupDialog = false },
+                            showDevHelpInitially = true
+                        )
                     }
                 }
             }

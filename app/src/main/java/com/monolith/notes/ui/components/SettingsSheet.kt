@@ -70,6 +70,9 @@ fun SettingsSheet(
     onUpdateTheme: (AppTheme) -> Unit = {},
     onUpdateCloudConfig: (MonolithCloudConfig) -> Unit = {},
     onPerformCloudSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
+    onConnectGoogleDrive: () -> Unit = {},
+    onDisconnectGoogleDrive: () -> Unit = {},
+    onUpdateGoogleDriveConfig: (com.monolith.notes.data.GoogleDriveConfig) -> Unit = {},
     onUpdateGoogleDriveUri: (String?) -> Unit = {},
     onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
@@ -280,7 +283,11 @@ fun SettingsSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 2B: Cloud Vault Sync (Monolith Cloud Vault & WebDAV)
+            // Section 2B: Cloud Vault Sync (Google Drive, Monolith Cloud, WebDAV)
+            var showGoogleDriveDialog by remember { mutableStateOf(false) }
+            var isGoogleDriveSyncing by remember { mutableStateOf(false) }
+            var googleDriveSyncStatusMessage by remember { mutableStateOf<String?>(null) }
+
             var showCloudDialog by remember { mutableStateOf(false) }
             var isCloudSyncing by remember { mutableStateOf(false) }
             var cloudSyncStatusMessage by remember { mutableStateOf<String?>(null) }
@@ -298,7 +305,63 @@ fun SettingsSheet(
                     .background(iOSCardBackground)
             ) {
                 Column {
-                    // 1. Monolith Cloud Vault (Built-In 1-Tap Zero-Config E2EE)
+                    // 1. Google Drive (Zero-Config, Free 15GB, User's Google Account)
+                    val isGDriveConnected = settings.googleDriveConfig.isConnected
+                    val gDriveSubtitle = when {
+                        isGoogleDriveSyncing -> googleDriveSyncStatusMessage ?: "Syncing with Google Drive..."
+                        !isGDriveConnected -> "1-Tap Sync with your Google Account (Free 15GB)"
+                        googleDriveSyncStatusMessage != null -> googleDriveSyncStatusMessage!!
+                        settings.googleDriveConfig.lastSyncTime > 0L -> "Connected (${settings.googleDriveConfig.email}) • Synced ${formatTimeAgo(settings.googleDriveConfig.lastSyncTime)}"
+                        else -> "Connected (${settings.googleDriveConfig.email}) • Ready to sync"
+                    }
+
+                    SettingsDetailRow(
+                        icon = if (isGDriveConnected) Icons.Default.CloudDone else Icons.Default.CloudSync,
+                        iconTint = if (isGDriveConnected) iOSEmerald else Color(0xFF4285F4),
+                        title = "Google Drive (Cloud Vault)",
+                        subtitle = gDriveSubtitle,
+                        actionLabel = when {
+                            isGoogleDriveSyncing -> "SYNCING..."
+                            isGDriveConnected -> "SYNC NOW"
+                            else -> "CONNECT"
+                        },
+                        trailingIcon = if (isGDriveConnected) Icons.Default.Sync else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            if (!isGDriveConnected) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                showGoogleDriveDialog = true
+                            } else if (!isGoogleDriveSyncing) {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                isGoogleDriveSyncing = true
+                                googleDriveSyncStatusMessage = "Syncing with Google Drive..."
+                                coroutineScope.launch {
+                                    val result = onPerformGoogleDriveSync()
+                                    isGoogleDriveSyncing = false
+                                    googleDriveSyncStatusMessage = result.message
+                                    Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    )
+
+                    if (isGDriveConnected) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+                        SettingsDetailRow(
+                            icon = Icons.Default.ManageAccounts,
+                            iconTint = iOSTextSecondary,
+                            title = "Google Drive Settings",
+                            subtitle = "${settings.googleDriveConfig.email} • Tap to manage or disconnect",
+                            actionLabel = "MANAGE",
+                            onClick = {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
+                                showGoogleDriveDialog = true
+                            }
+                        )
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(start = 58.dp), thickness = 0.5.dp, color = iOSDivider)
+
+                    // 2. Monolith Cloud Vault (Built-In 1-Tap Zero-Config E2EE)
                     val isCloudLoggedIn = settings.cloudConfig.isLoggedIn
                     val cloudSubtitle = when {
                         isCloudSyncing -> cloudSyncStatusMessage ?: "Syncing with Monolith Cloud..."
@@ -407,6 +470,23 @@ fun SettingsSheet(
                         )
                     }
                 }
+            }
+
+            if (showGoogleDriveDialog) {
+                GoogleDriveDialog(
+                    initialConfig = settings.googleDriveConfig,
+                    onConnectGoogle = {
+                        showGoogleDriveDialog = false
+                        onConnectGoogleDrive()
+                    },
+                    onDisconnectGoogle = {
+                        onDisconnectGoogleDrive()
+                    },
+                    onSaveConfig = { newConfig ->
+                        onUpdateGoogleDriveConfig(newConfig)
+                    },
+                    onDismiss = { showGoogleDriveDialog = false }
+                )
             }
 
             if (showCloudDialog) {

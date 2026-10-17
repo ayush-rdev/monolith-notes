@@ -11,8 +11,8 @@ android {
         applicationId = "com.monolith.notes"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.9.0"
+        versionCode = 11
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -72,5 +72,6 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
     testImplementation("junit:junit:4.13.2")
 }

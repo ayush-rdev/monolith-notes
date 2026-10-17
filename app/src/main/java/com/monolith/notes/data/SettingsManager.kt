@@ -28,6 +28,16 @@ enum class NewNoteStartStyle(val label: String) {
     fun toggle(): NewNoteStartStyle = if (this == TITLE) BODY else TITLE
 }
 
+data class GoogleDriveConfig(
+    val email: String = "",
+    val displayName: String = "",
+    val encryptionKey: String = "",
+    val autoSyncOnLaunch: Boolean = true,
+    val lastSyncTime: Long = 0L
+) {
+    val isConnected: Boolean get() = email.isNotBlank()
+}
+
 data class AppSettings(
     val hapticsEnabled: Boolean = true,
     val newNoteStartStyle: NewNoteStartStyle = NewNoteStartStyle.TITLE,
@@ -38,6 +48,7 @@ data class AppSettings(
     val biometricLockEnabled: Boolean = false,
     val theme: AppTheme = AppTheme.OBSIDIAN,
     val cloudConfig: MonolithCloudConfig = MonolithCloudConfig(),
+    val googleDriveConfig: GoogleDriveConfig = GoogleDriveConfig(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val googleDriveUri: String? = null,
     val lastSyncTimestamp: Long = 0L
@@ -96,6 +107,19 @@ class SettingsManager(context: Context) {
             lastServerSyncTime = cloudLastSync
         )
 
+        val gDriveEmail = prefs.getString(KEY_GDRIVE_EMAIL, "") ?: ""
+        val gDriveName = prefs.getString(KEY_GDRIVE_NAME, "") ?: ""
+        val gDriveKey = prefs.getString(KEY_GDRIVE_KEY, "") ?: ""
+        val gDriveAutoSync = prefs.getBoolean(KEY_GDRIVE_AUTOSYNC, true)
+        val gDriveLastSync = prefs.getLong(KEY_GDRIVE_LAST_SYNC, 0L)
+        val googleDriveConfig = GoogleDriveConfig(
+            email = gDriveEmail,
+            displayName = gDriveName,
+            encryptionKey = gDriveKey,
+            autoSyncOnLaunch = gDriveAutoSync,
+            lastSyncTime = gDriveLastSync
+        )
+
         val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
 
         return AppSettings(
@@ -108,6 +132,7 @@ class SettingsManager(context: Context) {
             biometricLockEnabled = biometricLock,
             theme = theme,
             cloudConfig = cloudConfig,
+            googleDriveConfig = googleDriveConfig,
             webDavConfig = webDavConfig,
             googleDriveUri = gDriveUri,
             lastSyncTimestamp = lastSync
@@ -187,6 +212,23 @@ class SettingsManager(context: Context) {
         )
     }
 
+    fun setGoogleDriveConfig(config: GoogleDriveConfig) {
+        prefs.edit()
+            .putString(KEY_GDRIVE_EMAIL, config.email)
+            .putString(KEY_GDRIVE_NAME, config.displayName)
+            .putString(KEY_GDRIVE_KEY, config.encryptionKey)
+            .putBoolean(KEY_GDRIVE_AUTOSYNC, config.autoSyncOnLaunch)
+            .putLong(KEY_GDRIVE_LAST_SYNC, config.lastSyncTime)
+            .apply()
+        _settings.value = _settings.value.copy(googleDriveConfig = config)
+    }
+
+    fun updateGoogleDriveLastSync(timestamp: Long) {
+        val updated = _settings.value.googleDriveConfig.copy(lastSyncTime = timestamp)
+        prefs.edit().putLong(KEY_GDRIVE_LAST_SYNC, timestamp).apply()
+        _settings.value = _settings.value.copy(googleDriveConfig = updated)
+    }
+
     fun setGoogleDriveUri(uri: String?) {
         if (uri != null) {
             prefs.edit().putString(KEY_GDRIVE_URI, uri).apply()
@@ -216,6 +258,11 @@ class SettingsManager(context: Context) {
         private const val KEY_CLOUD_KEY = "key_cloud_key"
         private const val KEY_CLOUD_AUTOSYNC = "key_cloud_autosync"
         private const val KEY_CLOUD_LAST_SYNC = "key_cloud_last_sync"
+        private const val KEY_GDRIVE_EMAIL = "key_gdrive_email"
+        private const val KEY_GDRIVE_NAME = "key_gdrive_name"
+        private const val KEY_GDRIVE_KEY = "key_gdrive_key"
+        private const val KEY_GDRIVE_AUTOSYNC = "key_gdrive_autosync"
+        private const val KEY_GDRIVE_LAST_SYNC = "key_gdrive_last_sync"
         private const val KEY_GDRIVE_URI = "key_gdrive_uri"
         private const val KEY_WEBDAV_URL = "key_webdav_url"
         private const val KEY_WEBDAV_USER = "key_webdav_user"
