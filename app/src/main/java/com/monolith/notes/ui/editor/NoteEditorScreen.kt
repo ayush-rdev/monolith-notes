@@ -2,6 +2,8 @@
 
 package com.monolith.notes.ui.editor
 
+import android.app.Activity
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -35,6 +37,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -42,9 +45,12 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import com.monolith.notes.data.PdfPublisher
+import java.io.File
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -489,29 +495,93 @@ fun NoteEditorScreen(
                     }
                 } else {
                     var showInfoSheet by remember { mutableStateOf(false) }
+                    var showShareMenu by remember { mutableStateOf(false) }
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Share Note Action
-                        IconButton(
-                            onClick = {
-                                performHaptic(HapticFeedbackType.TextHandleMove)
-                                val shareIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TITLE, currentNote.displayTitle)
-                                    putExtra(Intent.EXTRA_SUBJECT, currentNote.displayTitle)
-                                    val fullText = if (bodyState.text.isBlank()) currentNote.displayTitle else "${currentNote.displayTitle}\n\n${bodyState.text}"
-                                    putExtra(Intent.EXTRA_TEXT, fullText)
-                                    type = "text/plain"
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share Note"))
-                            },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Share Note",
-                                tint = iOSYellow,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        // Share & Publish Actions
+                        Box {
+                            IconButton(
+                                onClick = {
+                                    performHaptic(HapticFeedbackType.TextHandleMove)
+                                    showShareMenu = true
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = "Share & Publish",
+                                    tint = iOSYellow,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showShareMenu,
+                                onDismissRequest = { showShareMenu = false },
+                                modifier = Modifier
+                                    .background(iOSCardBackground)
+                                    .border(0.5.dp, iOSDivider, RoundedCornerShape(12.dp))
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Share Text / Markdown", color = Color.White, fontSize = 14.sp) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Share, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showShareMenu = false
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        val shareIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TITLE, currentNote.displayTitle)
+                                            putExtra(Intent.EXTRA_SUBJECT, currentNote.displayTitle)
+                                            val fullText = if (bodyState.text.isBlank()) currentNote.displayTitle else "${currentNote.displayTitle}\n\n${bodyState.text}"
+                                            putExtra(Intent.EXTRA_TEXT, fullText)
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "Share Note"))
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Export as Formatted PDF / Print", color = Color.White, fontSize = 14.sp) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.PictureAsPdf, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showShareMenu = false
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        val activity = context as? Activity ?: (context as? ContextWrapper)?.baseContext as? Activity
+                                        if (activity != null) {
+                                            PdfPublisher.printOrSavePdf(activity, currentNote, File(vaultPath))
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Export Standalone HTML", color = Color.White, fontSize = 14.sp) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Code, contentDescription = null, tint = iOSYellow, modifier = Modifier.size(18.dp))
+                                    },
+                                    onClick = {
+                                        showShareMenu = false
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        coroutineScope.launch {
+                                            val htmlFile = PdfPublisher.exportFormattedHtml(currentNote, File(vaultPath))
+                                            if (htmlFile != null) {
+                                                val uri = androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    "${context.packageName}.fileprovider",
+                                                    htmlFile
+                                                )
+                                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                    type = "text/html"
+                                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                }
+                                                context.startActivity(Intent.createChooser(shareIntent, "Share Formatted HTML"))
+                                            }
+                                        }
+                                    }
+                                )
+                            }
                         }
 
                         IconButton(
@@ -655,6 +725,36 @@ fun NoteEditorScreen(
                                         color = if (copied) iOSEmerald else iOSYellow,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Button(
+                                    onClick = {
+                                        performHaptic(HapticFeedbackType.TextHandleMove)
+                                        showInfoSheet = false
+                                        val activity = context as? Activity ?: (context as? ContextWrapper)?.baseContext as? Activity
+                                        if (activity != null) {
+                                            PdfPublisher.printOrSavePdf(activity, currentNote, File(vaultPath))
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = iOSYellow)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PictureAsPdf,
+                                        contentDescription = "PDF",
+                                        tint = Color.Black,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Export as Formatted PDF / Print",
+                                        color = Color.Black,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
