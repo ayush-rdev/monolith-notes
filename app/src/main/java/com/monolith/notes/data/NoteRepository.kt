@@ -389,13 +389,25 @@ class NoteRepository(private val context: Context) {
         val fileToDelete = note.file ?: noteFileMap[note.id]
         if (fileToDelete != null && fileToDelete.exists()) {
             val destination = File(trashDir, fileToDelete.name)
-            val targetTrashFile = if (destination.exists()) {
+            val targetTrashFile = if (destination.exists() && destination.absolutePath != fileToDelete.absolutePath) {
                 val timestamp = System.currentTimeMillis()
                 File(trashDir, "${fileToDelete.nameWithoutExtension}_$timestamp.md")
             } else {
                 destination
             }
-            fileToDelete.renameTo(targetTrashFile)
+            try {
+                fileToDelete.copyTo(targetTrashFile, overwrite = true)
+                fileToDelete.delete()
+            } catch (e: Exception) {
+                fileToDelete.renameTo(targetTrashFile)
+            }
+            try {
+                val journal = com.monolith.notes.data.sync.SyncJournal(context)
+                journal.addTombstone(fileToDelete.name)
+                journal.save()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         noteFileMap.remove(note.id)
         if (fileToDelete != null) {
@@ -414,19 +426,41 @@ class NoteRepository(private val context: Context) {
     suspend fun restoreNote(note: Note): Note = withContext(Dispatchers.IO) {
         val trashFile = note.file ?: File(trashDir, "${note.displayTitle}.md")
         val destination = File(notesDir, trashFile.name)
-        val targetFile = if (destination.exists()) {
+        val targetFile = if (destination.exists() && destination.absolutePath != trashFile.absolutePath) {
             val timestamp = System.currentTimeMillis()
             File(notesDir, "${trashFile.nameWithoutExtension}_restored_$timestamp.md")
         } else {
             destination
         }
-        trashFile.renameTo(targetFile)
+
+        try {
+            if (trashFile.exists()) {
+                trashFile.copyTo(targetFile, overwrite = true)
+                trashFile.delete()
+            }
+        } catch (e: Exception) {
+            trashFile.renameTo(targetFile)
+        }
+
         val raw = try { targetFile.readText() } catch (e: Exception) { "" }
         val restored = parseNoteFromFile(targetFile, raw)
         noteFileMap[restored.id] = targetFile
 
+        // Clear tombstones in SyncJournal so sync knows this file is alive
+        try {
+            val journal = com.monolith.notes.data.sync.SyncJournal(context)
+            journal.removeTombstone(trashFile.name)
+            journal.removeTombstone(targetFile.name)
+            journal.removeRecord(trashFile.name)
+            journal.removeRecord(targetFile.name)
+            journal.save()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         _trashNotes.value = _trashNotes.value.filter { it.id != note.id }
         val currentList = _notes.value.toMutableList()
+        currentList.removeAll { it.id == restored.id || it.file?.path == targetFile.path }
         currentList.add(0, restored)
         _notes.value = sortNotesList(currentList, currentSortOrder)
         saveFastCache(_notes.value)
@@ -437,6 +471,11 @@ class NoteRepository(private val context: Context) {
     suspend fun permanentlyDelete(note: Note) = withContext(Dispatchers.IO) {
         val trashFile = note.file ?: File(trashDir, note.id)
         try { trashFile.delete() } catch (_: Exception) {}
+        try {
+            val journal = com.monolith.notes.data.sync.SyncJournal(context)
+            journal.addTombstone(trashFile.name)
+            journal.save()
+        } catch (_: Exception) {}
         _trashNotes.value = _trashNotes.value.filter { it.id != note.id }
     }
 

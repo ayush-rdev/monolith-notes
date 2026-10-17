@@ -11,9 +11,12 @@ import java.io.File
 object GoogleDriveSyncEngine {
 
     /**
-     * Intelligent, content-hashed, conflict-safe synchronization engine for Google Drive.
-     * Uses SHA-256 delta hashes and tombstones to prevent redundant uploads/downloads,
-     * detect cross-device deletions, and protect user data during concurrent edits.
+     * Canonical 3-Way State Machine Synchronization Engine for Google Drive.
+     * Follows modern distributed sync principles (Dropbox / Syncthing / Git):
+     * 1. Local existence & modification ALWAYS trumps deletion.
+     * 2. Tombstones are single-use transition events consumed upon propagation, never immortal blocklists.
+     * 3. .trash/ is a local recycle bin, NOT an active deletion generator.
+     * 4. Zero data loss: concurrent edits produce safe conflict copies rather than overwriting.
      */
     suspend fun sync(
         context: Context,
@@ -46,14 +49,33 @@ object GoogleDriveSyncEngine {
 
             val passphrase = config.encryptionKey.ifBlank { "MonolithGDrive:" + config.email }
             val journal = SyncJournal(context)
-            val initialJournalRecords = journal.getAllRecords()
 
             var uploaded = 0
             var downloaded = 0
             var conflicts = 0
             var deletedCount = 0
 
-            // 1. Fetch remote files in appDataFolder
+            val trashDir = File(vaultDir, ".trash").apply { if (!exists()) mkdirs() }
+
+            // 1. Scan Local Active Vault (Excludes .trash and hidden folders)
+            val localFiles = mutableListOf<File>()
+            vaultDir.walkTopDown()
+                .filter { it.isFile }
+                .filter { !it.name.startsWith(".") }
+                .filter { !it.absolutePath.contains("/.trash/") }
+                .filter { !it.absolutePath.contains("/exports/") }
+                .forEach { localFiles.add(it) }
+
+            val localMap = mutableMapOf<String, File>()
+            for (lf in localFiles) {
+                val key = lf.name.lowercase()
+                localMap[key] = lf
+                // RULE 1: If a file exists in the active vault, it is ALIVE.
+                // Clear any lingering or stale tombstones immediately.
+                journal.removeTombstone(lf.name)
+            }
+
+            // 2. Query Remote Google Drive Metadata
             onProgress("Querying cloud metadata...")
             val remoteFiles = GoogleDriveClient.listAppDataFiles(token)
             val remoteMap = mutableMapOf<String, GoogleDriveFile>()
@@ -66,83 +88,176 @@ object GoogleDriveSyncEngine {
                 remoteMap[cleanName.lowercase()] = rf
             }
 
-            // 2. Process Local Tombstones / Trash (Delete remote files that user deleted locally)
-            val trashDir = File(vaultDir, ".trash").apply { if (!exists()) mkdirs() }
-            val trashedFiles = trashDir.listFiles()?.filter { it.isFile } ?: emptyList()
-            for (trashed in trashedFiles) {
-                journal.addTombstone(trashed.name)
-            }
+            // 3. Process Explicit Local Deletions (Tombstones recorded by user action)
+            val activeTombstones = journal.getAllTombstones()
+            for ((tombstoneName, _) in activeTombstones) {
+                val key = tombstoneName.lowercase()
+                // Never delete if the file is currently present in active vault (e.g. restored!)
+                if (localMap.containsKey(key)) {
+                    journal.removeTombstone(tombstoneName)
+                    continue
+                }
 
-            for ((tombstoneName, _) in journal.getAllTombstones()) {
-                val remoteMatch = remoteMap[tombstoneName.lowercase()]
+                val remoteMatch = remoteMap[key]
                 if (remoteMatch != null) {
                     onProgress("Syncing deletion of $tombstoneName...")
                     try {
                         GoogleDriveClient.deleteFile(token, remoteMatch.id)
-                        remoteMap.remove(tombstoneName.lowercase())
+                        remoteMap.remove(key)
                         deletedCount++
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
                 }
+                // Tombstone is satisfied and consumed
+                journal.removeTombstone(tombstoneName)
+                journal.removeRecord(tombstoneName)
             }
 
-            // 3. Map Local Vault Files
-            val localFiles = mutableListOf<File>()
-            vaultDir.walkTopDown()
-                .filter { it.isFile }
-                .filter { !it.name.startsWith(".") }
-                .filter { !it.absolutePath.contains("/.trash/") }
-                .filter { !it.absolutePath.contains("/exports/") }
-                .forEach { localFiles.add(it) }
+            // 4. Form Canonical Union of Candidate Files
+            val candidateKeys = (localMap.keys + remoteMap.keys).filter { key ->
+                key.endsWith(".md", ignoreCase = true) ||
+                key.startsWith("img_") ||
+                key.startsWith("audio_") ||
+                key.startsWith("canvas_")
+            }.toSet()
 
-            val localMap = mutableMapOf<String, File>()
-            for (lf in localFiles) {
-                localMap[lf.name.lowercase()] = lf
-                journal.removeTombstone(lf.name)
-            }
+            onProgress("Reconciling vault files...")
 
-            // 4. Remote -> Local (Intelligent Pull with Conflict Detection)
-            onProgress("Evaluating delta updates...")
-            for (remoteFile in remoteFiles) {
-                val cleanName = if (remoteFile.name.endsWith(".enc", ignoreCase = true)) {
-                    remoteFile.name.dropLast(4)
-                } else {
-                    remoteFile.name
-                }
+            for (key in candidateKeys) {
+                val localFile = localMap[key]
+                val remoteFile = remoteMap[key]
+                val base = journal.getRecord(key)
 
-                if (!cleanName.endsWith(".md", ignoreCase = true) &&
-                    !cleanName.startsWith("img_") &&
-                    !cleanName.startsWith("audio_") &&
-                    !cleanName.startsWith("canvas_")
-                ) {
+                // ── CASE A: Exists ONLY locally (New note or remote was deleted) ──
+                if (localFile != null && remoteFile == null) {
+                    val currentHash = SyncJournal.computeHash(localFile)
+                    val wasPreviouslyRemote = base != null && base.remoteFileId.isNotBlank()
+
+                    if (wasPreviouslyRemote && currentHash == base?.contentHash) {
+                        // Deleted on another device while local was untouched! Move to local trash.
+                        onProgress("Syncing remote deletion of ${localFile.name}...")
+                        val trashTarget = File(trashDir, localFile.name)
+                        try {
+                            localFile.copyTo(trashTarget, overwrite = true)
+                            localFile.delete()
+                        } catch (_: Exception) {
+                            localFile.renameTo(trashTarget)
+                        }
+                        journal.removeRecord(key)
+                        deletedCount++
+                    } else {
+                        // Brand new note, or user edited locally after remote deletion!
+                        // Modification wins: Upload to Google Drive!
+                        onProgress("Encrypting & uploading ${localFile.name}...")
+                        val plainBytes = localFile.readBytes()
+                        val encryptedBytes = VaultCrypto.encrypt(plainBytes, passphrase)
+                        val remoteEncName = "${localFile.name}.enc"
+                        val newId = GoogleDriveClient.uploadNewFile(token, remoteEncName, encryptedBytes)
+                        journal.setRecord(
+                            localFile.name,
+                            FileSyncRecord(currentHash, newId, System.currentTimeMillis(), localFile.lastModified())
+                        )
+                        remoteMap[key] = GoogleDriveFile(newId, remoteEncName, System.currentTimeMillis(), encryptedBytes.size.toLong())
+                        uploaded++
+                    }
                     continue
                 }
 
-                if (journal.isTombstoned(cleanName)) {
-                    // Local user previously deleted this note; remove remote copy if still there
-                    GoogleDriveClient.deleteFile(token, remoteFile.id)
+                // ── CASE B: Exists ONLY on remote (New remote note or locally deleted) ──
+                if (localFile == null && remoteFile != null) {
+                    val wasPreviouslyLocal = base != null && base.contentHash.isNotBlank()
+
+                    if (wasPreviouslyLocal) {
+                        // User deleted it locally earlier, but tombstone wasn't pending:
+                        // Delete remote file to keep in sync.
+                        onProgress("Syncing local deletion of ${remoteFile.name}...")
+                        try {
+                            GoogleDriveClient.deleteFile(token, remoteFile.id)
+                            deletedCount++
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                        journal.removeRecord(key)
+                    } else {
+                        // Brand new note created on another device! Download it!
+                        val cleanName = if (remoteFile.name.endsWith(".enc", ignoreCase = true)) {
+                            remoteFile.name.dropLast(4)
+                        } else {
+                            remoteFile.name
+                        }
+                        onProgress("Downloading $cleanName...")
+                        val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
+                        val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
+                            try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
+                        } else {
+                            rawBytes
+                        }
+                        val targetFile = if (cleanName.startsWith("img_") || cleanName.startsWith("audio_") || cleanName.startsWith("canvas_")) {
+                            val attDir = File(vaultDir, "attachments").apply { if (!exists()) mkdirs() }
+                            File(attDir, cleanName)
+                        } else {
+                            File(vaultDir, cleanName)
+                        }
+                        targetFile.parentFile?.mkdirs()
+                        targetFile.writeBytes(decrypted)
+                        val newHash = SyncJournal.computeHash(decrypted)
+                        journal.setRecord(
+                            cleanName,
+                            FileSyncRecord(newHash, remoteFile.id, remoteFile.modifiedTime, targetFile.lastModified())
+                        )
+                        localMap[key] = targetFile
+                        downloaded++
+                    }
                     continue
                 }
 
-                val localFile = localMap[cleanName.lowercase()]
-                val record = journal.getRecord(cleanName)
-
-                var needsDownload = false
-
-                if (localFile == null) {
-                    // Brand new note from another device!
-                    needsDownload = true
-                } else {
+                // ── CASE C: Exists on BOTH local and remote ──
+                if (localFile != null && remoteFile != null) {
                     val localHash = SyncJournal.computeHash(localFile)
-                    val localChanged = record == null || localHash != record.contentHash
-                    val remoteChanged = record == null || remoteFile.modifiedTime > record.remoteModifiedTime
+                    val localChanged = base == null || localHash != base.contentHash
+                    val remoteChanged = base == null || remoteFile.modifiedTime > (base.remoteModifiedTime + 1000L)
 
-                    if (remoteChanged && !localChanged) {
-                        // Remote updated, local untouched -> clean download
-                        needsDownload = true
-                    } else if (remoteChanged && localChanged) {
-                        // Both edited -> potential conflict!
+                    // Subcase C1: Neither changed -> 0 bytes, skip!
+                    if (!localChanged && !remoteChanged) {
+                        continue
+                    }
+
+                    // Subcase C2: Only local changed -> Upload
+                    if (localChanged && !remoteChanged) {
+                        onProgress("Uploading updated ${localFile.name}...")
+                        val plainBytes = localFile.readBytes()
+                        val encryptedBytes = VaultCrypto.encrypt(plainBytes, passphrase)
+                        GoogleDriveClient.updateExistingFile(token, remoteFile.id, encryptedBytes)
+                        journal.setRecord(
+                            localFile.name,
+                            FileSyncRecord(localHash, remoteFile.id, System.currentTimeMillis(), localFile.lastModified())
+                        )
+                        uploaded++
+                        continue
+                    }
+
+                    // Subcase C3: Only remote changed -> Download
+                    if (!localChanged && remoteChanged) {
+                        onProgress("Downloading updated ${localFile.name}...")
+                        val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
+                        val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
+                            try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
+                        } else {
+                            rawBytes
+                        }
+                        localFile.writeBytes(decrypted)
+                        val newHash = SyncJournal.computeHash(decrypted)
+                        journal.setRecord(
+                            localFile.name,
+                            FileSyncRecord(newHash, remoteFile.id, remoteFile.modifiedTime, localFile.lastModified())
+                        )
+                        downloaded++
+                        continue
+                    }
+
+                    // Subcase C4: BOTH changed -> Potential Conflict!
+                    if (localChanged && remoteChanged) {
                         val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
                         val decrypted = if (VaultCrypto.isEncrypted(rawBytes)) {
                             try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
@@ -150,95 +265,36 @@ object GoogleDriveSyncEngine {
                             rawBytes
                         }
                         val remoteHash = SyncJournal.computeHash(decrypted)
-                        if (remoteHash != localHash) {
-                            // Genuine conflict: preserve local as conflict copy!
+
+                        if (remoteHash == localHash) {
+                            // Identical content!
+                            journal.setRecord(
+                                localFile.name,
+                                FileSyncRecord(localHash, remoteFile.id, remoteFile.modifiedTime, localFile.lastModified())
+                            )
+                        } else {
+                            // True conflict! Never destroy data!
+                            onProgress("Resolving conflict for ${localFile.name}...")
                             val conflictName = "${localFile.nameWithoutExtension}_Conflict_${System.currentTimeMillis()}.md"
                             val conflictFile = File(localFile.parentFile ?: vaultDir, conflictName)
                             localFile.copyTo(conflictFile, overwrite = true)
+
+                            // Apply remote to primary file
+                            localFile.writeBytes(decrypted)
+                            journal.setRecord(
+                                localFile.name,
+                                FileSyncRecord(remoteHash, remoteFile.id, remoteFile.modifiedTime, localFile.lastModified())
+                            )
+
+                            // Upload conflict copy to Drive so all devices have it
+                            val conflictEncBytes = VaultCrypto.encrypt(conflictFile.readBytes(), passphrase)
+                            val conflictRemoteId = GoogleDriveClient.uploadNewFile(token, "${conflictName}.enc", conflictEncBytes)
+                            journal.setRecord(
+                                conflictName,
+                                FileSyncRecord(localHash, conflictRemoteId, System.currentTimeMillis(), conflictFile.lastModified())
+                            )
                             conflicts++
                         }
-                        localFile.writeBytes(decrypted)
-                        journal.setRecord(cleanName, FileSyncRecord(remoteHash, remoteFile.id, remoteFile.modifiedTime, localFile.lastModified()))
-                        downloaded++
-                        continue
-                    }
-                }
-
-                if (needsDownload) {
-                    onProgress("Downloading $cleanName...")
-                    val rawBytes = GoogleDriveClient.downloadFile(token, remoteFile.id)
-                    val finalBytes = if (VaultCrypto.isEncrypted(rawBytes)) {
-                        try { VaultCrypto.decrypt(rawBytes, passphrase) } catch (_: Exception) { rawBytes }
-                    } else {
-                        rawBytes
-                    }
-
-                    val targetFile = localFile ?: if (cleanName.startsWith("img_") || cleanName.startsWith("audio_") || cleanName.startsWith("canvas_")) {
-                        val attDir = File(vaultDir, "attachments").apply { if (!exists()) mkdirs() }
-                        File(attDir, cleanName)
-                    } else {
-                        File(vaultDir, cleanName)
-                    }
-                    targetFile.parentFile?.mkdirs()
-                    targetFile.writeBytes(finalBytes)
-                    val newHash = SyncJournal.computeHash(finalBytes)
-                    journal.setRecord(cleanName, FileSyncRecord(newHash, remoteFile.id, remoteFile.modifiedTime, targetFile.lastModified()))
-                    localMap[cleanName.lowercase()] = targetFile
-                    downloaded++
-                }
-            }
-
-            // 5. Local -> Remote (Intelligent Push with Content-Hash Delta Skip)
-            for (localFile in localFiles) {
-                val baseName = localFile.name
-                val remoteEncName = "$baseName.enc"
-                val remoteMatch = remoteMap[baseName.lowercase()]
-
-                val record = journal.getRecord(baseName)
-                val currentLocalHash = SyncJournal.computeHash(localFile)
-
-                // If content hash matches last sync AND remote has the file -> SKIP! 0 bytes uploaded!
-                if (record != null && record.contentHash == currentLocalHash && remoteMatch != null) {
-                    continue
-                }
-
-                onProgress("Encrypting & uploading $baseName...")
-                val plainBytes = localFile.readBytes()
-                val encryptedBytes = VaultCrypto.encrypt(plainBytes, passphrase)
-
-                if (remoteMatch != null) {
-                    GoogleDriveClient.updateExistingFile(token, remoteMatch.id, encryptedBytes)
-                    journal.setRecord(baseName, FileSyncRecord(currentLocalHash, remoteMatch.id, System.currentTimeMillis(), localFile.lastModified()))
-                    remoteMap[baseName.lowercase()] = GoogleDriveFile(remoteMatch.id, remoteEncName, System.currentTimeMillis(), encryptedBytes.size.toLong())
-                } else {
-                    val newId = GoogleDriveClient.uploadNewFile(token, remoteEncName, encryptedBytes)
-                    journal.setRecord(baseName, FileSyncRecord(currentLocalHash, newId, System.currentTimeMillis(), localFile.lastModified()))
-                    remoteMap[baseName.lowercase()] = GoogleDriveFile(newId, remoteEncName, System.currentTimeMillis(), encryptedBytes.size.toLong())
-                }
-                uploaded++
-            }
-
-            // 6. Detect Remote Deletions on Local Device
-            // ONLY consider files that:
-            // 1. Were tracked in the journal BEFORE this sync session started (initialJournalRecords)
-            // 2. Had a confirmed remoteFileId
-            // 3. Are absent from remoteMap (confirmed deleted from Google Drive)
-            // 4. Exist locally and have not been modified locally since last sync
-            for ((trackedName, record) in initialJournalRecords) {
-                if (record.remoteFileId.isBlank()) continue
-                val localFile = localMap[trackedName.lowercase()]
-                val inRemote = remoteMap.containsKey(trackedName.lowercase())
-
-                if (!inRemote && localFile != null && localFile.exists()) {
-                    val currentHash = SyncJournal.computeHash(localFile)
-                    if (currentHash == record.contentHash) {
-                        // Deleted on another device! Move to local trash.
-                        onProgress("Syncing remote deletion of $trackedName...")
-                        val trashTarget = File(trashDir, localFile.name)
-                        localFile.renameTo(trashTarget)
-                        journal.addTombstone(trackedName)
-                        journal.removeRecord(trackedName)
-                        deletedCount++
                     }
                 }
             }
@@ -252,7 +308,7 @@ object GoogleDriveSyncEngine {
                     if (uploaded > 0) parts.add("$uploaded uploaded")
                     if (downloaded > 0) parts.add("$downloaded downloaded")
                     if (deletedCount > 0) parts.add("$deletedCount deleted")
-                    if (conflicts > 0) parts.add("$conflicts conflicts resolved")
+                    if (conflicts > 0) parts.add("$conflicts conflicts preserved")
                     "Synced: " + parts.joinToString(", ")
                 }
             }

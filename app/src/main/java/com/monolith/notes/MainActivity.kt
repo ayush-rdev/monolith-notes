@@ -698,7 +698,8 @@ class MainActivity : FragmentActivity() {
                                         onRestoreNote = { noteToRestore ->
                                             scope.launch {
                                                 repository.restoreNote(noteToRestore)
-                                                triggerAutoSync(debounceMs = 0L)
+                                                currentScreen = Screen.List
+                                                triggerAutoSync(debounceMs = 1500L)
                                             }
                                         },
                                         onPermanentlyDeleteNote = { noteToDelete ->
