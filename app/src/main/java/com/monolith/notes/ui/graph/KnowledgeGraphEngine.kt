@@ -22,7 +22,10 @@ data class GraphNode(
     val isHub: Boolean,
     val clusterColor: Color,
     val clusterName: String,
-    var isPinned: Boolean = false
+    var isPinned: Boolean = false,
+    var brainX: Float = 0f,
+    var brainY: Float = 0f,
+    var lobe: BrainLobe = BrainLobe.FRONTAL_LEFT
 )
 
 /**
@@ -200,6 +203,9 @@ object KnowledgeGraphEngine {
                 )
             )
         }
+
+        // 4b. Compute anatomical Brain Graph coordinates (Obsidian Brain Graph architecture)
+        BrainGraphEngine.computeBrainLayout(nodesList, edgesList)
 
         // 5. Intelligent Suggestions Engine: Discover unlinked mentions & shared tag synergy
         val suggestionsMap = HashMap<String, MutableList<SuggestedConnection>>()
