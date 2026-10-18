@@ -1361,7 +1361,7 @@ private fun handleSmartListContinuation(
             if (trimmedPrev.matches(separatorRegex)) {
                 val resultText = newText.substring(0, prevLineStart) + indent + "───\n" + newText.substring(insertPos + 1)
                 val newCursor = prevLineStart + indent.length + 4
-                return TextFieldValue(text = resultText, selection = TextRange(newCursor))
+                return TextFieldValue(text = resultText, selection = TextRange(newCursor), composition = null)
             }
 
             // 0b. Markdown Table Row Continuation on Enter:
@@ -1373,7 +1373,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else if (com.monolith.notes.ui.components.isTableDelimiter(trimmedPrev)) {
                     val colCount = cells.size.coerceAtLeast(2)
@@ -1382,7 +1383,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + indent.length + 2
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val colCount = cells.size.coerceAtLeast(1)
@@ -1391,7 +1393,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + indent.length + 2
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 }
             }
@@ -1404,7 +1407,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val prefix = indent + "○ "
@@ -1412,7 +1416,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor)
+                        selection = TextRange(newCursor),
+                        composition = null
                     )
                 }
             }
@@ -1425,7 +1430,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val prefix = indent + "- [ ] "
@@ -1433,7 +1439,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor)
+                        selection = TextRange(newCursor),
+                        composition = null
                     )
                 }
             }
@@ -1446,7 +1453,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val prefix = indent + "• "
@@ -1454,7 +1462,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor)
+                        selection = TextRange(newCursor),
+                        composition = null
                     )
                 }
             }
@@ -1465,7 +1474,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val bulletChar = trimmedPrev[0]
@@ -1474,7 +1484,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor)
+                        selection = TextRange(newCursor),
+                        composition = null
                     )
                 }
             }
@@ -1489,7 +1500,8 @@ private fun handleSmartListContinuation(
                     val newCursor = prevLineStart
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor.coerceIn(0, resultText.length))
+                        selection = TextRange(newCursor.coerceIn(0, resultText.length)),
+                        composition = null
                     )
                 } else {
                     val prefix = indent + "${num + 1}. "
@@ -1497,7 +1509,8 @@ private fun handleSmartListContinuation(
                     val newCursor = insertPos + 1 + prefix.length
                     return TextFieldValue(
                         text = resultText,
-                        selection = TextRange(newCursor)
+                        selection = TextRange(newCursor),
+                        composition = null
                     )
                 }
             }

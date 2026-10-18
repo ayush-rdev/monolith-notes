@@ -196,21 +196,29 @@ fun KnowledgeGraphScreen(
         }
     }
 
-    // Traveling Energy Pulse Animation along Directed Links (Active only when a node is selected)
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "pulseProgress"
-    )
+    // Traveling Energy Pulse Animation along Directed Links (Active ONLY when a node is selected to save 100% idle GPU/CPU cycles)
+    val shouldAnimatePulse = selectedNodeIndex != null
+    val pulseProgress: Float = if (shouldAnimatePulse) {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val anim by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "pulseProgress"
+        )
+        anim
+    } else {
+        0f
+    }
 
     // Back button handling
     BackHandler {
-        if (selectedNodeIndex != null) {
+        if (showIntelligenceSheet) {
+            showIntelligenceSheet = false
+        } else if (selectedNodeIndex != null) {
             selectedNodeIndex = null
         } else if (isSearchActive) {
             isSearchActive = false
@@ -488,19 +496,6 @@ fun KnowledgeGraphScreen(
                         end = Offset(dx, dy),
                         strokeWidth = strokeWidth,
                         cap = StrokeCap.Round
-                    )
-                }
-
-                // Ambient pulse when nothing is selected
-                if (selectedNodeIndex == null && (edgeIndex % 9 == 0) && transitionProgress > 0.5f) {
-                    val u = 1f - pulseProgress
-                    val px = u * u * sx + 2f * u * pulseProgress * ctrlX + pulseProgress * pulseProgress * dx
-                    val py = u * u * sy + 2f * u * pulseProgress * ctrlY + pulseProgress * pulseProgress * dy
-                    val alphaEnv = sin(pulseProgress * Math.PI.toFloat()).coerceIn(0.2f, 1f)
-                    drawCircle(
-                        color = themeAccent.copy(alpha = 0.8f * alphaEnv),
-                        radius = (2.2f * scale).coerceIn(2.0f, 5.5f),
-                        center = Offset(px, py)
                     )
                 }
             }
