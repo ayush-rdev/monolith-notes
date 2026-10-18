@@ -186,20 +186,41 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>((
 
       const isNumbered = /^\d+\.\s/.test(targetPrefix);
 
+      // Determine starting number if preceded by a numbered list item
+      let startingNum = 1;
+      if (isNumbered && firstLineStart > 0) {
+        const textBefore = text.substring(0, firstLineStart - 1);
+        const prevLineStart = textBefore.lastIndexOf('\n') + 1;
+        const prevLine = textBefore.substring(prevLineStart).trimStart();
+        const prevMatch = /^(\d+)\.\s/.exec(prevLine);
+        if (prevMatch) {
+          startingNum = parseInt(prevMatch[1], 10) + 1;
+        }
+      }
+
       // Check if all non-empty lines already have the target prefix (or alternate)
       const nonEmptyLines = lines.filter((l) => l.trim().length > 0);
-      const allHavePrefix =
-        nonEmptyLines.length > 0 &&
-        nonEmptyLines.every((l) => {
-          const trimmed = l.trimStart();
-          if (isNumbered) {
-            return /^\d+\.\s/.test(trimmed);
-          }
-          return (
-            trimmed.startsWith(targetPrefix) ||
-            (alternatePrefix ? trimmed.startsWith(alternatePrefix) : false)
-          );
-        });
+      let allHavePrefix = false;
+
+      if (isNumbered) {
+        // Only untask if all lines are already sequentially numbered starting from startingNum (e.g. 1. 2. 3.)
+        allHavePrefix =
+          nonEmptyLines.length > 0 &&
+          nonEmptyLines.every((l, idx) => {
+            const trimmed = l.trimStart();
+            return trimmed.startsWith(`${startingNum + idx}. `);
+          });
+      } else {
+        allHavePrefix =
+          nonEmptyLines.length > 0 &&
+          nonEmptyLines.every((l) => {
+            const trimmed = l.trimStart();
+            return (
+              trimmed.startsWith(targetPrefix) ||
+              (alternatePrefix ? trimmed.startsWith(alternatePrefix) : false)
+            );
+          });
+      }
 
       let newLines: string[];
       if (allHavePrefix) {
@@ -221,10 +242,10 @@ export const VisualEditor = forwardRef<VisualEditorRef, VisualEditorProps>((
       } else {
         // TASK: Add targetPrefix to all lines (replacing any existing list/task prefix)
         const isSingleLine = lines.length === 1;
-        let numCounter = 1;
+        let numCounter = startingNum;
         newLines = lines.map((line) => {
           if (!line.trim()) {
-            return isSingleLine ? (isNumbered ? '1. ' : targetPrefix) : line;
+            return isSingleLine ? (isNumbered ? `${numCounter}. ` : targetPrefix) : line;
           }
           const trimmed = line.trimStart();
           const indent = line.substring(0, line.length - trimmed.length);

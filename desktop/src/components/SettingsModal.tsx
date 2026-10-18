@@ -77,7 +77,7 @@ interface SettingsModalProps {
   noteCount: number;
   wordCount: number;
   trashCount: number;
-  vaultPath: string;
+  vaultPath?: string | null;
   onClose: () => void;
   onUpdateSettings: (updater: (prev: AppSettings) => AppSettings) => void;
   onExportNotes: () => void;
@@ -594,7 +594,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     icon={<HardDrive size={17} />}
                     iconTint="var(--accent)"
                     title="Vault Location"
-                    subtitle={vaultPath}
+                    subtitle={vaultPath || 'Not configured'}
                     actionLabel="CHANGE"
                     onClick={onChangeVaultPath}
                   />
