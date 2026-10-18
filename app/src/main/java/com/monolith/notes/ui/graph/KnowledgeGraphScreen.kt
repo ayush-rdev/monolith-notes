@@ -1154,7 +1154,8 @@ fun KnowledgeGraphScreen(
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFFF1F5F9),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             Box(
                                 modifier = Modifier
@@ -1167,7 +1168,9 @@ fun KnowledgeGraphScreen(
                                     fontSize = 8.5.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF6EE7B7)
+                                    color = Color(0xFF6EE7B7),
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
