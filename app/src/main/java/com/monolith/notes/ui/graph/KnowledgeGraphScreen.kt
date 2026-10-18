@@ -783,13 +783,13 @@ fun KnowledgeGraphScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = themeAccent,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Notes",
                         color = themeAccent,
-                        fontSize = 17.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -798,15 +798,15 @@ fun KnowledgeGraphScreen(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .background(iOSCardBackground)
-                        .border(0.5.dp, iOSDivider.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                        .border(0.5.dp, iOSDivider.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
                         .padding(2.dp)
                 ) {
                     // Brain Tab
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(
                                 if (graphMode == GraphMode.BRAIN) themeAccent.copy(alpha = 0.18f)
                                 else Color.Transparent
@@ -821,18 +821,18 @@ fun KnowledgeGraphScreen(
                                     selectedNodeIndex = null
                                 }
                             }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "🧠",
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "Brain",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = if (graphMode == GraphMode.BRAIN) FontWeight.Bold else FontWeight.Medium,
                                 color = if (graphMode == GraphMode.BRAIN) themeAccent else iOSTextSecondary
                             )
@@ -842,7 +842,7 @@ fun KnowledgeGraphScreen(
                     // Galaxy Tab
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(
                                 if (graphMode == GraphMode.GALAXY) themeAccent.copy(alpha = 0.18f)
                                 else Color.Transparent
@@ -857,18 +857,18 @@ fun KnowledgeGraphScreen(
                                     selectedNodeIndex = null
                                 }
                             }
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = "🌌",
-                                fontSize = 11.5.sp
+                                fontSize = 11.sp
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
                                 text = "Galaxy",
-                                fontSize = 12.sp,
+                                fontSize = 11.5.sp,
                                 fontWeight = if (graphMode == GraphMode.GALAXY) FontWeight.Bold else FontWeight.Medium,
                                 color = if (graphMode == GraphMode.GALAXY) themeAccent else iOSTextSecondary
                             )
@@ -879,7 +879,7 @@ fun KnowledgeGraphScreen(
                 // Right Actions: Search, Recenter, Vault Intelligence (i)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     IconButton(
                         onClick = {
@@ -887,13 +887,13 @@ fun KnowledgeGraphScreen(
                             isSearchActive = !isSearchActive
                             if (!isSearchActive) searchQuery = ""
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
                             tint = if (isSearchActive) themeAccent else primaryTextColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -905,13 +905,13 @@ fun KnowledgeGraphScreen(
                             offsetY = 0f
                             selectedNodeIndex = null
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CenterFocusStrong,
                             contentDescription = "Recenter",
                             tint = primaryTextColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -920,13 +920,13 @@ fun KnowledgeGraphScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showIntelligenceSheet = true
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "Vault Intelligence",
                             tint = themeAccent,
-                            modifier = Modifier.size(21.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
