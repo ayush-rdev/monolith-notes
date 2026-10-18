@@ -39,6 +39,23 @@ data class VaultTopologySynthesis(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class ActiveNeuronCitation(
+    val title: String,
+    val noteId: String?,
+    val relevance: String,
+    val excerpt: String
+)
+
+data class NeuralQuerySynthesis(
+    val query: String,
+    val directAnswer: String,
+    val keyPoints: List<String>,
+    val activeNeurons: List<ActiveNeuronCitation>,
+    val missingGaps: String?,
+    val confidence: String, // "HIGH", "MODERATE", "LOW"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
 data class NoteWikilinkSuggestion(
     val vaultTitle: String,
     val relevance: String,
@@ -260,6 +277,139 @@ object GeminiApiClient {
                     bridgeProposals = bridges,
                     bottlenecks = bottlenecks,
                     entropyNotes = entropy
+                )
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Query Vault Neurons: Strict RAG synthesis grounded exclusively in active note neurons.
+     */
+    suspend fun queryVaultNeurons(
+        apiKey: String,
+        model: String = "gemini-2.0-flash",
+        query: String,
+        activeNeurons: List<ActiveNeuronCandidate>
+    ): Result<NeuralQuerySynthesis> = withContext(Dispatchers.IO) {
+        if (apiKey.isBlank()) return@withContext Result.failure(IllegalStateException("No API key configured."))
+        if (activeNeurons.isEmpty()) {
+            return@withContext Result.success(
+                NeuralQuerySynthesis(
+                    query = query,
+                    directAnswer = "Your vault does not contain any notes or neurons relevant to this inquiry.",
+                    keyPoints = listOf("No matching keywords or wikilink connections found in your notes."),
+                    activeNeurons = emptyList(),
+                    missingGaps = "No notes found matching '$query'. Consider creating a new note to start building knowledge on this topic.",
+                    confidence = "LOW"
+                )
+            )
+        }
+
+        try {
+            // Build the neuron context block
+            val neuronsBlock = StringBuilder()
+            activeNeurons.forEachIndexed { index, candidate ->
+                neuronsBlock.appendLine("=== NEURON #${index + 1}: [[${candidate.note.displayTitle}]] ===")
+                neuronsBlock.appendLine("Folder: ${candidate.note.folderName}")
+                if (candidate.note.tags.isNotEmpty()) {
+                    neuronsBlock.appendLine("Tags: ${candidate.note.tags.joinToString(", ") { "#$it" }}")
+                }
+                neuronsBlock.appendLine("Content:")
+                neuronsBlock.appendLine(candidate.note.content.take(3500))
+                neuronsBlock.appendLine("=== END NEURON ===")
+                neuronsBlock.appendLine()
+            }
+
+            val prompt = """
+                You are the Monolith Neural Retrieval Engine. You operate over the user's personal knowledge vault where each note acts as an active biological neuron.
+                
+                The user asks:
+                "$query"
+
+                Below are the ACTIVATED NEURONS retrieved from the user's vault:
+                $neuronsBlock
+
+                CRITICAL LAWS:
+                1. STRICT ZERO-HALLUCINATION GROUNDING: You MUST base your entire answer EXCLUSIVELY on the text in the provided neurons above. Under NO CIRCUMSTANCES should you use outside knowledge, general assumptions, or unstated facts.
+                2. CITATIONS: Every key point, fact, or inference MUST explicitly cite the contributing neuron using wikilink format [[Note Title]].
+                3. HONEST BOUNDARIES: If the provided notes do not contain the answer, or only partially cover it, be completely transparent. Do NOT attempt to fill in blanks with outside general knowledge.
+                4. CONFIDENCE: Set confidence to "HIGH" (directly and comprehensively answered by notes), "MODERATE" (partially answered or inferred from notes), or "LOW" (not addressed in notes).
+                5. MISSING GAPS: Explicitly identify what related knowledge is missing from the user's vault notes on this subject, or null if fully covered.
+
+                Return a JSON object conforming EXACTLY to this schema:
+                {
+                  "directAnswer": "Authoritative, concise synthesis answering the query directly from the notes.",
+                  "keyPoints": [
+                    "Point 1 with direct citation [[Note Title]]",
+                    "Point 2 with direct citation [[Note Title]]"
+                  ],
+                  "neuronCitations": [
+                    {
+                      "title": "Exact display title of active neuron",
+                      "relevance": "Concise 1-sentence explanation of how this neuron supported the answer"
+                    }
+                  ],
+                  "missingGaps": "Identified knowledge gaps in the user's vault regarding this topic, or null",
+                  "confidence": "HIGH" | "MODERATE" | "LOW"
+                }
+            """.trimIndent()
+
+            val responseJson = callGeminiJson(apiKey, model, prompt)
+
+            val directAnswer = responseJson.optString("directAnswer", "Analysis completed.")
+            val keyPointsArr = responseJson.optJSONArray("keyPoints") ?: JSONArray()
+            val keyPoints = ArrayList<String>()
+            for (i in 0 until keyPointsArr.length()) {
+                val pt = keyPointsArr.optString(i)
+                if (pt.isNotBlank()) keyPoints.add(pt)
+            }
+
+            val citationsArr = responseJson.optJSONArray("neuronCitations") ?: JSONArray()
+            val citations = ArrayList<ActiveNeuronCitation>()
+            val candidateMap = activeNeurons.associateBy { it.note.displayTitle.lowercase().trim() }
+
+            for (i in 0 until citationsArr.length()) {
+                val obj = citationsArr.optJSONObject(i) ?: continue
+                val title = obj.optString("title")
+                val relevance = obj.optString("relevance")
+                val matched = candidateMap[title.lowercase().trim()]
+                citations.add(
+                    ActiveNeuronCitation(
+                        title = title,
+                        noteId = matched?.note?.id,
+                        relevance = relevance,
+                        excerpt = matched?.excerpt.orEmpty()
+                    )
+                )
+            }
+
+            // Fallback: If AI returned empty neuron citations, populate from candidate active neurons
+            if (citations.isEmpty()) {
+                for (cand in activeNeurons) {
+                    citations.add(
+                        ActiveNeuronCitation(
+                            title = cand.note.displayTitle,
+                            noteId = cand.note.id,
+                            relevance = "Activated with score ${cand.activationScore.toInt()}",
+                            excerpt = cand.excerpt
+                        )
+                    )
+                }
+            }
+
+            val missingGaps = responseJson.optString("missingGaps").takeIf { it.isNotBlank() && it != "null" }
+            val confidence = responseJson.optString("confidence", "HIGH")
+
+            Result.success(
+                NeuralQuerySynthesis(
+                    query = query,
+                    directAnswer = directAnswer,
+                    keyPoints = keyPoints,
+                    activeNeurons = citations,
+                    missingGaps = missingGaps,
+                    confidence = confidence
                 )
             )
         } catch (e: Exception) {

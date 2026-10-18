@@ -64,6 +64,8 @@ fun KnowledgeGraphScreen(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showIntelligenceSheet by remember { mutableStateOf(false) }
+    var showAskNeuronsSheet by remember { mutableStateOf(false) }
+    var activeNeuronIds by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     var selectedNodeIndex by remember { mutableStateOf<Int?>(null) }
     var draggedNodeIndex by remember { mutableStateOf<Int?>(null) }
@@ -162,8 +164,14 @@ fun KnowledgeGraphScreen(
         }
     }
 
-    // Traveling Energy Pulse Animation along Directed Links (Active ONLY when a node is selected to save 100% idle GPU/CPU cycles)
-    val shouldAnimatePulse = selectedNodeIndex != null
+    // Active Neurons (RAG query activated) indices for radiant synaptic rendering
+    val activeNeuronIndices = remember(activeNeuronIds, allNodes) {
+        if (activeNeuronIds.isEmpty()) emptySet<Int>()
+        else allNodes.mapIndexedNotNull { idx, node -> if (node.id in activeNeuronIds) idx else null }.toSet()
+    }
+
+    // Traveling Energy Pulse Animation along Directed Links (Active when node selected or active neurons firing)
+    val shouldAnimatePulse = selectedNodeIndex != null || activeNeuronIndices.isNotEmpty()
     val pulseProgress: Float = if (shouldAnimatePulse) {
         val infiniteTransition = rememberInfiniteTransition(label = "pulse")
         val anim by infiniteTransition.animateFloat(
@@ -633,6 +641,45 @@ fun KnowledgeGraphScreen(
                 }
             }
 
+            // 4.5. Active Neurons (Synaptic Firing Aura for RAG-retrieved nodes)
+            if (activeNeuronIndices.isNotEmpty()) {
+                val neuronPulse = (sin(pulseProgress * 2f * PI.toFloat()) * 0.5f + 0.5f)
+                for (activeIdx in activeNeuronIndices) {
+                    if (activeIdx == selectedNodeIndex) continue
+                    val node = allNodes[activeIdx]
+                    val sx = screenXs[activeIdx]
+                    val sy = screenYs[activeIdx]
+                    val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
+
+                    // Radiant Synaptic Halo
+                    drawCircle(
+                        color = Color(0xFFA78BFA).copy(alpha = 0.22f + 0.18f * neuronPulse),
+                        radius = nodeRadius + (9f + 6f * neuronPulse) * scale,
+                        center = Offset(sx, sy)
+                    )
+
+                    // Core ring in lilac
+                    drawCircle(
+                        color = Color(0xFFD8B4FE),
+                        radius = nodeRadius + 1.8f * scale,
+                        center = Offset(sx, sy),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.6f * scale)
+                    )
+
+                    // Label in lilac
+                    val label = node.note.displayTitle
+                    neighborLabelPaint.color = android.graphics.Color.rgb(216, 180, 254)
+                    neighborLabelPaint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 26f)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        label,
+                        sx,
+                        sy + nodeRadius + (12f * scale).coerceIn(10f, 22f),
+                        neighborLabelPaint
+                    )
+                    neighborLabelPaint.color = android.graphics.Color.WHITE
+                }
+            }
+
             // 5. In-Focus Highlighted Nodes (Selected Thought + Connected Neighbors)
             if (selectedNodeIndex != null) {
                 // First draw connected neighbors
@@ -836,11 +883,40 @@ fun KnowledgeGraphScreen(
                     }
                 }
 
-                // Right Actions: Search, Recenter, Vault Intelligence (i)
+                // Right Actions: Ask Neurons, Search, Recenter, Vault Intelligence (i)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF281F3D))
+                            .border(0.5.dp, Color(0xFF6B21A8), RoundedCornerShape(12.dp))
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                showAskNeuronsSheet = true
+                            }
+                            .padding(horizontal = 7.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Ask Neurons",
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "Ask",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFE9D5FF)
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1058,6 +1134,47 @@ fun KnowledgeGraphScreen(
             }
         }
 
+        // Floating Prompt Pill (when no node is selected and search is inactive)
+        AnimatedVisibility(
+            visible = selectedNodeIndex == null && !isSearchActive,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(9f)
+                .padding(bottom = 20.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xFF14121F).copy(alpha = 0.94f))
+                    .border(1.dp, Color(0xFF3B2F57), RoundedCornerShape(22.dp))
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        showAskNeuronsSheet = true
+                    }
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Psychology,
+                        contentDescription = null,
+                        tint = Color(0xFFA78BFA),
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Text(
+                        text = "✦ Ask your vault's neurons...",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFFD8B4FE)
+                    )
+                }
+            }
+        }
+
         // Vault Intelligence Sheet ('i' button modal)
         if (showIntelligenceSheet) {
             GraphIntelligenceSheet(
@@ -1067,6 +1184,10 @@ fun KnowledgeGraphScreen(
                 apiKey = apiKey,
                 aiModel = aiModel,
                 onConfigureApiKey = onConfigureApiKey,
+                onOpenAskNeurons = {
+                    showIntelligenceSheet = false
+                    showAskNeuronsSheet = true
+                },
                 onSelectHub = { hubNode ->
                     val matchIndex = allNodes.indexOfFirst { it.id == hubNode.id }
                     if (matchIndex != -1) {
@@ -1079,6 +1200,36 @@ fun KnowledgeGraphScreen(
                     }
                 },
                 onDismiss = { showIntelligenceSheet = false }
+            )
+        }
+
+        // Ask Vault Neurons Sheet (Strict Grounded RAG)
+        if (showAskNeuronsSheet) {
+            AskNeuronsSheet(
+                notes = notes,
+                apiKey = apiKey,
+                aiModel = aiModel,
+                onConfigureApiKey = onConfigureApiKey,
+                onLocateNeuronInGraph = { noteId, _ ->
+                    val matchIndex = allNodes.indexOfFirst { it.id == noteId }
+                    if (matchIndex != -1) {
+                        selectedNodeIndex = matchIndex
+                        val target = allNodes[matchIndex]
+                        val targetX = if (graphMode == GraphMode.BRAIN) target.brainX else target.x
+                        val targetY = if (graphMode == GraphMode.BRAIN) target.brainY else target.y
+                        offsetX = -targetX * scale
+                        offsetY = -targetY * scale
+                        showAskNeuronsSheet = false
+                    }
+                },
+                onOpenNote = { note ->
+                    showAskNeuronsSheet = false
+                    onNavigateToNote(note)
+                },
+                onActiveNeuronsUpdated = { activeIds ->
+                    activeNeuronIds = activeIds.toSet()
+                },
+                onDismiss = { showAskNeuronsSheet = false }
             )
         }
     }
