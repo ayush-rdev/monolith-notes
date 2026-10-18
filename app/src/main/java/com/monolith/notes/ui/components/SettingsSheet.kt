@@ -78,7 +78,9 @@ fun SettingsSheet(
     onUpdateGoogleDriveUri: (String?) -> Unit = {},
     onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
-    onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") }
+    onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
+    onUpdateGeminiApiKey: (String) -> Unit = {},
+    onUpdateAiModel: (String) -> Unit = {}
 ) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
@@ -609,6 +611,52 @@ fun SettingsSheet(
                         onUpdateWebDavConfig(newConfig)
                     },
                     onDismiss = { showWebDavDialog = false }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section 2C: Monolith Intelligence (Gemini Free Tier API)
+            var showGeminiDialog by remember { mutableStateOf(false) }
+            SettingsSectionHeader(title = "MONOLITH INTELLIGENCE")
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(iOSCardBackground)
+            ) {
+                Column {
+                    val isAiConfigured = settings.isAiConfigured
+                    val aiSubtitle = if (isAiConfigured) {
+                        "Active • ${settings.aiModel} • Tap to reconfigure"
+                    } else {
+                        "Connect free Gemini API for mathematical vault synthesis & note proofing"
+                    }
+
+                    SettingsDetailRow(
+                        icon = Icons.Default.AutoAwesome,
+                        iconTint = if (isAiConfigured) Color(0xFFA78BFA) else iOSTextSecondary,
+                        title = "Gemini API Engine",
+                        subtitle = aiSubtitle,
+                        actionLabel = if (isAiConfigured) "CONFIGURED" else "SETUP",
+                        trailingIcon = if (isAiConfigured) Icons.Default.CheckCircle else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        onClick = {
+                            performHaptic(HapticFeedbackType.TextHandleMove)
+                            showGeminiDialog = true
+                        }
+                    )
+                }
+            }
+
+            if (showGeminiDialog) {
+                GeminiConfigDialog(
+                    initialApiKey = settings.geminiApiKey,
+                    initialModel = settings.aiModel,
+                    onSave = { key, model ->
+                        onUpdateGeminiApiKey(key)
+                        onUpdateAiModel(model)
+                    },
+                    onDismiss = { showGeminiDialog = false }
                 )
             }
 

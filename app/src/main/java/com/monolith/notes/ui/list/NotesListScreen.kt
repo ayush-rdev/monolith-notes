@@ -105,6 +105,8 @@ fun NotesListScreen(
     onPerformGoogleDriveSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
     onUpdateWebDavConfig: (WebDavConfig) -> Unit = {},
     onPerformSync: suspend () -> SyncResult = { SyncResult(false, message = "") },
+    onUpdateGeminiApiKey: (String) -> Unit = {},
+    onUpdateAiModel: (String) -> Unit = {},
     syncState: SyncState = SyncState.IDLE,
     onTriggerSync: () -> Unit = {},
     isLoaded: Boolean = true,
@@ -1047,7 +1049,9 @@ fun NotesListScreen(
                 onUpdateGoogleDriveUri = onUpdateGoogleDriveUri,
                 onPerformGoogleDriveSync = onPerformGoogleDriveSync,
                 onUpdateWebDavConfig = onUpdateWebDavConfig,
-                onPerformSync = onPerformSync
+                onPerformSync = onPerformSync,
+                onUpdateGeminiApiKey = onUpdateGeminiApiKey,
+                onUpdateAiModel = onUpdateAiModel
             )
         }
     }

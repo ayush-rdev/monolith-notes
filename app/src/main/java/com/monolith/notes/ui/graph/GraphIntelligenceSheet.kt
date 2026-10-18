@@ -12,7 +12,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,27 +21,39 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.monolith.notes.model.Note
+import com.monolith.notes.data.ai.GeminiApiClient
+import com.monolith.notes.data.ai.VaultTopologySynthesis
+import com.monolith.notes.data.ai.VaultBridgeProposal
+import com.monolith.notes.data.ai.VaultBottleneck
 import com.monolith.notes.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * Intelligent Vault Analytics & Inspector Sheet.
  * Accessible via the 'i' button in Knowledge Graph. Displays vault health metrics,
  * ranked most-connected notes (top hubs with 1-tap focus), cluster breakdown,
- * and future AI synthesis card.
+ * and live mathematical Gemini AI synthesis.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GraphIntelligenceSheet(
     analytics: GraphAnalytics,
     nodes: List<GraphNode>,
+    notes: List<Note> = emptyList(),
+    apiKey: String = "",
+    aiModel: String = "gemini-2.0-flash",
+    onConfigureApiKey: () -> Unit = {},
     onSelectHub: (GraphNode) -> Unit,
     onDismiss: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -258,63 +271,345 @@ fun GraphIntelligenceSheet(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. AI Vault Analysis Preview (Prepared for BYO API Key)
+            // 3. Mathematical Vault Topology & Synthesis (Gemini API)
+            var isSynthesizing by remember { mutableStateOf(false) }
+            var synthesisResult by remember { mutableStateOf<VaultTopologySynthesis?>(null) }
+            var synthesisError by remember { mutableStateOf<String?>(null) }
+
+            val isKeyConfigured = apiKey.isNotBlank()
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(iOSCardBackground)
-                    .border(1.dp, iOSYellow.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
+                    .background(Color(0xFF14131A))
+                    .border(1.dp, Color(0xFF2E2545), RoundedCornerShape(14.dp))
                     .padding(16.dp)
             ) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(iOSYellow.copy(alpha = 0.16f)),
-                        contentAlignment = Alignment.Center
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Header Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = iOSYellow,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "AI Vault Synthesis",
-                                style = MonolithTypography.titleMedium.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
-                                color = iOSTextPrimary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(iOSYellow.copy(alpha = 0.2f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF2E2248)),
+                                contentAlignment = Alignment.Center
                             ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Column {
                                 Text(
-                                    text = "COMING SOON",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = iOSYellow
+                                    text = "Mathematical Vault Synthesis",
+                                    style = MonolithTypography.titleMedium.copy(
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = iOSTextPrimary
+                                )
+                                Text(
+                                    text = "Topological gap analysis & cross-cluster bridges",
+                                    style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),
+                                    color = iOSTextSecondary
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF281F3D))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isKeyConfigured) "GEMINI 2.0" else "API KEY REQ",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFA78BFA)
+                            )
+                        }
+                    }
 
+                    if (!isKeyConfigured) {
                         Text(
-                            text = "Connect your personal LLM API key to automatically analyze knowledge clusters, uncover hidden conceptual connections between isolated notes, and synthesize vault insights.",
-                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
+                            text = "Connect Google's free-tier Gemini API in Settings to calculate topological bridges between clusters, detect single-point bottlenecks, and audit vault entropy.",
+                            style = MonolithTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                             color = iOSTextSecondary
                         )
+
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                onConfigureApiKey()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF7C3AED),
+                                contentColor = Color.White
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Key, null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Configure Gemini API Key in Settings", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    } else {
+                        // Key is configured
+                        if (isSynthesizing) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF1C1926))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = Color(0xFFA78BFA),
+                                    strokeWidth = 2.dp
+                                )
+                                Text(
+                                    text = "Synthesizing topology & PageRank matrices with $aiModel...",
+                                    style = MonolithTypography.bodySmall.copy(fontSize = 11.5.sp),
+                                    color = iOSTextPrimary
+                                )
+                            }
+                        } else if (synthesisResult == null) {
+                            Text(
+                                text = "Analyze ${nodes.size} nodes and ${analytics.totalLinks} directed links with deterministic mathematical synthesis.",
+                                style = MonolithTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                                color = iOSTextSecondary
+                            )
+
+                            Button(
+                                onClick = {
+                                    isSynthesizing = true
+                                    synthesisError = null
+                                    coroutineScope.launch {
+                                        val res = GeminiApiClient.synthesizeVaultTopology(
+                                            apiKey = apiKey,
+                                            model = aiModel,
+                                            notes = notes.ifEmpty { nodes.map { it.note } },
+                                            analytics = analytics,
+                                            nodes = nodes
+                                        )
+                                        isSynthesizing = false
+                                        if (res.isSuccess) {
+                                            synthesisResult = res.getOrNull()
+                                        } else {
+                                            synthesisError = res.exceptionOrNull()?.localizedMessage ?: "Synthesis failed."
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF7C3AED),
+                                    contentColor = Color.White
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, null, modifier = Modifier.size(15.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Run Mathematical Synthesis", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        if (synthesisError != null) {
+                            Text(
+                                text = "Error: $synthesisError",
+                                style = MonolithTypography.bodySmall.copy(fontSize = 11.5.sp),
+                                color = Color(0xFFFCA5A5)
+                            )
+                        }
+
+                        val syn = synthesisResult
+                        if (syn != null) {
+                            // 1. Structural Assessment
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color(0xFF1E1C29))
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "STRUCTURAL CRITIQUE",
+                                        style = MonolithTypography.labelSmall.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                            letterSpacing = 0.8.sp
+                                        ),
+                                        color = Color(0xFFA78BFA)
+                                    )
+                                    Text(
+                                        text = syn.structuralAssessment,
+                                        style = MonolithTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                                        color = iOSTextPrimary
+                                    )
+                                }
+                            }
+
+                            // 2. Cross-Cluster Bridges
+                            if (syn.bridgeProposals.isNotEmpty()) {
+                                Text(
+                                    text = "CROSS-CLUSTER BRIDGES (${syn.bridgeProposals.size})",
+                                    style = MonolithTypography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 0.8.sp
+                                    ),
+                                    color = Color(0xFF38BDF8)
+                                )
+
+                                syn.bridgeProposals.forEach { bridge ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF171922))
+                                            .border(0.5.dp, Color(0xFF263345), RoundedCornerShape(10.dp))
+                                            .padding(11.dp)
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "${bridge.sourceTitle} ⟷ ${bridge.targetTitle}",
+                                                    style = MonolithTypography.bodySmall.copy(
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 12.sp
+                                                    ),
+                                                    color = Color(0xFF7DD3FC),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(Color(0xFF172B38))
+                                                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "${(bridge.affinityScore * 100).toInt()}% affinity",
+                                                        fontSize = 9.5.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Color(0xFF38BDF8)
+                                                    )
+                                                }
+                                            }
+
+                                            Text(
+                                                text = bridge.rationale,
+                                                style = MonolithTypography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                                                color = iOSTextSecondary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 3. Bottlenecks
+                            if (syn.bottlenecks.isNotEmpty()) {
+                                Text(
+                                    text = "STRUCTURAL BOTTLENECKS",
+                                    style = MonolithTypography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 0.8.sp
+                                    ),
+                                    color = Color(0xFFF87171)
+                                )
+
+                                syn.bottlenecks.forEach { b ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF221417))
+                                            .border(0.5.dp, Color(0xFF452228), RoundedCornerShape(10.dp))
+                                            .padding(11.dp)
+                                    ) {
+                                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = b.noteTitle,
+                                                    style = MonolithTypography.bodySmall.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                                                    color = Color(0xFFFCA5A5)
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(4.dp))
+                                                        .background(Color(0xFF3D191F))
+                                                        .padding(horizontal = 5.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text(text = b.severity, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF87171))
+                                                }
+                                            }
+                                            Text(
+                                                text = b.vulnerability,
+                                                style = MonolithTypography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                                                color = Color(0xFFFECACA)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Re-run button
+                            OutlinedButton(
+                                onClick = {
+                                    isSynthesizing = true
+                                    synthesisError = null
+                                    coroutineScope.launch {
+                                        val res = GeminiApiClient.synthesizeVaultTopology(
+                                            apiKey = apiKey,
+                                            model = aiModel,
+                                            notes = notes.ifEmpty { nodes.map { it.note } },
+                                            analytics = analytics,
+                                            nodes = nodes
+                                        )
+                                        isSynthesizing = false
+                                        if (res.isSuccess) {
+                                            synthesisResult = res.getOrNull()
+                                        } else {
+                                            synthesisError = res.exceptionOrNull()?.localizedMessage ?: "Synthesis failed."
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, Color(0xFF352B4D)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFA78BFA))
+                            ) {
+                                Icon(Icons.Default.Refresh, null, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Re-run Synthesis", fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }

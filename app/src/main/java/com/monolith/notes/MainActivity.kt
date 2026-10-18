@@ -510,6 +510,8 @@ class MainActivity : FragmentActivity() {
                                             }
                                         },
                                         onUpdateTheme = { settingsManager.setTheme(it) },
+                                        onUpdateGeminiApiKey = { key -> settingsManager.setGeminiApiKey(key) },
+                                        onUpdateAiModel = { model -> settingsManager.setAiModel(model) },
                                         onNoteClick = { note ->
                                             editorBackStack.clear()
                                             currentScreen = Screen.Editor(note)
@@ -625,6 +627,7 @@ class MainActivity : FragmentActivity() {
                                         allNotes = notes,
                                         vaultPath = repository.notesDir.absolutePath,
                                         settings = settings,
+                                        onOpenSettings = { currentScreen = Screen.List },
                                         onBack = {
                                             triggerAutoSync(debounceMs = 0L)
                                             if (editorBackStack.isNotEmpty()) {
@@ -745,6 +748,11 @@ class MainActivity : FragmentActivity() {
                                     KnowledgeGraphScreen(
                                         notes = notes,
                                         initialBundle = cachedGraphBundle,
+                                        apiKey = settings.geminiApiKey,
+                                        aiModel = settings.aiModel,
+                                        onConfigureApiKey = {
+                                            currentScreen = Screen.List
+                                        },
                                         onBack = {
                                             currentScreen = Screen.List
                                         },

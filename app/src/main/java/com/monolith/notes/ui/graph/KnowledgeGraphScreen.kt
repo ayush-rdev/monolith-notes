@@ -52,6 +52,9 @@ import kotlin.math.*
 fun KnowledgeGraphScreen(
     notes: List<Note>,
     initialBundle: KnowledgeGraphBundle? = null,
+    apiKey: String = "",
+    aiModel: String = "gemini-2.0-flash",
+    onConfigureApiKey: () -> Unit = {},
     onBack: () -> Unit,
     onNavigateToNote: (Note) -> Unit,
     modifier: Modifier = Modifier
@@ -1060,6 +1063,10 @@ fun KnowledgeGraphScreen(
             GraphIntelligenceSheet(
                 analytics = analytics,
                 nodes = allNodes,
+                notes = notes,
+                apiKey = apiKey,
+                aiModel = aiModel,
+                onConfigureApiKey = onConfigureApiKey,
                 onSelectHub = { hubNode ->
                     val matchIndex = allNodes.indexOfFirst { it.id == hubNode.id }
                     if (matchIndex != -1) {

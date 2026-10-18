@@ -53,8 +53,12 @@ data class AppSettings(
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val googleDriveUri: String? = null,
     val lastSyncTimestamp: Long = 0L,
-    val isGalleryView: Boolean = false
-)
+    val isGalleryView: Boolean = false,
+    val geminiApiKey: String = "",
+    val aiModel: String = "gemini-2.0-flash"
+) {
+    val isAiConfigured: Boolean get() = geminiApiKey.isNotBlank()
+}
 
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("monolith_settings", Context.MODE_PRIVATE)
@@ -125,6 +129,8 @@ class SettingsManager(context: Context) {
 
         val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
         val galleryView = prefs.getBoolean(KEY_GALLERY_VIEW, false)
+        val geminiKey = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
+        val aiModel = prefs.getString(KEY_AI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash"
 
         return AppSettings(
             hapticsEnabled = haptics,
@@ -141,7 +147,9 @@ class SettingsManager(context: Context) {
             webDavConfig = webDavConfig,
             googleDriveUri = gDriveUri,
             lastSyncTimestamp = lastSync,
-            isGalleryView = galleryView
+            isGalleryView = galleryView,
+            geminiApiKey = geminiKey,
+            aiModel = aiModel
         )
     }
 
@@ -265,6 +273,16 @@ class SettingsManager(context: Context) {
         _settings.value = _settings.value.copy(lastSyncTimestamp = timestamp)
     }
 
+    fun setGeminiApiKey(key: String) {
+        prefs.edit().putString(KEY_GEMINI_API_KEY, key.trim()).apply()
+        _settings.value = _settings.value.copy(geminiApiKey = key.trim())
+    }
+
+    fun setAiModel(model: String) {
+        prefs.edit().putString(KEY_AI_MODEL, model.trim()).apply()
+        _settings.value = _settings.value.copy(aiModel = model.trim())
+    }
+
     companion object {
         private const val KEY_HAPTICS = "key_haptics"
         private const val KEY_START_STYLE = "key_start_style"
@@ -295,5 +313,7 @@ class SettingsManager(context: Context) {
         private const val KEY_WEBDAV_AUTOSYNC = "key_webdav_autosync"
         private const val KEY_LAST_SYNC_TIME = "key_last_sync_time"
         private const val KEY_GALLERY_VIEW = "key_gallery_view"
+        private const val KEY_GEMINI_API_KEY = "key_gemini_api_key"
+        private const val KEY_AI_MODEL = "key_ai_model"
     }
 }

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -113,6 +114,7 @@ fun NoteEditorScreen(
     onNavigateToNote: ((String) -> Unit)? = null,
     onSaveAttachment: (suspend (Uri) -> String?)? = null,
     onDelete: ((Note) -> Unit)? = null,
+    onOpenSettings: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -179,6 +181,7 @@ fun NoteEditorScreen(
     }
 
     var showFormatSheet by remember { mutableStateOf(false) }
+    var showAnalysisSheet by remember { mutableStateOf(false) }
 
     val dateFormat = remember { SimpleDateFormat("d MMMM yyyy 'at' h:mm a", Locale.getDefault()) }
     val formattedDate = remember(note.lastModified) { dateFormat.format(Date(note.lastModified)) }
@@ -671,6 +674,21 @@ fun NoteEditorScreen(
                         IconButton(
                             onClick = {
                                 performHaptic(HapticFeedbackType.TextHandleMove)
+                                showAnalysisSheet = true
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Point-to-Point Analysis",
+                                tint = if (settings.isAiConfigured) Color(0xFFA78BFA) else iOSTextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                performHaptic(HapticFeedbackType.TextHandleMove)
                                 showInfoSheet = true
                             },
                             modifier = Modifier.size(36.dp)
@@ -832,6 +850,37 @@ fun NoteEditorScreen(
                                 }
                             }
                         }
+                    }
+
+                    if (showAnalysisSheet) {
+                        NoteAnalysisSheet(
+                            note = currentNote,
+                            allNotes = allNotes,
+                            apiKey = settings.geminiApiKey,
+                            aiModel = settings.aiModel,
+                            onInsertWikilink = { link ->
+                                val current = bodyState.text
+                                val cursor = bodyState.selection.start.coerceIn(0, current.length)
+                                val newText = current.substring(0, cursor) + " $link " + current.substring(cursor)
+                                bodyState = bodyState.copy(
+                                    text = newText,
+                                    selection = androidx.compose.ui.text.TextRange(cursor + link.length + 2)
+                                )
+                                android.widget.Toast.makeText(context, "Inserted $link", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onAppendAction = { action ->
+                                val current = bodyState.text
+                                val prefix = if (current.endsWith("\n") || current.isEmpty()) "" else "\n"
+                                val newText = current + prefix + "- [ ] $action\n"
+                                bodyState = bodyState.copy(
+                                    text = newText,
+                                    selection = androidx.compose.ui.text.TextRange(newText.length)
+                                )
+                                android.widget.Toast.makeText(context, "Added action item", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenSettings = onOpenSettings,
+                            onDismiss = { showAnalysisSheet = false }
+                        )
                     }
                 }
             }
