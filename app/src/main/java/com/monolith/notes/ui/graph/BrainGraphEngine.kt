@@ -86,6 +86,20 @@ object BrainGraphEngine {
 
         // 3. Layout Orphan notes inside the Cerebellum at the posterior base
         layoutOrphansInCerebellum(orphanNodes)
+
+        // 4. Precompute fixed world-space fiber control points for all edges
+        val coreX = 0f
+        val coreY = -30f
+        for (edge in edges) {
+            val src = nodes[edge.sourceIndex]
+            val dst = nodes[edge.targetIndex]
+            val midX = (src.brainX + dst.brainX) * 0.5f
+            val midY = (src.brainY + dst.brainY) * 0.5f
+            val dist = hypot(dst.brainX - src.brainX, dst.brainY - src.brainY)
+            val bendFactor = (dist / 600f).coerceIn(0.20f, 0.65f)
+            edge.brainCtrlX = midX + (coreX - midX) * bendFactor
+            edge.brainCtrlY = midY + (coreY - midY) * bendFactor
+        }
     }
 
     /**
@@ -209,75 +223,76 @@ object BrainGraphEngine {
      * Includes bilateral cerebral hemispheres, medial longitudinal fissure, and cerebellum.
      */
     fun buildAnatomicalContourPath(
+        targetPath: Path = Path(),
         centerX: Float,
         centerY: Float,
         scale: Float
     ): Path {
-        val path = Path()
+        targetPath.reset()
 
         fun toX(bx: Float) = centerX + bx * scale
         fun toY(by: Float) = centerY + by * scale
 
         // 1. Left Hemisphere Outer Contour
-        path.moveTo(toX(-MEDIAL_FISSURE_HALF_WIDTH), toY(-440f)) // Frontal pole medial start
+        targetPath.moveTo(toX(-MEDIAL_FISSURE_HALF_WIDTH), toY(-440f)) // Frontal pole medial start
         // Frontal pole curve
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(-120f), toY(-480f),
             toX(-260f), toY(-400f),
             toX(-340f), toY(-240f)
         )
         // Temporal / Parietal lateral bulge
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(-400f), toY(-120f),
             toX(-410f), toY(80f),
             toX(-350f), toY(220f)
         )
         // Occipital curvature
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(-300f), toY(320f),
             toX(-160f), toY(380f),
             toX(-MEDIAL_FISSURE_HALF_WIDTH), toY(370f)
         )
         // Medial longitudinal fissure left border
-        path.lineTo(toX(-MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
+        targetPath.lineTo(toX(-MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
 
         // 2. Right Hemisphere Outer Contour
-        path.moveTo(toX(MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
-        path.cubicTo(
+        targetPath.moveTo(toX(MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
+        targetPath.cubicTo(
             toX(120f), toY(-480f),
             toX(260f), toY(-400f),
             toX(340f), toY(-240f)
         )
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(400f), toY(-120f),
             toX(410f), toY(80f),
             toX(350f), toY(220f)
         )
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(300f), toY(320f),
             toX(160f), toY(380f),
             toX(MEDIAL_FISSURE_HALF_WIDTH), toY(370f)
         )
-        path.lineTo(toX(MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
+        targetPath.lineTo(toX(MEDIAL_FISSURE_HALF_WIDTH), toY(-440f))
 
         // 3. Cerebellum Base Contour (below occipital lobes)
-        path.moveTo(toX(-280f), toY(375f))
-        path.cubicTo(
+        targetPath.moveTo(toX(-280f), toY(375f))
+        targetPath.cubicTo(
             toX(-320f), toY(440f),
             toX(-160f), toY(500f),
             toX(0f), toY(490f)
         )
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(160f), toY(500f),
             toX(320f), toY(440f),
             toX(280f), toY(375f)
         )
-        path.cubicTo(
+        targetPath.cubicTo(
             toX(140f), toY(390f),
             toX(-140f), toY(390f),
             toX(-280f), toY(375f)
         )
 
-        return path
+        return targetPath
     }
 }

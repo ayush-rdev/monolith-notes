@@ -34,7 +34,9 @@ data class GraphNode(
 data class GraphEdge(
     val sourceIndex: Int,
     val targetIndex: Int,
-    val isDirected: Boolean = true
+    val isDirected: Boolean = true,
+    var brainCtrlX: Float = 0f,
+    var brainCtrlY: Float = 0f
 )
 
 /**
@@ -207,40 +209,8 @@ object KnowledgeGraphEngine {
         // 4b. Compute anatomical Brain Graph coordinates (Obsidian Brain Graph architecture)
         BrainGraphEngine.computeBrainLayout(nodesList, edgesList)
 
-        // 5. Intelligent Suggestions Engine: Discover unlinked mentions & shared tag synergy
-        val suggestionsMap = HashMap<String, MutableList<SuggestedConnection>>()
-
-        for (i in 0 until count) {
-            val noteA = notes[i]
-            val list = mutableListOf<SuggestedConnection>()
-            val noteATags = noteA.tags.toSet()
-            val lowerContent = noteA.content.lowercase()
-
-            for (j in 0 until count) {
-                if (i == j) continue
-                val noteB = notes[j]
-                val pair1 = Pair(i, j)
-                val pair2 = Pair(j, i)
-                val isAlreadyLinked = edgeSet.contains(pair1) || edgeSet.contains(pair2)
-
-                if (!isAlreadyLinked) {
-                    val bTitle = noteB.displayTitle.lowercase().trim()
-                    // Case 1: Unlinked mention of Note B title in Note A text
-                    if (bTitle.length >= 4 && lowerContent.contains(bTitle) && !lowerContent.contains("[[$bTitle]]")) {
-                        list.add(SuggestedConnection(noteB, "Mentions '${noteB.displayTitle}'"))
-                    } else if (noteATags.isNotEmpty() && noteB.tags.isNotEmpty()) {
-                        // Case 2: Shared tags
-                        val shared = noteATags.intersect(noteB.tags.toSet())
-                        if (shared.isNotEmpty()) {
-                            list.add(SuggestedConnection(noteB, "Shares #${shared.first()}"))
-                        }
-                    }
-                }
-            }
-            if (list.isNotEmpty()) {
-                suggestionsMap[noteA.id] = list.take(3).toMutableList()
-            }
-        }
+        // 5. Suggestions Map (deferred / lightweight to prevent UI thread freezing)
+        val suggestionsMap = emptyMap<String, List<SuggestedConnection>>()
 
         val topHubs = nodesList.filter { it.isHub }.sortedByDescending { it.degree }.take(5)
         val density = if (count > 1) ((2.0 * edgesList.size) / (count * (count - 1)) * 100.0).toInt() else 0
@@ -281,7 +251,10 @@ object KnowledgeGraphEngine {
             for (j in (i + 1) until count) {
                 val nodeB = nodes[j]
                 val dx = nodeB.x - nodeA.x
+                if (abs(dx) > 450f) continue
                 val dy = nodeB.y - nodeA.y
+                if (abs(dy) > 450f) continue
+
                 val distSq = dx * dx + dy * dy + 300f
                 val dist = sqrt(distSq)
 

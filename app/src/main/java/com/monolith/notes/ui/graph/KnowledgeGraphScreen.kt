@@ -258,6 +258,7 @@ fun KnowledgeGraphScreen(
     }
 
     val fiberReusablePath = remember { Path() }
+    val contourReusablePath = remember { Path() }
 
     Box(
         modifier = modifier
@@ -413,6 +414,7 @@ fun KnowledgeGraphScreen(
             // 0. Anatomical Cortical Silhouette (Superior View)
             if (transitionProgress > 0.05f) {
                 val contourPath = BrainGraphEngine.buildAnatomicalContourPath(
+                    targetPath = contourReusablePath,
                     centerX = centerX + offsetX,
                     centerY = centerY + offsetY,
                     scale = scale
@@ -461,15 +463,10 @@ fun KnowledgeGraphScreen(
                 val ctrlY: Float
 
                 if (transitionProgress > 0.05f) {
-                    val brainCtrl = BrainGraphEngine.computeFiberControlPoint(
-                        sx = sx, sy = sy,
-                        dx = dx, dy = dy,
-                        centerX = centerX + offsetX,
-                        centerY = centerY + offsetY,
-                        scale = scale
-                    )
-                    ctrlX = midX * (1f - transitionProgress) + brainCtrl.x * transitionProgress
-                    ctrlY = midY * (1f - transitionProgress) + brainCtrl.y * transitionProgress
+                    val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
+                    val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
+                    ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
+                    ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
 
                     fiberReusablePath.reset()
                     fiberReusablePath.moveTo(sx, sy)
@@ -625,15 +622,10 @@ fun KnowledgeGraphScreen(
                     val ctrlY: Float
 
                     if (transitionProgress > 0.05f) {
-                        val brainCtrl = BrainGraphEngine.computeFiberControlPoint(
-                            sx = sx, sy = sy,
-                            dx = dx, dy = dy,
-                            centerX = centerX + offsetX,
-                            centerY = centerY + offsetY,
-                            scale = scale
-                        )
-                        ctrlX = midX * (1f - transitionProgress) + brainCtrl.x * transitionProgress
-                        ctrlY = midY * (1f - transitionProgress) + brainCtrl.y * transitionProgress
+                        val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
+                        val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
+                        ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
+                        ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
 
                         fiberReusablePath.reset()
                         fiberReusablePath.moveTo(sx, sy)
