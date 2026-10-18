@@ -4,7 +4,7 @@
 
 ### A Tactile, Distraction-Free Markdown Journal for Android with Pure Local-First File Sovereignty.
 
-[![Download APK](https://img.shields.io/badge/Download_APK-v1.5.1_Release-34C759?style=for-the-badge&logo=android&logoColor=white)](https://github.com/ayush-rdev/monolith-notes/releases/latest/download/Monolith-Notes-v1.5.1.apk)
+[![Download APK]([https://img.shields.io/badge/Download_APK-v1.5.1_Release-34C759?style=for-the-badge&logo=android&logoColor=white](https://github.com/ayush-rdev/monolith-notes/releases/tag/v2.4.6))]([https://github.com/ayush-rdev/monolith-notes/releases/latest/download/Monolith-Notes-v1.5.1.apk](https://github.com/ayush-rdev/monolith-notes/releases/tag/v2.4.6))
 [![Android](https://img.shields.io/badge/Platform-Android_8.0+-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://android.com)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack_Compose_BOM-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Markdown](https://img.shields.io/badge/Storage-Pure_CommonMark_Vault-000000?style=for-the-badge&logo=markdown&logoColor=white)](https://commonmark.org)
