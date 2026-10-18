@@ -9,7 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,21 +34,37 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.monolith.notes.data.ai.ActiveNeuronCandidate
+import com.monolith.notes.data.ai.GeminiApiClient
+import com.monolith.notes.data.ai.NeuralQuerySynthesis
+import com.monolith.notes.data.ai.VaultNeuronEngine
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import kotlin.math.*
 
 /**
- * Obsidian-grade Personal Knowledge Graph.
+ * Obsidian-grade Personal Knowledge Graph (Galaxy Architecture).
  * Features unified touch processor (focal-centered pinch zoom & 1-finger node drag/pan),
- * zero-fluff professional top bar, Vault Intelligence Sheet ('i'), and frustum-culled rendering.
+ * zero-fluff professional top bar, in-place neural retrieval HUD, and proportional radiant neuron activation.
  */
 @Composable
 fun KnowledgeGraphScreen(
@@ -60,26 +78,46 @@ fun KnowledgeGraphScreen(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val coroutineScope = rememberCoroutineScope()
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showIntelligenceSheet by remember { mutableStateOf(false) }
     var showAskNeuronsSheet by remember { mutableStateOf(false) }
+
+    // In-Place Neural Retrieval Box & Synthesis States
+    var showNeuralQueryBox by remember { mutableStateOf(false) }
+    var neuralInputQuery by remember { mutableStateOf("") }
+    var isNeuralSynthesizing by remember { mutableStateOf(false) }
+    var neuralErrorMessage by remember { mutableStateOf<String?>(null) }
+    val queryFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(showNeuralQueryBox) {
+        if (showNeuralQueryBox) {
+            delay(120)
+            try {
+                queryFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
+
     var activeNeuronIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var neuralQueryText by remember { mutableStateOf("") }
+    var neuralSynthesisResult by remember { mutableStateOf<NeuralQuerySynthesis?>(null) }
+    var neuralActiveCandidates by remember { mutableStateOf<List<ActiveNeuronCandidate>>(emptyList()) }
 
     var selectedNodeIndex by remember { mutableStateOf<Int?>(null) }
     var draggedNodeIndex by remember { mutableStateOf<Int?>(null) }
 
-    var graphMode by remember { mutableStateOf(GraphMode.BRAIN) }
-    val transitionProgress by animateFloatAsState(
-        targetValue = if (graphMode == GraphMode.BRAIN) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-        label = "graphModeTransition"
-    )
     val selectionTransition by animateFloatAsState(
         targetValue = if (selectedNodeIndex != null) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
         label = "selectionDepthTransition"
+    )
+    val neuralFocusTransition by animateFloatAsState(
+        targetValue = if (activeNeuronIds.isNotEmpty()) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+        label = "neuralFocusTransition"
     )
 
     // Build or reuse cached Graph Data from background engine
@@ -95,12 +133,10 @@ fun KnowledgeGraphScreen(
     val allEdges = graphBundle.edges
     val analytics = graphBundle.analytics
 
-    var galaxyScale by remember(graphBundle) { mutableFloatStateOf(graphBundle.initialGalaxyScale) }
-    var brainScale by remember(graphBundle) { mutableFloatStateOf(graphBundle.initialBrainScale) }
+    val galaxyScale = graphBundle.initialGalaxyScale
 
     // Canvas Transformation State (Pan & Zoom) initialized directly to calibrated resting scale
-    val defaultScale = if (graphMode == GraphMode.BRAIN) brainScale else galaxyScale
-    var scale by remember(graphBundle) { mutableFloatStateOf(defaultScale) }
+    var scale by remember(graphBundle) { mutableFloatStateOf(galaxyScale) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
@@ -190,8 +226,15 @@ fun KnowledgeGraphScreen(
 
     // Back button handling
     BackHandler {
-        if (showIntelligenceSheet) {
+        if (showNeuralQueryBox) {
+            showNeuralQueryBox = false
+        } else if (showIntelligenceSheet) {
             showIntelligenceSheet = false
+        } else if (activeNeuronIds.isNotEmpty()) {
+            activeNeuronIds = emptySet()
+            neuralQueryText = ""
+            neuralSynthesisResult = null
+            neuralActiveCandidates = emptyList()
         } else if (selectedNodeIndex != null) {
             selectedNodeIndex = null
         } else if (isSearchActive) {
@@ -239,9 +282,6 @@ fun KnowledgeGraphScreen(
         }
     }
 
-    val fiberReusablePath = remember { Path() }
-    val contourReusablePath = remember { Path() }
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -283,10 +323,8 @@ fun KnowledgeGraphScreen(
                         // Hit-test nodes (with a comfortable 26px touch target margin)
                         for (i in allNodes.indices) {
                             val node = allNodes[i]
-                            val nx = node.x * (1f - transitionProgress) + node.brainX * transitionProgress
-                            val ny = node.y * (1f - transitionProgress) + node.brainY * transitionProgress
-                            val dx = nx - graphDownX
-                            val dy = ny - graphDownY
+                            val dx = node.x - graphDownX
+                            val dy = node.y - graphDownY
                             val dist = sqrt(dx * dx + dy * dy)
                             if (dist < (node.radius + 26f)) {
                                 activeDraggedNode = i
@@ -342,15 +380,10 @@ fun KnowledgeGraphScreen(
                                         val node = allNodes[activeDraggedNode]
                                         val deltaX = panChange.x / scale
                                         val deltaY = panChange.y / scale
-                                        if (graphMode == GraphMode.BRAIN) {
-                                            node.brainX += deltaX
-                                            node.brainY += deltaY
-                                        } else {
-                                            node.x += deltaX
-                                            node.y += deltaY
-                                            node.vx = deltaX * 0.45f
-                                            node.vy = deltaY * 0.45f
-                                        }
+                                        node.x += deltaX
+                                        node.y += deltaY
+                                        node.vx = deltaX * 0.45f
+                                        node.vy = deltaY * 0.45f
                                         physicsIteration++
                                     } else {
                                         // Pan entire graph canvas
@@ -384,48 +417,16 @@ fun KnowledgeGraphScreen(
             @Suppress("UNUSED_VARIABLE")
             val iter = physicsIteration
 
-            val isBrain = transitionProgress >= 0.99f
-            val isGalaxy = transitionProgress <= 0.01f
-
             val screenXs = FloatArray(nodeCount)
             val screenYs = FloatArray(nodeCount)
 
             for (i in 0 until nodeCount) {
                 val node = allNodes[i]
-                val nx = when {
-                    isBrain -> node.brainX
-                    isGalaxy -> node.x
-                    else -> node.x * (1f - transitionProgress) + node.brainX * transitionProgress
-                }
-                val ny = when {
-                    isBrain -> node.brainY
-                    isGalaxy -> node.y
-                    else -> node.y * (1f - transitionProgress) + node.brainY * transitionProgress
-                }
-                screenXs[i] = centerX + offsetX + (nx * scale)
-                screenYs[i] = centerY + offsetY + (ny * scale)
+                screenXs[i] = centerX + offsetX + (node.x * scale)
+                screenYs[i] = centerY + offsetY + (node.y * scale)
             }
 
-            fun toScreenX(gx: Float): Float = centerX + offsetX + (gx * scale)
-            fun toScreenY(gy: Float): Float = centerY + offsetY + (gy * scale)
-
-            // 0. Anatomical Cortical Silhouette (Superior View)
-            if (transitionProgress > 0.05f) {
-                val contourPath = BrainGraphEngine.buildAnatomicalContourPath(
-                    targetPath = contourReusablePath,
-                    centerX = centerX + offsetX,
-                    centerY = centerY + offsetY,
-                    scale = scale
-                )
-                val contourAlpha = (0.16f * transitionProgress * (1f - 0.70f * selectionTransition)).coerceAtLeast(0.04f)
-                drawPath(
-                    path = contourPath,
-                    color = Color(0xFFE5E5EA).copy(alpha = contourAlpha),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = (1.5f * scale).coerceIn(1.0f, 3.0f)
-                    )
-                )
-            }
+            val activeScrim = maxOf(selectionTransition, neuralFocusTransition)
 
             // 1. Draw Background / Unselected Edges
             for (edgeIndex in allEdges.indices) {
@@ -435,6 +436,10 @@ fun KnowledgeGraphScreen(
 
                 // Skip connected edges: they will be drawn in Pass 4 on top of the defocus scrim
                 if (isConnectedToSelected && selectionTransition > 0.05f) continue
+
+                // Skip edges between active neurons: they will be drawn in Pass 4.5 on top of the defocus scrim
+                val isBothActive = activeNeuronIndices.contains(edge.sourceIndex) && activeNeuronIndices.contains(edge.targetIndex)
+                if (isBothActive && neuralFocusTransition > 0.05f) continue
 
                 val srcNode = allNodes[edge.sourceIndex]
                 val sx = screenXs[edge.sourceIndex]
@@ -447,54 +452,32 @@ fun KnowledgeGraphScreen(
                     continue
                 }
 
-                val edgeAlpha = (if (transitionProgress > 0.5f) 0.25f else 0.18f) * (1f - 0.90f * selectionTransition)
-                if (edgeAlpha < 0.015f) continue
+                val edgeAlpha = 0.18f * (1f - 0.94f * activeScrim)
+                if (edgeAlpha < 0.010f) continue
 
                 val edgeColor = srcNode.clusterColor.copy(alpha = edgeAlpha)
                 val strokeWidth = (0.85f * scale).coerceIn(0.6f, 2.5f)
 
-                val midX = (sx + dx) * 0.5f
-                val midY = (sy + dy) * 0.5f
-                val ctrlX: Float
-                val ctrlY: Float
-
-                if (transitionProgress > 0.05f) {
-                    val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
-                    val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
-                    ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
-                    ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
-
-                    fiberReusablePath.reset()
-                    fiberReusablePath.moveTo(sx, sy)
-                    fiberReusablePath.quadraticBezierTo(ctrlX, ctrlY, dx, dy)
-                    drawPath(
-                        path = fiberReusablePath,
-                        color = edgeColor,
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(
-                            width = strokeWidth,
-                            cap = StrokeCap.Round
-                        )
-                    )
-                } else {
-                    ctrlX = midX
-                    ctrlY = midY
-                    drawLine(
-                        color = edgeColor,
-                        start = Offset(sx, sy),
-                        end = Offset(dx, dy),
-                        strokeWidth = strokeWidth,
-                        cap = StrokeCap.Round
-                    )
-                }
+                drawLine(
+                    color = edgeColor,
+                    start = Offset(sx, sy),
+                    end = Offset(dx, dy),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round
+                )
             }
 
             // 2. Draw Background / Unselected Nodes
             for (nodeIndex in allNodes.indices) {
                 val isSelected = nodeIndex == selectedNodeIndex
                 val isConnectedToSelected = selectedNeighbors.contains(nodeIndex)
+                val isActiveNeuron = activeNeuronIndices.contains(nodeIndex)
 
                 // Skip selected and neighbor nodes: they will be drawn in Pass 5 on top of the defocus scrim
                 if ((isSelected || isConnectedToSelected) && selectionTransition > 0.05f) continue
+
+                // Skip active neurons: they will be drawn in Pass 4.5 on top of the defocus scrim
+                if (isActiveNeuron && neuralFocusTransition > 0.05f) continue
 
                 val node = allNodes[nodeIndex]
                 val sx = screenXs[nodeIndex]
@@ -511,7 +494,7 @@ fun KnowledgeGraphScreen(
 
                 val nodeAlpha = when {
                     isQueryMatch -> 1.0f
-                    else -> 0.88f * (1f - 0.90f * selectionTransition) + 0.08f * selectionTransition
+                    else -> 0.88f * (1f - 0.92f * activeScrim) + 0.06f * activeScrim
                 }
 
                 drawCircle(
@@ -520,7 +503,7 @@ fun KnowledgeGraphScreen(
                     center = Offset(sx, sy)
                 )
 
-                if (node.isPinned && selectionTransition < 0.5f) {
+                if (node.isPinned && activeScrim < 0.5f) {
                     drawCircle(
                         color = Color.White.copy(alpha = nodeAlpha),
                         radius = (2.5f * scale).coerceIn(1.8f, 5.0f),
@@ -529,7 +512,7 @@ fun KnowledgeGraphScreen(
                 }
 
                 // Title Labels (Only drawn when nothing is selected, or for search query match)
-                val shouldDrawLabel = isQueryMatch || (selectedNodeIndex == null && (
+                val shouldDrawLabel = isQueryMatch || (selectedNodeIndex == null && activeNeuronIndices.isEmpty() && (
                         (topLandmarkIds.contains(node.id) && scale >= 0.45f) ||
                         (node.isHub && scale >= 1.25f) ||
                         (scale >= 1.65f && node.degree >= 3) ||
@@ -550,26 +533,39 @@ fun KnowledgeGraphScreen(
                 }
             }
 
-            // 3. High-Performance 18% Atmospheric Defocus Depth Scrim
-            if (selectionTransition > 0.01f) {
-                val selIdx = selectedNodeIndex
-                if (selIdx != null && selIdx in allNodes.indices) {
+            // 3. High-Performance Optical Defocus Depth Scrim
+            if (activeScrim > 0.01f) {
+                if (selectedNodeIndex != null && selectedNodeIndex in allNodes.indices) {
+                    val selIdx = selectedNodeIndex!!
                     val selSx = screenXs[selIdx]
                     val selSy = screenYs[selIdx]
-                    // Radial optical defocus: soft 18% veil at focal center, deepening to 62% towards borders
                     drawRect(
                         brush = androidx.compose.ui.graphics.Brush.radialGradient(
                             colors = listOf(
-                                canvasBgColor.copy(alpha = 0.18f * selectionTransition),
-                                canvasBgColor.copy(alpha = 0.62f * selectionTransition)
+                                canvasBgColor.copy(alpha = 0.18f * activeScrim),
+                                canvasBgColor.copy(alpha = 0.68f * activeScrim)
                             ),
                             center = Offset(selSx, selSy),
                             radius = (450f * scale).coerceIn(300f, 1400f)
                         )
                     )
+                } else if (activeNeuronIndices.isNotEmpty()) {
+                    val focalIdx = activeNeuronIndices.first()
+                    val fSx = screenXs[focalIdx]
+                    val fSy = screenYs[focalIdx]
+                    drawRect(
+                        brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(
+                                canvasBgColor.copy(alpha = 0.15f * activeScrim),
+                                canvasBgColor.copy(alpha = 0.75f * activeScrim)
+                            ),
+                            center = Offset(fSx, fSy),
+                            radius = (550f * scale).coerceIn(350f, 1600f)
+                        )
+                    )
                 } else {
                     drawRect(
-                        color = canvasBgColor.copy(alpha = 0.50f * selectionTransition)
+                        color = canvasBgColor.copy(alpha = 0.55f * activeScrim)
                     )
                 }
             }
@@ -581,7 +577,6 @@ fun KnowledgeGraphScreen(
                     val isConnectedToSelected = edge.sourceIndex == selectedNodeIndex || edge.targetIndex == selectedNodeIndex
                     if (!isConnectedToSelected) continue
 
-                    val srcNode = allNodes[edge.sourceIndex]
                     val sx = screenXs[edge.sourceIndex]
                     val sy = screenYs[edge.sourceIndex]
                     val dx = screenXs[edge.targetIndex]
@@ -593,46 +588,20 @@ fun KnowledgeGraphScreen(
                     }
 
                     val edgeColor = themeAccent.copy(alpha = 0.95f)
-                    val strokeWidth = (2.4f * scale).coerceIn(2.0f, 5.5f)
+                    val strokeWidth = (2.2f * scale).coerceIn(1.8f, 5.0f)
 
-                    val midX = (sx + dx) * 0.5f
-                    val midY = (sy + dy) * 0.5f
-                    val ctrlX: Float
-                    val ctrlY: Float
+                    drawLine(
+                        color = edgeColor,
+                        start = Offset(sx, sy),
+                        end = Offset(dx, dy),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round
+                    )
 
-                    if (transitionProgress > 0.05f) {
-                        val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
-                        val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
-                        ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
-                        ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
-
-                        fiberReusablePath.reset()
-                        fiberReusablePath.moveTo(sx, sy)
-                        fiberReusablePath.quadraticBezierTo(ctrlX, ctrlY, dx, dy)
-                        drawPath(
-                            path = fiberReusablePath,
-                            color = edgeColor,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(
-                                width = strokeWidth,
-                                cap = StrokeCap.Round
-                            )
-                        )
-                    } else {
-                        ctrlX = midX
-                        ctrlY = midY
-                        drawLine(
-                            color = edgeColor,
-                            start = Offset(sx, sy),
-                            end = Offset(dx, dy),
-                            strokeWidth = strokeWidth,
-                            cap = StrokeCap.Round
-                        )
-                    }
-
-                    // Traveling Energy Particle / Action Potential along Curved Neural Tract
+                    // Traveling Energy Particle along Link
                     val u = 1f - pulseProgress
-                    val px = u * u * sx + 2f * u * pulseProgress * ctrlX + pulseProgress * pulseProgress * dx
-                    val py = u * u * sy + 2f * u * pulseProgress * ctrlY + pulseProgress * pulseProgress * dy
+                    val px = sx * u + dx * pulseProgress
+                    val py = sy * u + dy * pulseProgress
                     drawCircle(
                         color = Color.White,
                         radius = (3.4f * scale).coerceIn(2.4f, 6.0f),
@@ -641,37 +610,84 @@ fun KnowledgeGraphScreen(
                 }
             }
 
-            // 4.5. Active Neurons (Synaptic Firing Aura for RAG-retrieved nodes)
+            // 4.5. Active Neurons & Synaptic Tracts (Proportional Radiant Activation)
             if (activeNeuronIndices.isNotEmpty()) {
                 val neuronPulse = (sin(pulseProgress * 2f * PI.toFloat()) * 0.5f + 0.5f)
+                val maxScore = neuralActiveCandidates.maxOfOrNull { it.activationScore }?.coerceAtLeast(1f) ?: 1f
+                val scoreMap = neuralActiveCandidates.associate { it.note.id to it.activationScore }
+
+                // Synapses connecting active neurons
+                for (edge in allEdges) {
+                    val srcActive = activeNeuronIndices.contains(edge.sourceIndex)
+                    val tgtActive = activeNeuronIndices.contains(edge.targetIndex)
+                    if (srcActive && tgtActive) {
+                        val sx = screenXs[edge.sourceIndex]
+                        val sy = screenYs[edge.sourceIndex]
+                        val dx = screenXs[edge.targetIndex]
+                        val dy = screenYs[edge.targetIndex]
+
+                        drawLine(
+                            color = Color(0xFFA78BFA).copy(alpha = 0.85f * neuralFocusTransition),
+                            start = Offset(sx, sy),
+                            end = Offset(dx, dy),
+                            strokeWidth = (2.2f * scale).coerceIn(1.5f, 4.5f),
+                            cap = StrokeCap.Round
+                        )
+
+                        // Traveling Action Potential
+                        val u = 1f - pulseProgress
+                        val px = sx * u + dx * pulseProgress
+                        val py = sy * u + dy * pulseProgress
+                        drawCircle(
+                            color = Color(0xFFE9D5FF),
+                            radius = (4.0f * scale).coerceIn(2.5f, 7.0f),
+                            center = Offset(px, py)
+                        )
+                    }
+                }
+
+                // Active Neurons: "the more relevant the more bright"
                 for (activeIdx in activeNeuronIndices) {
                     if (activeIdx == selectedNodeIndex) continue
                     val node = allNodes[activeIdx]
                     val sx = screenXs[activeIdx]
                     val sy = screenYs[activeIdx]
                     val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
+                    val score = scoreMap[node.id] ?: 0f
+                    val normalized = (score / maxScore).coerceIn(0.20f, 1.0f)
 
-                    // Radiant Synaptic Halo
+                    // Outer Radiant Synaptic Halo (Scaled by relevance sigma)
+                    val haloRadius = nodeRadius + (8f + 20f * normalized + 6f * neuronPulse) * scale
+                    val haloAlpha = ((0.32f + 0.48f * normalized + 0.12f * neuronPulse) * neuralFocusTransition).coerceIn(0f, 1f)
                     drawCircle(
-                        color = Color(0xFFA78BFA).copy(alpha = 0.22f + 0.18f * neuronPulse),
-                        radius = nodeRadius + (9f + 6f * neuronPulse) * scale,
+                        color = Color(0xFFA78BFA).copy(alpha = haloAlpha),
+                        radius = haloRadius,
                         center = Offset(sx, sy)
                     )
 
-                    // Core ring in lilac
+                    // Core neon perimeter ring (thicker and brighter for higher relevance)
+                    val ringWidth = ((1.8f + 2.0f * normalized) * scale).coerceIn(1.5f, 6f)
                     drawCircle(
-                        color = Color(0xFFD8B4FE),
-                        radius = nodeRadius + 1.8f * scale,
+                        color = Color(0xFFF3E8FF),
+                        radius = nodeRadius + (2.0f * scale),
                         center = Offset(sx, sy),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.6f * scale)
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = ringWidth)
                     )
 
-                    // Label in lilac
-                    val label = node.note.displayTitle
-                    neighborLabelPaint.color = android.graphics.Color.rgb(216, 180, 254)
-                    neighborLabelPaint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 26f)
+                    // Core node body
+                    drawCircle(
+                        color = node.clusterColor,
+                        radius = nodeRadius,
+                        center = Offset(sx, sy)
+                    )
+
+                    // Prominent Title & Relevance Score Badge
+                    val scoreStr = if (score > 0f) " [σ=${String.format(Locale.US, "%.1f", score)}]" else ""
+                    val fullLabel = "${node.note.displayTitle}$scoreStr"
+                    neighborLabelPaint.color = android.graphics.Color.rgb(233, 213, 255)
+                    neighborLabelPaint.textSize = ((12.0f + 2.5f * normalized).sp.toPx() * scale).coerceIn(12f, 28f)
                     drawContext.canvas.nativeCanvas.drawText(
-                        label,
+                        fullLabel,
                         sx,
                         sy + nodeRadius + (12f * scale).coerceIn(10f, 22f),
                         neighborLabelPaint
@@ -775,7 +791,7 @@ fun KnowledgeGraphScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // "< Notes" Back Button
+                // "< Notes" Back Button + Neuron Count
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -784,7 +800,7 @@ fun KnowledgeGraphScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             onBack()
                         }
-                        .padding(horizontal = 4.dp, vertical = 6.dp)
+                        .padding(horizontal = 6.dp, vertical = 5.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -792,127 +808,53 @@ fun KnowledgeGraphScreen(
                         tint = themeAccent,
                         modifier = Modifier.size(19.dp)
                     )
-                    Spacer(modifier = Modifier.width(3.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Notes",
                         color = themeAccent,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "•  ${allNodes.size} neurons",
+                        fontFamily = FontFamily.Monospace,
+                        color = iOSTextTertiary,
+                        fontSize = 11.sp
+                    )
                 }
 
-                // Segmented Mode Selector: Brain 🧠 | Galaxy 🌌
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(iOSCardBackground)
-                        .border(0.5.dp, iOSDivider.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
-                        .padding(2.dp)
-                ) {
-                    // Brain Tab
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (graphMode == GraphMode.BRAIN) themeAccent.copy(alpha = 0.18f)
-                                else Color.Transparent
-                            )
-                            .clickable {
-                                if (graphMode != GraphMode.BRAIN) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    graphMode = GraphMode.BRAIN
-                                    scale = brainScale
-                                    offsetX = 0f
-                                    offsetY = 0f
-                                    selectedNodeIndex = null
-                                }
-                            }
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "🧠",
-                                fontSize = 11.sp
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "Brain",
-                                fontSize = 11.5.sp,
-                                fontWeight = if (graphMode == GraphMode.BRAIN) FontWeight.Bold else FontWeight.Medium,
-                                color = if (graphMode == GraphMode.BRAIN) themeAccent else iOSTextSecondary
-                            )
-                        }
-                    }
-
-                    // Galaxy Tab
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(
-                                if (graphMode == GraphMode.GALAXY) themeAccent.copy(alpha = 0.18f)
-                                else Color.Transparent
-                            )
-                            .clickable {
-                                if (graphMode != GraphMode.GALAXY) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    graphMode = GraphMode.GALAXY
-                                    scale = galaxyScale
-                                    offsetX = 0f
-                                    offsetY = 0f
-                                    selectedNodeIndex = null
-                                }
-                            }
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "🌌",
-                                fontSize = 11.sp
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "Galaxy",
-                                fontSize = 11.5.sp,
-                                fontWeight = if (graphMode == GraphMode.GALAXY) FontWeight.Bold else FontWeight.Medium,
-                                color = if (graphMode == GraphMode.GALAXY) themeAccent else iOSTextSecondary
-                            )
-                        }
-                    }
-                }
-
-                // Right Actions: Ask Neurons, Search, Recenter, Vault Intelligence (i)
+                // Right Actions: Query Neurons, Search, Recenter, Vault Intelligence (i)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF281F3D))
-                            .border(0.5.dp, Color(0xFF6B21A8), RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF191724))
+                            .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(6.dp))
                             .clickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                showAskNeuronsSheet = true
+                                showNeuralQueryBox = true
                             }
                             .padding(horizontal = 7.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "Ask Neurons",
+                                imageVector = Icons.Default.Psychology,
+                                contentDescription = "Query Neurons",
                                 tint = Color(0xFFA78BFA),
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "Ask",
+                                text = "Query",
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFE9D5FF)
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFE2E8F0)
                             )
                         }
                     }
@@ -923,31 +865,31 @@ fun KnowledgeGraphScreen(
                             isSearchActive = !isSearchActive
                             if (!isSearchActive) searchQuery = ""
                         },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
                             tint = if (isSearchActive) themeAccent else primaryTextColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
 
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            scale = if (graphMode == GraphMode.BRAIN) brainScale else galaxyScale
+                            scale = galaxyScale
                             offsetX = 0f
                             offsetY = 0f
                             selectedNodeIndex = null
                         },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CenterFocusStrong,
                             contentDescription = "Recenter",
                             tint = primaryTextColor,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
 
@@ -956,13 +898,13 @@ fun KnowledgeGraphScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showIntelligenceSheet = true
                         },
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "Vault Intelligence",
                             tint = themeAccent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -994,10 +936,8 @@ fun KnowledgeGraphScreen(
                                 if (matchIndex != -1) {
                                     val matchNode = allNodes[matchIndex]
                                     selectedNodeIndex = matchIndex
-                                    val targetX = if (graphMode == GraphMode.BRAIN) matchNode.brainX else matchNode.x
-                                    val targetY = if (graphMode == GraphMode.BRAIN) matchNode.brainY else matchNode.y
-                                    offsetX = -targetX * scale
-                                    offsetY = -targetY * scale
+                                    offsetX = -matchNode.x * scale
+                                    offsetY = -matchNode.y * scale
                                 }
                             }
                         },
@@ -1045,7 +985,7 @@ fun KnowledgeGraphScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Left: Cluster Color Dot + Title + Degree / Lobe
+                        // Left: Cluster Color Dot + Title + Degree
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
@@ -1067,12 +1007,7 @@ fun KnowledgeGraphScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (graphMode == GraphMode.BRAIN) {
-                                        if (selectedNode.degree == 0) "Orphan Neuron • ${selectedNode.lobe.shortName}"
-                                        else "${selectedNode.degree} links • ${selectedNode.lobe.shortName} • ${selectedNode.clusterName}"
-                                    } else {
-                                        "${selectedNode.degree} links • ${selectedNode.clusterName}"
-                                    },
+                                    text = "${selectedNode.degree} links • ${selectedNode.clusterName}",
                                     fontSize = 11.5.sp,
                                     color = iOSTextSecondary,
                                     maxLines = 1,
@@ -1135,8 +1070,9 @@ fun KnowledgeGraphScreen(
         }
 
         // Floating Prompt Pill (when no node is selected and search is inactive)
+        // Floating Prompt Pill (Ultra-Minimalist Monospace / Obsidian Pill)
         AnimatedVisibility(
-            visible = selectedNodeIndex == null && !isSearchActive,
+            visible = selectedNodeIndex == null && !isSearchActive && activeNeuronIds.isEmpty() && !showNeuralQueryBox,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
@@ -1146,31 +1082,399 @@ fun KnowledgeGraphScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xFF14121F).copy(alpha = 0.94f))
-                    .border(1.dp, Color(0xFF3B2F57), RoundedCornerShape(22.dp))
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xF20F0E16))
+                    .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(8.dp))
                     .clickable {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        showAskNeuronsSheet = true
+                        showNeuralQueryBox = true
                     }
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Psychology,
                         contentDescription = null,
                         tint = Color(0xFFA78BFA),
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "✦ Ask your vault's neurons...",
-                        fontSize = 12.5.sp,
+                        text = "Query vault neurons...",
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFFD8B4FE)
+                        color = Color(0xFFDDD6FE)
                     )
+                }
+            }
+        }
+
+        // Active Neural Retrieval HUD Card (Direct on Graph)
+        AnimatedVisibility(
+            visible = activeNeuronIds.isNotEmpty() && !showNeuralQueryBox,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(9f)
+                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp)
+                .fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xF80D0C14))
+                    .border(0.5.dp, Color(0x44A78BFA), RoundedCornerShape(10.dp))
+                    .padding(horizontal = 11.dp, vertical = 8.dp)
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Top Telemetry Bar
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Psychology,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "\"$neuralQueryText\"",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFF1F5F9),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(Color(0x3334D399))
+                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "${activeNeuronIds.size} active",
+                                    fontSize = 8.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF6EE7B7)
+                                )
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isNeuralSynthesizing) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(10.dp),
+                                    color = Color(0xFFA78BFA),
+                                    strokeWidth = 1.4.dp
+                                )
+                                Text(
+                                    text = "Synthesizing...",
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFFC4B5FD)
+                                )
+                            } else if (neuralSynthesisResult != null) {
+                                Text(
+                                    text = "τ=${neuralSynthesisResult?.retrievalLatencyMs}ms",
+                                    fontSize = 8.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF64748B)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF242038))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            showAskNeuronsSheet = true
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Axioms ↗",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFA78BFA)
+                                    )
+                                }
+                            }
+
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear Neurons",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        activeNeuronIds = emptySet()
+                                        neuralQueryText = ""
+                                        neuralSynthesisResult = null
+                                        neuralActiveCandidates = emptyList()
+                                    }
+                            )
+                        }
+                    }
+
+                    // Candidate Seed Reel (Horizontal chips: tap to center on neuron)
+                    if (neuralActiveCandidates.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            neuralActiveCandidates.forEach { candidate ->
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(Color(0xFF161422))
+                                        .border(0.5.dp, Color(0x22A78BFA), RoundedCornerShape(4.dp))
+                                        .clickable {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            val matchIdx = allNodes.indexOfFirst { it.id == candidate.note.id }
+                                            if (matchIdx != -1) {
+                                                selectedNodeIndex = matchIdx
+                                                val targetNode = allNodes[matchIdx]
+                                                offsetX = -targetNode.x * scale
+                                                offsetY = -targetNode.y * scale
+                                            }
+                                        }
+                                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "[[${candidate.note.displayTitle}]]  σ=${String.format(Locale.US, "%.1f", candidate.activationScore)}",
+                                        fontSize = 8.5.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = Color(0xFFDDD6FE)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // In-Place Spotlight-Style Neural Query Box (Direct on Graph)
+        AnimatedVisibility(
+            visible = showNeuralQueryBox,
+            enter = fadeIn() + scaleIn(initialScale = 0.95f),
+            exit = fadeOut() + scaleOut(targetScale = 0.95f),
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(15f)
+        ) {
+            fun submitNeuralQuery(prompt: String) {
+                val trimmed = prompt.trim()
+                if (trimmed.isBlank() || isNeuralSynthesizing) return
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                showNeuralQueryBox = false
+                neuralQueryText = trimmed
+                isNeuralSynthesizing = true
+                neuralErrorMessage = null
+                neuralSynthesisResult = null
+
+                val candidates = VaultNeuronEngine.activateNeurons(trimmed, notes, maxNeurons = 7)
+                neuralActiveCandidates = candidates
+                activeNeuronIds = candidates.map { it.note.id }.toSet()
+
+                // Auto-center camera on the top active seed
+                if (candidates.isNotEmpty()) {
+                    val topNode = allNodes.firstOrNull { it.id == candidates.first().note.id }
+                    if (topNode != null) {
+                        offsetX = -topNode.x * scale
+                        offsetY = -topNode.y * scale
+                    }
+                }
+
+                coroutineScope.launch {
+                    val result = GeminiApiClient.queryVaultNeurons(
+                        apiKey = apiKey,
+                        model = aiModel,
+                        query = trimmed,
+                        activeNeurons = candidates,
+                        totalVaultNotesCount = notes.size
+                    )
+                    isNeuralSynthesizing = false
+                    if (result.isSuccess) {
+                        neuralSynthesisResult = result.getOrNull()
+                    } else {
+                        neuralErrorMessage = result.exceptionOrNull()?.localizedMessage ?: "Query synthesis failed."
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.70f))
+                    .clickable { showNeuralQueryBox = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xF80E0D16))
+                        .border(0.5.dp, Color(0x44A78BFA), RoundedCornerShape(12.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { /* absorb taps on dialog body */ }
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Psychology,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "NEURAL RETRIEVAL OPERATOR",
+                                    fontSize = 11.5.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.sp,
+                                    color = Color(0xFFF1F5F9)
+                                )
+                            }
+                            Text(
+                                text = "λ = 0.25",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF818CF8)
+                            )
+                        }
+
+                        Text(
+                            text = "S(n) = TF-IDF(q, n) + Σ_{j ∈ Adj(n)} λ · S(j)  |  k = 7",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFF64748B)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF161422))
+                                .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            BasicTextField(
+                                value = neuralInputQuery,
+                                onValueChange = { neuralInputQuery = it },
+                                singleLine = true,
+                                textStyle = TextStyle(
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                cursorBrush = SolidColor(Color(0xFFA78BFA)),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = {
+                                    submitNeuralQuery(neuralInputQuery)
+                                }),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(queryFocusRequester),
+                                decorationBox = { innerTextField ->
+                                    if (neuralInputQuery.isEmpty()) {
+                                        Text(
+                                            text = "Query vault neurons...",
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = Color(0xFF64748B),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            )
+
+                            if (neuralInputQuery.isNotBlank()) {
+                                IconButton(
+                                    onClick = { neuralInputQuery = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(
+                                        if (neuralInputQuery.isNotBlank() && !isNeuralSynthesizing) Color(0xFF7C3AED)
+                                        else Color(0xFF1E1A29)
+                                    )
+                                    .clickable(enabled = neuralInputQuery.isNotBlank() && !isNeuralSynthesizing) {
+                                        submitNeuralQuery(neuralInputQuery)
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Enter",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (neuralInputQuery.isNotBlank()) Color.White else Color(0xFF64748B)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Run",
+                                        tint = if (neuralInputQuery.isNotBlank()) Color.White else Color(0xFF64748B),
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1193,10 +1497,8 @@ fun KnowledgeGraphScreen(
                     if (matchIndex != -1) {
                         selectedNodeIndex = matchIndex
                         // Auto-center camera on the selected hub
-                        val hubX = if (graphMode == GraphMode.BRAIN) hubNode.brainX else hubNode.x
-                        val hubY = if (graphMode == GraphMode.BRAIN) hubNode.brainY else hubNode.y
-                        offsetX = -hubX * scale
-                        offsetY = -hubY * scale
+                        offsetX = -hubNode.x * scale
+                        offsetY = -hubNode.y * scale
                     }
                 },
                 onDismiss = { showIntelligenceSheet = false }
@@ -1209,16 +1511,22 @@ fun KnowledgeGraphScreen(
                 notes = notes,
                 apiKey = apiKey,
                 aiModel = aiModel,
+                initialQueryText = neuralQueryText,
+                initialSynthesis = neuralSynthesisResult,
+                initialCandidates = neuralActiveCandidates,
+                onSynthesisChanged = { query, candidates, synthesis ->
+                    neuralQueryText = query
+                    neuralActiveCandidates = candidates
+                    neuralSynthesisResult = synthesis
+                },
                 onConfigureApiKey = onConfigureApiKey,
                 onLocateNeuronInGraph = { noteId, _ ->
                     val matchIndex = allNodes.indexOfFirst { it.id == noteId }
                     if (matchIndex != -1) {
                         selectedNodeIndex = matchIndex
                         val target = allNodes[matchIndex]
-                        val targetX = if (graphMode == GraphMode.BRAIN) target.brainX else target.x
-                        val targetY = if (graphMode == GraphMode.BRAIN) target.brainY else target.y
-                        offsetX = -targetX * scale
-                        offsetY = -targetY * scale
+                        offsetX = -target.x * scale
+                        offsetY = -target.y * scale
                         showAskNeuronsSheet = false
                     }
                 },
@@ -1233,9 +1541,4 @@ fun KnowledgeGraphScreen(
             )
         }
     }
-}
-
-enum class GraphMode {
-    BRAIN,
-    GALAXY
 }

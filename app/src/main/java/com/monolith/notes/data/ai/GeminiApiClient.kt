@@ -43,7 +43,8 @@ data class ActiveNeuronCitation(
     val title: String,
     val noteId: String?,
     val relevance: String,
-    val excerpt: String
+    val excerpt: String,
+    val score: Float = 0f
 )
 
 data class NeuralQuerySynthesis(
@@ -53,7 +54,10 @@ data class NeuralQuerySynthesis(
     val activeNeurons: List<ActiveNeuronCitation>,
     val missingGaps: String?,
     val confidence: String, // "HIGH", "MODERATE", "LOW"
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val totalVaultNeurons: Int = 0,
+    val activeNeuronsCount: Int = 0,
+    val retrievalLatencyMs: Long = 0L
 )
 
 data class NoteWikilinkSuggestion(
@@ -291,18 +295,23 @@ object GeminiApiClient {
         apiKey: String,
         model: String = "gemini-2.0-flash",
         query: String,
-        activeNeurons: List<ActiveNeuronCandidate>
+        activeNeurons: List<ActiveNeuronCandidate>,
+        totalVaultNotesCount: Int = activeNeurons.size
     ): Result<NeuralQuerySynthesis> = withContext(Dispatchers.IO) {
+        val startTime = System.currentTimeMillis()
         if (apiKey.isBlank()) return@withContext Result.failure(IllegalStateException("No API key configured."))
         if (activeNeurons.isEmpty()) {
             return@withContext Result.success(
                 NeuralQuerySynthesis(
                     query = query,
-                    directAnswer = "Your vault does not contain any notes or neurons relevant to this inquiry.",
-                    keyPoints = listOf("No matching keywords or wikilink connections found in your notes."),
+                    directAnswer = "Zero matching neurons detected across the active vault manifold.",
+                    keyPoints = listOf("Term frequencies and wikilink propagation yielded 0 activated nodes."),
                     activeNeurons = emptyList(),
-                    missingGaps = "No notes found matching '$query'. Consider creating a new note to start building knowledge on this topic.",
-                    confidence = "LOW"
+                    missingGaps = "Query '$query' lies outside current knowledge graph topology.",
+                    confidence = "LOW",
+                    totalVaultNeurons = totalVaultNotesCount,
+                    activeNeuronsCount = 0,
+                    retrievalLatencyMs = System.currentTimeMillis() - startTime
                 )
             )
         }
@@ -380,7 +389,8 @@ object GeminiApiClient {
                         title = title,
                         noteId = matched?.note?.id,
                         relevance = relevance,
-                        excerpt = matched?.excerpt.orEmpty()
+                        excerpt = matched?.excerpt.orEmpty(),
+                        score = matched?.activationScore ?: 0f
                     )
                 )
             }
@@ -393,7 +403,8 @@ object GeminiApiClient {
                             title = cand.note.displayTitle,
                             noteId = cand.note.id,
                             relevance = "Activated with score ${cand.activationScore.toInt()}",
-                            excerpt = cand.excerpt
+                            excerpt = cand.excerpt,
+                            score = cand.activationScore
                         )
                     )
                 }
@@ -409,7 +420,10 @@ object GeminiApiClient {
                     keyPoints = keyPoints,
                     activeNeurons = citations,
                     missingGaps = missingGaps,
-                    confidence = confidence
+                    confidence = confidence,
+                    totalVaultNeurons = totalVaultNotesCount,
+                    activeNeuronsCount = citations.size,
+                    retrievalLatencyMs = System.currentTimeMillis() - startTime
                 )
             )
         } catch (e: Exception) {
