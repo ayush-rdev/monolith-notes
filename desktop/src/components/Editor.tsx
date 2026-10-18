@@ -26,8 +26,7 @@ import { MarkdownRenderView } from './MarkdownVisuals';
 import { 
   VisualEditor, 
   type VisualEditorRef,
-  HEADING_PREFIX_REGEX,
-  NUMBERED_LIST_PREFIX_REGEX 
+  HEADING_PREFIX_REGEX 
 } from './VisualEditor';
 
 interface EditorProps {
@@ -417,21 +416,23 @@ export const Editor: React.FC<EditorProps> = ({
           } else {
             insertRawText('\n• ');
           }
-        } else if (NUMBERED_LIST_PREFIX_REGEX.test(currentLine)) {
-          const match = NUMBERED_LIST_PREFIX_REGEX.exec(currentLine);
-          if (match) {
+        } else {
+          const trimmedCurrent = currentLine.trimStart();
+          const indent = currentLine.substring(0, currentLine.length - trimmedCurrent.length);
+          const numMatch = /^(\d+)\.\s*(.*)/.exec(trimmedCurrent);
+          if (numMatch) {
             e.preventDefault();
-            const prefix = match[0]; // e.g. "1. "
-            const currentNum = parseInt(match[1], 10);
-            if (currentLine === prefix) {
+            const currentNum = parseInt(numMatch[1], 10);
+            const body = numMatch[2];
+            if (!body.trim()) {
               // Empty numbered item: remove prefix and return to regular paragraph
               const lineStart = cursor - currentLine.length;
               const newContent = content.substring(0, lineStart) + content.substring(cursor);
               setContent(newContent);
               saveChanges(title, newContent);
             } else {
-              // Auto-increment: e.g. "1. " -> "2. "
-              const nextPrefix = `\n${currentNum + 1}. `;
+              // Auto-increment: e.g. "1. " -> "2. ", preserving any leading indentation
+              const nextPrefix = `\n${indent}${currentNum + 1}. `;
               insertRawText(nextPrefix);
             }
           }

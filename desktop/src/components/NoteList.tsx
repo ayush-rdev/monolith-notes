@@ -16,7 +16,11 @@ import {
   RefreshCw,
   ChevronDown,
   Hash,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  CopyPlus,
+  FolderPlus,
+  ClipboardPaste
 } from 'lucide-react';
 import type { Note, AppSettings, NoteSortOrder } from '../types';
 import { getDisplayTitle, getTaskStats, formatDate } from '../utils';
@@ -48,6 +52,10 @@ interface NoteListProps {
   isCloudLoggedIn?: boolean;
   onTriggerCloudSync?: () => void;
   onOpenCloudModal?: () => void;
+  copiedNote?: Note | null;
+  onCopyNote?: (note: Note) => void;
+  onDuplicateNote?: (note: Note, targetFolder?: string) => void;
+  onPasteNote?: (targetFolder?: string) => void;
 }
 
 export const NoteList: React.FC<NoteListProps> = ({
@@ -77,19 +85,40 @@ export const NoteList: React.FC<NoteListProps> = ({
   isTrash = false,
   onEmptyTrash,
   onRestoreNote,
+  copiedNote,
+  onCopyNote,
+  onDuplicateNote,
+  onPasteNote,
 }) => {
   const inTrash = isTrash || currentFolder === 'Deleted';
   const [contextMenu, setContextMenu] = useState<{ note: Note; x: number; y: number } | null>(null);
   const [showEmptyTrashModal, setShowEmptyTrashModal] = useState(false);
   const [renameNote, setRenameNote] = useState<Note | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
-  const [moveToNote, setMoveToNote] = useState<Note | null>(null);
+  const [folderActionModal, setFolderActionModal] = useState<{ type: 'move' | 'copy'; note: Note } | null>(null);
+  const [bgContextMenu, setBgContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState('');
   const tagDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcut: Ctrl+V / Cmd+V to paste copied note when not typing in an input
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+        if (activeTag !== 'input' && activeTag !== 'textarea' && copiedNote) {
+          e.preventDefault();
+          onPasteNote?.(currentFolder === 'Deleted' ? 'Notes' : (currentFolder || 'Notes'));
+          showToast(`Pasted note into ${currentFolder === 'Deleted' ? 'Notes' : (currentFolder || 'Notes')}`);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [copiedNote, currentFolder, onPasteNote]);
 
   useEffect(() => {
     if (!isTagDropdownOpen) return;
@@ -143,20 +172,35 @@ export const NoteList: React.FC<NoteListProps> = ({
 
   const handleStartMoveTo = (note: Note) => {
     setContextMenu(null);
-    setMoveToNote(note);
+    setFolderActionModal({ type: 'move', note });
     setNewFolderName('');
   };
 
-  const handleConfirmMove = (targetFolder: string) => {
-    if (moveToNote && onUpdateNote) {
-      onUpdateNote({
-        ...moveToNote,
-        folder: targetFolder,
-        lastModified: Date.now()
-      });
-      showToast(`Moved to ${targetFolder}`);
+  const handleStartCopyTo = (note: Note) => {
+    setContextMenu(null);
+    setFolderActionModal({ type: 'copy', note });
+    setNewFolderName('');
+  };
+
+  const handleConfirmFolderAction = (targetFolder: string) => {
+    if (!folderActionModal) return;
+    const { type, note } = folderActionModal;
+    if (type === 'move') {
+      if (onUpdateNote) {
+        onUpdateNote({
+          ...note,
+          folder: targetFolder,
+          lastModified: Date.now()
+        });
+        showToast(`Moved to ${targetFolder}`);
+      }
+    } else {
+      if (onDuplicateNote) {
+        onDuplicateNote(note, targetFolder);
+        showToast(`Copied to ${targetFolder}`);
+      }
     }
-    setMoveToNote(null);
+    setFolderActionModal(null);
   };
 
   const handlePin = (note: Note) => {
@@ -692,14 +736,25 @@ export const NoteList: React.FC<NoteListProps> = ({
       </div>
 
       {/* Note List Scrollable Container */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        padding: '0 12px 20px 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
+      <div 
+        onContextMenu={(e) => {
+          if ((e.target as HTMLElement).closest('.note-row-item')) return;
+          e.preventDefault();
+          setContextMenu(null);
+          setBgContextMenu({
+            x: Math.min(e.clientX, window.innerWidth - 190),
+            y: Math.min(e.clientY, window.innerHeight - 150)
+          });
+        }}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '0 12px 20px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px'
+        }}
+      >
         {filteredNotes.length === 0 ? (
           inTrash ? null : (
             <div style={{
@@ -849,15 +904,58 @@ export const NoteList: React.FC<NoteListProps> = ({
               </>
             ) : (
               <>
-                {/* Share */}
+                {/* Copy Note */}
                 <button
-                  onClick={() => handleShare(contextMenu.note)}
+                  onClick={() => {
+                    const noteToCopy = contextMenu.note;
+                    setContextMenu(null);
+                    onCopyNote?.(noteToCopy);
+                    showToast('Note copied');
+                  }}
                   style={menuItemBtnStyle}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  <Share2 size={14} color="var(--text-secondary)" />
-                  <span>Share</span>
+                  <Copy size={14} color="var(--text-secondary)" />
+                  <span>Copy Note</span>
+                </button>
+
+                {/* Duplicate Note */}
+                <button
+                  onClick={() => {
+                    const noteToDup = contextMenu.note;
+                    setContextMenu(null);
+                    onDuplicateNote?.(noteToDup);
+                    showToast('Note duplicated');
+                  }}
+                  style={menuItemBtnStyle}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <CopyPlus size={14} color="var(--text-secondary)" />
+                  <span>Duplicate</span>
+                </button>
+
+                {/* Copy to Folder */}
+                <button
+                  onClick={() => handleStartCopyTo(contextMenu.note)}
+                  style={menuItemBtnStyle}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <FolderPlus size={14} color="var(--text-secondary)" />
+                  <span>Copy to...</span>
+                </button>
+
+                {/* Move to Folder */}
+                <button
+                  onClick={() => handleStartMoveTo(contextMenu.note)}
+                  style={menuItemBtnStyle}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <FolderInput size={14} color="var(--text-secondary)" />
+                  <span>Move to...</span>
                 </button>
 
                 {/* Rename */}
@@ -871,17 +969,6 @@ export const NoteList: React.FC<NoteListProps> = ({
                   <span>Rename</span>
                 </button>
 
-                {/* Move to Folder */}
-                <button
-                  onClick={() => handleStartMoveTo(contextMenu.note)}
-                  style={menuItemBtnStyle}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <FolderInput size={14} color="var(--text-secondary)" />
-                  <span>Move to</span>
-                </button>
-
                 {/* Pin / Unpin */}
                 <button
                   onClick={() => handlePin(contextMenu.note)}
@@ -891,6 +978,17 @@ export const NoteList: React.FC<NoteListProps> = ({
                 >
                   <Pin size={14} color="var(--text-secondary)" />
                   <span>{contextMenu.note.isPinned ? 'Unpin' : 'Pin'}</span>
+                </button>
+
+                {/* Share */}
+                <button
+                  onClick={() => handleShare(contextMenu.note)}
+                  style={menuItemBtnStyle}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Share2 size={14} color="var(--text-secondary)" />
+                  <span>Share</span>
                 </button>
 
                 <div style={{ height: '0.5px', backgroundColor: 'var(--divider)', margin: '3px 0' }} />
@@ -910,6 +1008,72 @@ export const NoteList: React.FC<NoteListProps> = ({
                 </button>
               </>
             )}
+          </div>
+        </>
+      )}
+
+      {/* Background Context Menu (Right Click on empty space in NoteList) */}
+      {bgContextMenu && (
+        <>
+          <div
+            onClick={() => setBgContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setBgContextMenu(null);
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 998,
+              backgroundColor: 'transparent'
+            }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: `${Math.max(12, bgContextMenu.x)}px`,
+              top: `${Math.max(12, bgContextMenu.y)}px`,
+              zIndex: 999,
+              minWidth: '175px',
+              backgroundColor: 'var(--bg-card)',
+              border: '0.5px solid var(--divider)',
+              borderRadius: '10px',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
+              padding: '5px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              userSelect: 'none'
+            }}
+          >
+            {copiedNote && (
+              <button
+                onClick={() => {
+                  setBgContextMenu(null);
+                  onPasteNote?.(currentFolder === 'Deleted' ? 'Notes' : (currentFolder || 'Notes'));
+                  showToast(`Pasted note into ${currentFolder === 'Deleted' ? 'Notes' : (currentFolder || 'Notes')}`);
+                }}
+                style={menuItemBtnStyle}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <ClipboardPaste size={14} color="var(--accent)" />
+                <span style={{ color: 'var(--accent)', fontWeight: 500 }}>Paste Note</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setBgContextMenu(null);
+                onNewNote();
+              }}
+              style={menuItemBtnStyle}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Plus size={14} color="var(--text-secondary)" />
+              <span>New Note</span>
+            </button>
           </div>
         </>
       )}
@@ -1003,7 +1167,8 @@ export const NoteList: React.FC<NoteListProps> = ({
       )}
 
       {/* Move to Folder Modal */}
-      {moveToNote && (
+      {/* Move / Copy to Folder Modal */}
+      {folderActionModal && (
         <div
           style={{
             position: 'fixed',
@@ -1015,7 +1180,7 @@ export const NoteList: React.FC<NoteListProps> = ({
             justifyContent: 'center',
             backdropFilter: 'blur(3px)'
           }}
-          onClick={() => setMoveToNote(null)}
+          onClick={() => setFolderActionModal(null)}
         >
           <div
             style={{
@@ -1033,10 +1198,10 @@ export const NoteList: React.FC<NoteListProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontFamily: 'var(--font-display)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Move Note
+                {folderActionModal.type === 'copy' ? 'Copy Note to Folder' : 'Move Note'}
               </span>
               <button
-                onClick={() => setMoveToNote(null)}
+                onClick={() => setFolderActionModal(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px' }}
               >
                 <X size={16} />
@@ -1047,13 +1212,13 @@ export const NoteList: React.FC<NoteListProps> = ({
               {allFolders.map(folder => (
                 <button
                   key={folder}
-                  onClick={() => handleConfirmMove(folder)}
+                  onClick={() => handleConfirmFolderAction(folder)}
                   style={{
                     padding: '8px 10px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: moveToNote.folder === folder ? 'var(--bg-elevated)' : 'transparent',
-                    color: moveToNote.folder === folder ? 'var(--accent)' : 'var(--text-primary)',
+                    backgroundColor: folderActionModal.note.folder === folder ? 'var(--bg-elevated)' : 'transparent',
+                    color: folderActionModal.note.folder === folder ? 'var(--accent)' : 'var(--text-primary)',
                     fontFamily: 'var(--font-text)',
                     fontSize: '13.5px',
                     textAlign: 'left',
@@ -1064,12 +1229,12 @@ export const NoteList: React.FC<NoteListProps> = ({
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
                   onMouseLeave={(e) => {
-                    if (moveToNote.folder !== folder) e.currentTarget.style.backgroundColor = 'transparent';
+                    if (folderActionModal.note.folder !== folder) e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                 >
                   <Folder size={14} />
                   <span style={{ flex: 1 }}>{folder}</span>
-                  {moveToNote.folder === folder && <Check size={14} />}
+                  {folderActionModal.note.folder === folder && <Check size={14} />}
                 </button>
               ))}
             </div>
@@ -1082,7 +1247,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                 onChange={(e) => setNewFolderName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newFolderName.trim()) {
-                    handleConfirmMove(newFolderName.trim());
+                    handleConfirmFolderAction(newFolderName.trim());
                   }
                 }}
                 style={{
@@ -1098,7 +1263,7 @@ export const NoteList: React.FC<NoteListProps> = ({
               />
               <button
                 disabled={!newFolderName.trim()}
-                onClick={() => newFolderName.trim() && handleConfirmMove(newFolderName.trim())}
+                onClick={() => newFolderName.trim() && handleConfirmFolderAction(newFolderName.trim())}
                 style={{
                   padding: '6px 12px',
                   borderRadius: '6px',
@@ -1111,7 +1276,7 @@ export const NoteList: React.FC<NoteListProps> = ({
                   opacity: newFolderName.trim() ? 1 : 0.5
                 }}
               >
-                Move
+                {folderActionModal.type === 'copy' ? 'Copy' : 'Move'}
               </button>
             </div>
           </div>
@@ -1250,6 +1415,7 @@ export const NoteList: React.FC<NoteListProps> = ({
           <div style={{ height: '0.5px', backgroundColor: 'var(--divider)', marginLeft: '16px' }} />
         )}
         <div
+          className="note-row-item"
           onClick={() => {
             onSelectNote(note);
             if (settings.hapticsEnabled && 'vibrate' in navigator) {

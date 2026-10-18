@@ -281,6 +281,69 @@ export const App: React.FC = () => {
     setIsTrashSelected(false);
   };
 
+  const [copiedNote, setCopiedNote] = useState<Note | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('monolith_copied_note');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  const handleCopyNote = (note: Note) => {
+    const noteData = { ...note };
+    setCopiedNote(noteData);
+    try {
+      sessionStorage.setItem('monolith_copied_note', JSON.stringify(noteData));
+    } catch {}
+    try {
+      const fullText = note.title ? `# ${note.title}\n\n${note.content}` : note.content;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(fullText).catch(() => {});
+      }
+    } catch {}
+  };
+
+  const handleDuplicateNote = (note: Note, targetFolder?: string) => {
+    const folder = targetFolder || note.folder || selectedFolder || 'Notes';
+    const newNoteId = `note-${Date.now()}`;
+    const baseTitle = note.title
+      ? (note.title.endsWith(' (Copy)') ? note.title : `${note.title} (Copy)`)
+      : 'Untitled Note (Copy)';
+    const newNote: Note = {
+      ...note,
+      id: newNoteId,
+      title: baseTitle,
+      folder,
+      createdAt: Date.now(),
+      lastModified: Date.now(),
+      isPinned: false,
+      isTrash: false,
+      trashedAt: undefined
+    };
+    setNotes(prev => [newNote, ...prev.filter(n => !isNoteEmpty(n))]);
+    setSelectedNoteId(newNoteId);
+    return newNote;
+  };
+
+  const handlePasteNote = (targetFolder?: string) => {
+    if (!copiedNote) return null;
+    const folder = targetFolder || (isTrashSelected ? 'Notes' : (selectedFolder || 'Notes'));
+    const newNoteId = `note-${Date.now()}`;
+    const newNote: Note = {
+      ...copiedNote,
+      id: newNoteId,
+      folder,
+      createdAt: Date.now(),
+      lastModified: Date.now(),
+      isPinned: false,
+      isTrash: false,
+      trashedAt: undefined
+    };
+    setNotes(prev => [newNote, ...prev.filter(n => !isNoteEmpty(n))]);
+    setSelectedNoteId(newNoteId);
+    return newNote;
+  };
+
   const handleUpdateNote = (updated: Note) => {
     setNotes(prev => prev.map(n => n.id === updated.id ? updated : n));
   };
@@ -400,6 +463,11 @@ export const App: React.FC = () => {
           isCloudLoggedIn={Boolean(cloudConfig.token && cloudConfig.email)}
           onTriggerCloudSync={handlePerformCloudSync}
           onOpenCloudModal={() => setIsCloudModalOpen(true)}
+          copiedNote={copiedNote}
+          onPasteNote={(targetFolder) => {
+            handlePasteNote(targetFolder);
+            setCurrentView('workspace');
+          }}
         />
       ) : (
         /* 2. Workspace View: Notes List & Editor in VS Code floating pane cards with gap & rounded corners */
@@ -455,6 +523,10 @@ export const App: React.FC = () => {
                 isCloudLoggedIn={Boolean(cloudConfig.token && cloudConfig.email)}
                 onTriggerCloudSync={handlePerformCloudSync}
                 onOpenCloudModal={() => setIsCloudModalOpen(true)}
+                copiedNote={copiedNote}
+                onCopyNote={handleCopyNote}
+                onDuplicateNote={handleDuplicateNote}
+                onPasteNote={handlePasteNote}
               />
             </div>
           )}

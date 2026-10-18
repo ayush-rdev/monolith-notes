@@ -10,7 +10,8 @@ import {
   Cloud,
   RefreshCw,
   FileText,
-  X
+  X,
+  ClipboardPaste
 } from 'lucide-react';
 import type { Note } from '../types';
 import { getDisplayTitle, getPreviewSnippet } from '../utils';
@@ -32,6 +33,8 @@ interface VaultScreenProps {
   isCloudLoggedIn?: boolean;
   onTriggerCloudSync?: () => void;
   onOpenCloudModal?: () => void;
+  copiedNote?: Note | null;
+  onPasteNote?: (targetFolder?: string) => void;
 }
 
 export const VaultScreen: React.FC<VaultScreenProps> = ({
@@ -47,11 +50,14 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
   isCloudSyncing,
   isCloudLoggedIn,
   onTriggerCloudSync,
-  onOpenCloudModal
+  onOpenCloudModal,
+  copiedNote,
+  onPasteNote
 }) => {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [folderContextMenu, setFolderContextMenu] = useState<{ folder: string; x: number; y: number } | null>(null);
 
   const isSearching = searchQuery.trim().length > 0;
   const q = searchQuery.toLowerCase().trim();
@@ -367,6 +373,14 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                 {isLibraryMatch && (
                   <div
                     onClick={() => onSelectFolder(null)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setFolderContextMenu({
+                        folder: 'Notes',
+                        x: Math.min(e.clientX, window.innerWidth - 190),
+                        y: Math.min(e.clientY, window.innerHeight - 150)
+                      });
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -406,6 +420,14 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                 {isNotesMatch && (
                   <div
                     onClick={() => onSelectFolder('Notes')}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setFolderContextMenu({
+                        folder: 'Notes',
+                        x: Math.min(e.clientX, window.innerWidth - 190),
+                        y: Math.min(e.clientY, window.innerHeight - 150)
+                      });
+                    }}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -448,6 +470,14 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
                       )}
                       <div
                         onClick={() => onSelectFolder(folder)}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setFolderContextMenu({
+                            folder,
+                            x: Math.min(e.clientX, window.innerWidth - 190),
+                            y: Math.min(e.clientY, window.innerHeight - 150)
+                          });
+                        }}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -683,6 +713,96 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
           )}
         </div>
       </div>
+
+      {/* Folder Context Menu (Right Click on folder to Paste Note Here) */}
+      {folderContextMenu && (
+        <>
+          <div
+            onClick={() => setFolderContextMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setFolderContextMenu(null);
+            }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 998,
+              backgroundColor: 'transparent'
+            }}
+          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              left: `${Math.max(12, folderContextMenu.x)}px`,
+              top: `${Math.max(12, folderContextMenu.y)}px`,
+              zIndex: 999,
+              minWidth: '180px',
+              backgroundColor: 'var(--bg-card)',
+              border: '0.5px solid var(--divider)',
+              borderRadius: '10px',
+              boxShadow: '0 12px 32px rgba(0, 0, 0, 0.75)',
+              padding: '5px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              userSelect: 'none'
+            }}
+          >
+            {copiedNote && (
+              <button
+                onClick={() => {
+                  const target = folderContextMenu.folder;
+                  setFolderContextMenu(null);
+                  onPasteNote?.(target);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 10px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'var(--accent)',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                <ClipboardPaste size={14} color="var(--accent)" />
+                <span>Paste Note Here</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const target = folderContextMenu.folder;
+                setFolderContextMenu(null);
+                onSelectFolder(target);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '7px 10px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-elevated)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Folder size={14} color="var(--text-secondary)" />
+              <span>Open Folder</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
