@@ -5,9 +5,19 @@ import { Editor } from './components/Editor';
 import { VaultScreen } from './components/VaultScreen';
 import { SettingsModal } from './components/SettingsModal';
 import { MonolithCloudModal } from './components/MonolithCloudModal';
+import { VaultSetupModal } from './components/VaultSetupModal';
 import { runCloudSync, recordTombstone } from './sync/cloudSyncEngine';
 import { DEFAULT_SERVER_URL } from './sync/cloudClient';
 import { noteToFileName } from './sync/markdownSyncConverter';
+import { 
+  isTauriEnvironment, 
+  getVaultLocation, 
+  listVaultNotesFromDisk, 
+  saveNoteToDisk, 
+  createFolderOnDisk, 
+  trashNoteOnDisk, 
+  permanentlyDeleteNoteOnDisk 
+} from './services/vaultFileSystem';
 import type { Note, AppSettings, MonolithCloudConfig } from './types';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -120,6 +130,29 @@ export const App: React.FC = () => {
     return saved ? parseInt(saved, 10) : 320;
   });
   const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [vaultPath, setVaultPath] = useState<string | null>(() => localStorage.getItem('monolith_vault_location'));
+  const [isVaultSetupOpen, setIsVaultSetupOpen] = useState<boolean>(false);
+
+  // Load vault location and disk notes on startup
+  useEffect(() => {
+    if (isTauriEnvironment()) {
+      getVaultLocation().then(async (loc) => {
+        if (loc) {
+          setVaultPath(loc);
+          const diskNotes = await listVaultNotesFromDisk(loc);
+          if (diskNotes.length > 0) {
+            setNotes(diskNotes);
+            const diskFolders = Array.from(new Set(diskNotes.map(n => n.folder).filter(f => f && f !== 'Notes')));
+            setCustomFolders(prev => Array.from(new Set([...prev, ...diskFolders])));
+            setSelectedNoteId(diskNotes[0].id);
+          }
+        } else {
+          // First launch: ask user for vault location (Obsidian-style!)
+          setIsVaultSetupOpen(true);
+        }
+      });
+    }
+  }, []);
 
   // Sync cloudConfig to localStorage
   useEffect(() => {
@@ -252,11 +285,33 @@ export const App: React.FC = () => {
     setSelectedNoteId(noteId);
   };
 
+  const handleVaultSelected = async (newVaultPath: string) => {
+    setVaultPath(newVaultPath);
+    setIsVaultSetupOpen(false);
+    const diskNotes = await listVaultNotesFromDisk(newVaultPath);
+    if (diskNotes.length > 0) {
+      setNotes(diskNotes);
+      const diskFolders = Array.from(new Set(diskNotes.map(n => n.folder).filter(f => f && f !== 'Notes')));
+      setCustomFolders(prev => Array.from(new Set([...prev, ...diskFolders])));
+      setSelectedNoteId(diskNotes[0].id);
+    } else {
+      // If folder was empty, save current non-empty notes into it
+      for (const n of notes) {
+        if (!isNoteEmpty(n)) {
+          await saveNoteToDisk(n, undefined, undefined, newVaultPath);
+        }
+      }
+    }
+  };
+
   const handleCreateFolder = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (!customFolders.includes(trimmed)) {
       setCustomFolders(prev => [...prev, trimmed]);
+    }
+    if (vaultPath) {
+      createFolderOnDisk(trimmed, vaultPath);
     }
     setNotes(prev => prev.filter(n => !isNoteEmpty(n)));
     setSelectedFolder(trimmed);
@@ -345,7 +400,11 @@ export const App: React.FC = () => {
   };
 
   const handleUpdateNote = (updated: Note) => {
+    const prevNote = notes.find(n => n.id === updated.id);
     setNotes(prev => prev.map(n => n.id === updated.id ? updated : n));
+    if (vaultPath && !isNoteEmpty(updated)) {
+      saveNoteToDisk(updated, prevNote?.title, prevNote?.folder, vaultPath);
+    }
   };
 
   const handlePinNote = (note: Note) => {
@@ -360,10 +419,16 @@ export const App: React.FC = () => {
       // Permanently delete
       setNotes(prev => prev.filter(n => n.id !== note.id));
       if (selectedNoteId === note.id) setSelectedNoteId(null);
+      if (vaultPath) {
+        permanentlyDeleteNoteOnDisk(note, true, vaultPath);
+      }
     } else {
       // Move to safety net (.trash)
       setNotes(prev => prev.map(n => n.id === note.id ? { ...n, isTrash: true, trashedAt: Date.now() } : n));
       if (selectedNoteId === note.id) setSelectedNoteId(null);
+      if (vaultPath) {
+        trashNoteOnDisk(note, vaultPath);
+      }
     }
   };
 
@@ -404,19 +469,6 @@ export const App: React.FC = () => {
     a.download = `Monolith_Vault_Backup_${new Date().toISOString().slice(0, 10)}.zip`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const [vaultPath, setVaultPath] = useState<string>(() => {
-    return localStorage.getItem('monolith_vault_path') || '~/Documents/MonolithNotes';
-  });
-
-  const handleChangeVaultPath = () => {
-    const newPath = window.prompt('Enter new local vault storage path:', vaultPath);
-    if (newPath && newPath.trim()) {
-      const trimmed = newPath.trim();
-      setVaultPath(trimmed);
-      localStorage.setItem('monolith_vault_path', trimmed);
-    }
   };
 
   return (
@@ -468,6 +520,8 @@ export const App: React.FC = () => {
             handlePasteNote(targetFolder);
             setCurrentView('workspace');
           }}
+          vaultPath={vaultPath}
+          onOpenVaultSetup={() => setIsVaultSetupOpen(true)}
         />
       ) : (
         /* 2. Workspace View: Notes List & Editor in VS Code floating pane cards with gap & rounded corners */
@@ -614,7 +668,10 @@ export const App: React.FC = () => {
         wordCount={wordCount}
         trashCount={trashCount}
         vaultPath={vaultPath}
-        onChangeVaultPath={handleChangeVaultPath}
+        onChangeVaultPath={() => {
+          setIsSettingsOpen(false);
+          setIsVaultSetupOpen(true);
+        }}
         onClose={() => setIsSettingsOpen(false)}
         onUpdateSettings={setSettings}
         onExportNotes={handleExportNotes}
@@ -635,6 +692,15 @@ export const App: React.FC = () => {
         onClose={() => setIsCloudModalOpen(false)}
         onSaveConfig={setCloudConfig}
         onTriggerSync={handlePerformCloudSync}
+      />
+
+      {/* Obsidian-Style Local Vault Setup Modal */}
+      <VaultSetupModal
+        isOpen={isVaultSetupOpen}
+        currentVaultPath={vaultPath}
+        onVaultSelected={handleVaultSelected}
+        onClose={() => setIsVaultSetupOpen(false)}
+        canDismiss={Boolean(vaultPath)}
       />
     </div>
   );

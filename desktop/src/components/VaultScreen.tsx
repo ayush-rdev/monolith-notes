@@ -11,7 +11,8 @@ import {
   RefreshCw,
   FileText,
   X,
-  ClipboardPaste
+  ClipboardPaste,
+  HardDrive
 } from 'lucide-react';
 import type { Note } from '../types';
 import { getDisplayTitle, getPreviewSnippet } from '../utils';
@@ -35,6 +36,8 @@ interface VaultScreenProps {
   onOpenCloudModal?: () => void;
   copiedNote?: Note | null;
   onPasteNote?: (targetFolder?: string) => void;
+  vaultPath?: string | null;
+  onOpenVaultSetup?: () => void;
 }
 
 export const VaultScreen: React.FC<VaultScreenProps> = ({
@@ -52,7 +55,9 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
   onTriggerCloudSync,
   onOpenCloudModal,
   copiedNote,
-  onPasteNote
+  onPasteNote,
+  vaultPath,
+  onOpenVaultSetup
 }) => {
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -212,6 +217,41 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
             )}
           </button>
 
+          {/* Vault Switcher Button in Header */}
+          {onOpenVaultSetup && (
+            <button
+              onClick={onOpenVaultSetup}
+              title={vaultPath ? `Vault: ${vaultPath}\nClick to switch folder` : 'Choose Vault Location'}
+              style={{
+                background: 'none',
+                border: '0.5px solid var(--divider)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                padding: '5px 11px',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                fontSize: '12.5px',
+                backgroundColor: 'var(--bg-elevated)',
+                maxWidth: '220px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--divider)'}
+            >
+              <HardDrive size={14} color="var(--accent)" />
+              <span style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: 500,
+                color: 'var(--text-primary)'
+              }}>
+                {vaultPath ? (vaultPath.split('/').pop() || vaultPath.split('\\').pop() || 'Vault') : 'Select Vault'}
+              </span>
+            </button>
+          )}
+
           <button
             onClick={onOpenSettings}
             title="Settings"
@@ -242,6 +282,38 @@ export const VaultScreen: React.FC<VaultScreenProps> = ({
         padding: '32px 24px'
       }}>
         <div style={{ width: '100%', maxWidth: '640px' }}>
+          {/* Vault Path Badge */}
+          {vaultPath && (
+            <div
+              onClick={onOpenVaultSetup}
+              title="Click to change vault location"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '5px 12px',
+                borderRadius: '20px',
+                backgroundColor: 'var(--bg-elevated)',
+                border: '0.5px solid var(--divider)',
+                fontSize: '12px',
+                color: 'var(--text-secondary)',
+                marginBottom: '12px',
+                cursor: 'pointer',
+                transition: 'border-color 0.15s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--divider)'}
+            >
+              <HardDrive size={13} color="var(--accent)" />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11.5px', color: 'var(--text-primary)' }}>
+                {vaultPath}
+              </span>
+              <span style={{ color: 'var(--accent)', fontWeight: 600, fontSize: '11px', textDecoration: 'underline' }}>
+                Change
+              </span>
+            </div>
+          )}
+
           {/* Large Title: "Folders" */}
           <h1 style={{
             fontFamily: 'var(--font-display)',
