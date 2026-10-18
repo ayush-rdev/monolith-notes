@@ -88,12 +88,23 @@ class NoteRepository(private val context: Context) {
                     continue
                 }
 
+                val tags = if (obj.has("tags")) {
+                    val tagArr = obj.getJSONArray("tags")
+                    val tagList = ArrayList<String>(tagArr.length())
+                    for (t in 0 until tagArr.length()) {
+                        tagList.add(tagArr.getString(t))
+                    }
+                    tagList
+                } else {
+                    TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList()
+                }
+
                 val note = Note(
                     id = id,
                     file = targetFile,
                     title = title,
                     content = content,
-                    tags = TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList(),
+                    tags = tags,
                     lastModified = lastModified,
                     isPinned = isPinned,
                     folder = folder,
@@ -127,6 +138,11 @@ class NoteRepository(private val context: Context) {
                     put("folder", note.folder)
                     if (note.rawFrontmatter != null) {
                         put("rawFrontmatter", note.rawFrontmatter)
+                    }
+                    if (note.tags.isNotEmpty()) {
+                        val tagsArr = org.json.JSONArray()
+                        note.tags.forEach { tagsArr.put(it) }
+                        put("tags", tagsArr)
                     }
                 }
                 array.put(obj)

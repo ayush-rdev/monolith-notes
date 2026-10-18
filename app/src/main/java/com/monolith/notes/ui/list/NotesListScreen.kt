@@ -1524,7 +1524,7 @@ fun IOSSwipeableNoteRow(
                 searchQuery = searchQuery,
                 showFolderBadge = showFolderBadge,
                 onClick = {
-                    if (offsetXAnim.value != 0f) {
+                    if (kotlin.math.abs(offsetXAnim.value) > 4f) {
                         coroutineScope.launch {
                             offsetXAnim.animateTo(0f, iosSnapSpring)
                         }
