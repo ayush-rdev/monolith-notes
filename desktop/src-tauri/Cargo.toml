@@ -1,6 +1,6 @@
 [package]
 name = "monolith-desktop"
-version = "1.4.0"
+version = "2.7.0"
 description = "Tactile, Distraction-Free Markdown Journal for Desktop"
 edition = "2021"
 

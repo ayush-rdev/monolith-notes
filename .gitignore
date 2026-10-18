@@ -12,3 +12,6 @@
 *.sqlite-wal
 *.sqlite-shm
 node_modules/
+*.deb
+*.tar.gz
+desktop/src-tauri/target/
