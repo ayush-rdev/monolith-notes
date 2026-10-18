@@ -35,11 +35,14 @@ Monolith is a unified, synchronized experience designed for mobile and desktop. 
 
 | Platform | Format | Status | Download |
 | :--- | :--- | :---: | :--- |
-| **Android** | `.apk` (ARM64 / Universal) | **Live (v2.7.0)** | [⬇️ Download Monolith-Notes-v2.7.0.apk](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith-Notes-v2.7.0.apk) |
-| **Linux** | `.deb` (Debian, Ubuntu, Mint) | **Live (v2.7.0)** | [⬇️ Download monolith-notes-2.7.0-linux-amd64.deb](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/monolith-notes-2.7.0-linux-amd64.deb) |
-| **Linux** | `.tar.gz` (Arch, Fedora, Generic) | **Live (v2.7.0)** | [⬇️ Download monolith-notes-2.7.0-linux-x86_64.tar.gz](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/monolith-notes-2.7.0-linux-x86_64.tar.gz) |
-| **macOS** | `.dmg` (Universal Apple Silicon & Intel) | **Building** | [📦 GitHub Releases](https://github.com/ayush-rdev/monolith-notes/releases) |
-| **Windows** | `.exe` (NSIS Installer) / `.msi` | **Building** | [📦 GitHub Releases](https://github.com/ayush-rdev/monolith-notes/releases) |
+| **Android** | `.apk` (ARM64 / Universal) | **Live (v2.7.0)** | [⬇️ Download `Monolith-Notes-v2.7.0.apk`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith-Notes-v2.7.0.apk) |
+| **macOS** | `.dmg` (Apple Silicon & Intel) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes_2.7.0_aarch64.dmg`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes_2.7.0_aarch64.dmg) |
+| **Windows** | `.exe` (NSIS Installer) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes_2.7.0_x64-setup.exe`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes_2.7.0_x64-setup.exe) |
+| **Windows** | `.msi` (Enterprise MSI) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes_2.7.0_x64_en-US.msi`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes_2.7.0_x64_en-US.msi) |
+| **Linux** | `.AppImage` (Universal) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes_2.7.0_amd64.AppImage`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes_2.7.0_amd64.AppImage) |
+| **Linux** | `.deb` (Debian, Ubuntu, Mint) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes_2.7.0_amd64.deb`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes_2.7.0_amd64.deb) |
+| **Linux** | `.rpm` (Fedora, RHEL, openSUSE) | **Live (v2.7.0)** | [⬇️ Download `Monolith.Notes-2.7.0-1.x86_64.rpm`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/Monolith.Notes-2.7.0-1.x86_64.rpm) |
+| **Linux** | `.tar.gz` (Generic x86_64) | **Live (v2.7.0)** | [⬇️ Download `monolith-notes-2.7.0-linux-x86_64.tar.gz`](https://github.com/ayush-rdev/monolith-notes/releases/download/v2.7.0/monolith-notes-2.7.0-linux-x86_64.tar.gz) |
 
 ---
 
