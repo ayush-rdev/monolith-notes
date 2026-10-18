@@ -218,8 +218,8 @@ object KnowledgeGraphEngine {
         val physicsDamping = 0.80f
         val centerForce = (0.012f / sqrt(count.coerceAtLeast(1).toFloat())).coerceIn(0.003f, 0.016f)
 
-        for (step in 0 until 40) {
-            stepPhysics(
+        for (step in 0 until 60) {
+            val energy = stepPhysics(
                 nodes = nodesList,
                 edges = edgesList,
                 kRepulse = kRepulse,
@@ -229,6 +229,7 @@ object KnowledgeGraphEngine {
                 centerForce = centerForce,
                 draggedIndex = null
             )
+            if (energy < 0.02f) break
         }
 
         var minX = Float.MAX_VALUE

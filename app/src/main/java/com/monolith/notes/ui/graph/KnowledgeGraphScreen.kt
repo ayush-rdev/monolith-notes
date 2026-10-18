@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -107,7 +108,6 @@ fun KnowledgeGraphScreen(
     var neuralActiveCandidates by remember { mutableStateOf<List<ActiveNeuronCandidate>>(emptyList()) }
 
     var selectedNodeIndex by remember { mutableStateOf<Int?>(null) }
-    var draggedNodeIndex by remember { mutableStateOf<Int?>(null) }
 
     val selectionTransition by animateFloatAsState(
         targetValue = if (selectedNodeIndex != null) 1f else 0f,
@@ -156,49 +156,14 @@ fun KnowledgeGraphScreen(
         set
     }
 
-    // 120Hz Physics Simulation Loop with Early Equilibrium Convergence
-    var physicsIteration by remember { mutableIntStateOf(0) }
     val nodeCount = allNodes.size
+    val screenXs = remember(nodeCount) { FloatArray(nodeCount) }
+    val screenYs = remember(nodeCount) { FloatArray(nodeCount) }
 
-    LaunchedEffect(graphBundle) {
-        if (allNodes.isEmpty()) return@LaunchedEffect
-
-        val kRepulse = (14000f + 600f * sqrt(nodeCount.toFloat())).coerceIn(12000f, 32000f)
-        val kSpring = 0.036f
-        val restLength = (80f + 12f * log2(nodeCount.coerceAtLeast(2).toFloat())).coerceIn(75f, 150f)
-        val damping = 0.80f
-        val centerForce = (0.012f / sqrt(nodeCount.coerceAtLeast(1).toFloat())).coerceIn(0.003f, 0.016f)
-
-        withContext(Dispatchers.Default) {
-            // Smoothly converge remaining steps (already pre-stabilized off-screen)
-            for (step in 40 until 90) {
-                val energy = KnowledgeGraphEngine.stepPhysics(
-                    nodes = allNodes,
-                    edges = allEdges,
-                    kRepulse = kRepulse,
-                    kSpring = kSpring,
-                    restLength = restLength,
-                    damping = damping,
-                    centerForce = centerForce,
-                    draggedIndex = draggedNodeIndex
-                )
-
-                if (energy < 0.035f && draggedNodeIndex == null) {
-                    break
-                }
-
-                if (step % 2 == 0) {
-                    withContext(Dispatchers.Main) {
-                        physicsIteration = step
-                    }
-                    delay(16)
-                }
-            }
-            withContext(Dispatchers.Main) {
-                physicsIteration++
-            }
-        }
-    }
+    val density = LocalDensity.current
+    val baseLabelPx = remember(density) { with(density) { 11.5.sp.toPx() } }
+    val baseNeighborPx = remember(density) { with(density) { 12.sp.toPx() } }
+    val baseSelectedPx = remember(density) { with(density) { 12.5.sp.toPx() } }
 
     // Active Neurons (RAG query activated) indices for radiant synaptic rendering
     val activeNeuronIndices = remember(activeNeuronIds, allNodes) {
@@ -293,119 +258,62 @@ fun KnowledgeGraphScreen(
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = true)
-                        val downTime = System.currentTimeMillis()
-                        val downPos = down.position
-                        var isTransforming = false
-                        var activeDraggedNode: Int? = null
+                .pointerInput(graphBundle) {
+                    detectTapGestures(
+                        onDoubleTap = { tapOffset ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val targetScale = if (scale > 2.0f) galaxyScale else (scale * 1.6f).coerceIn(0.12f, 5.0f)
+                            val canvasW = size.width.toFloat()
+                            val canvasH = size.height.toFloat()
+                            val centerX = canvasW / 2f
+                            val centerY = canvasH / 2f
+                            val focalX = tapOffset.x - centerX
+                            val focalY = tapOffset.y - centerY
+                            offsetX += focalX * (1f - targetScale / scale)
+                            offsetY += focalY * (1f - targetScale / scale)
+                            scale = targetScale
+                        },
+                        onTap = { tapOffset ->
+                            val canvasW = size.width.toFloat()
+                            val canvasH = size.height.toFloat()
+                            val centerX = canvasW / 2f
+                            val centerY = canvasH / 2f
+                            val graphTapX = (tapOffset.x - centerX - offsetX) / scale
+                            val graphTapY = (tapOffset.y - centerY - offsetY) / scale
 
-                        val canvasW = size.width.toFloat()
-                        val canvasH = size.height.toFloat()
-                        val centerX = canvasW / 2f
-                        val centerY = canvasH / 2f
-
-                        // Discard touches starting within Top Navigation Bar or Bottom Capsule zone
-                        val topBarThreshold = if (isSearchActive) 280f else 190f
-                        val bottomCapsuleThreshold = canvasH - 220f
-                        if (downPos.y < topBarThreshold || (selectedNodeIndex != null && downPos.y > bottomCapsuleThreshold)) {
-                            return@awaitEachGesture
-                        }
-
-                        // Convert touch coordinate to graph space
-                        val currentScale = scale
-                        val currentOffX = offsetX
-                        val currentOffY = offsetY
-                        val graphDownX = (downPos.x - centerX - currentOffX) / currentScale
-                        val graphDownY = (downPos.y - centerY - currentOffY) / currentScale
-
-                        // Hit-test nodes (with a comfortable 26px touch target margin)
-                        for (i in allNodes.indices) {
-                            val node = allNodes[i]
-                            val dx = node.x - graphDownX
-                            val dy = node.y - graphDownY
-                            val dist = sqrt(dx * dx + dy * dy)
-                            if (dist < (node.radius + 26f)) {
-                                activeDraggedNode = i
-                                draggedNodeIndex = i
-                                node.vx = 0f
-                                node.vy = 0f
-                                break
-                            }
-                        }
-
-                        var pastTouchSlop = false
-
-                        do {
-                            val event = awaitPointerEvent()
-                            val pressedPointers = event.changes.filter { it.pressed }
-                            if (pressedPointers.isEmpty()) break
-
-                            if (pressedPointers.size >= 2) {
-                                // Multi-finger pinch-to-zoom & two-finger pan
-                                activeDraggedNode = null
-                                draggedNodeIndex = null
-                                isTransforming = true
-
-                                val zoomChange = event.calculateZoom()
-                                val panChange = event.calculatePan()
-                                val centroid = event.calculateCentroid()
-
-                                val oldScale = scale
-                                val newScale = (oldScale * zoomChange).coerceIn(0.18f, 4.5f)
-                                scale = newScale
-
-                                // Zoom centered around focal point (centroid)
-                                val focalX = centroid.x - centerX
-                                val focalY = centroid.y - centerY
-                                offsetX += panChange.x + focalX * (1f - newScale / oldScale)
-                                offsetY += panChange.y + focalY * (1f - newScale / oldScale)
-
-                                event.changes.forEach { it.consume() }
-                            } else if (pressedPointers.size == 1) {
-                                val change = pressedPointers[0]
-                                val panChange = change.position - change.previousPosition
-                                val totalDragDist = (change.position - downPos).getDistance()
-
-                                if (!pastTouchSlop && totalDragDist > 8f) {
-                                    pastTouchSlop = true
-                                    isTransforming = true
-                                }
-
-                                if (pastTouchSlop) {
-                                    change.consume()
-                                    if (activeDraggedNode != null && activeDraggedNode in allNodes.indices) {
-                                        // Drag specific node smoothly
-                                        val node = allNodes[activeDraggedNode]
-                                        val deltaX = panChange.x / scale
-                                        val deltaY = panChange.y / scale
-                                        node.x += deltaX
-                                        node.y += deltaY
-                                        node.vx = deltaX * 0.45f
-                                        node.vy = deltaY * 0.45f
-                                        physicsIteration++
-                                    } else {
-                                        // Pan entire graph canvas
-                                        offsetX += panChange.x
-                                        offsetY += panChange.y
-                                    }
+                            var hitIndex: Int? = null
+                            val touchMargin = (34f / scale.coerceIn(0.35f, 2.0f))
+                            for (i in allNodes.indices) {
+                                val node = allNodes[i]
+                                val dx = node.x - graphTapX
+                                val dy = node.y - graphTapY
+                                if (dx * dx + dy * dy <= (node.radius + touchMargin) * (node.radius + touchMargin)) {
+                                    hitIndex = i
+                                    break
                                 }
                             }
-                        } while (event.changes.any { it.pressed })
-
-                        draggedNodeIndex = null
-
-                        // Tap handling (when touch wasn't a drag or pinch)
-                        val elapsed = System.currentTimeMillis() - downTime
-                        if (!pastTouchSlop && !isTransforming && elapsed < 350L) {
-                            if (activeDraggedNode != null) {
+                            if (hitIndex != null) {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                selectedNodeIndex = activeDraggedNode
+                                selectedNodeIndex = hitIndex
                             } else {
                                 selectedNodeIndex = null
                             }
                         }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTransformGestures(panZoomLock = false) { centroid, pan, zoom, _ ->
+                        val oldScale = scale
+                        val newScale = (oldScale * zoom).coerceIn(0.12f, 5.0f)
+                        val canvasW = size.width.toFloat()
+                        val canvasH = size.height.toFloat()
+                        val centerX = canvasW / 2f
+                        val centerY = canvasH / 2f
+                        val focalX = centroid.x - centerX
+                        val focalY = centroid.y - centerY
+                        scale = newScale
+                        offsetX += pan.x + focalX * (1f - newScale / oldScale)
+                        offsetY += pan.y + focalY * (1f - newScale / oldScale)
                     }
                 }
         ) {
@@ -413,12 +321,6 @@ fun KnowledgeGraphScreen(
             val canvasHeight = size.height
             val centerX = canvasWidth / 2f
             val centerY = canvasHeight / 2f
-
-            @Suppress("UNUSED_VARIABLE")
-            val iter = physicsIteration
-
-            val screenXs = FloatArray(nodeCount)
-            val screenYs = FloatArray(nodeCount)
 
             for (i in 0 until nodeCount) {
                 val node = allNodes[i]
@@ -463,7 +365,7 @@ fun KnowledgeGraphScreen(
                     start = Offset(sx, sy),
                     end = Offset(dx, dy),
                     strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
+                    cap = StrokeCap.Butt
                 )
             }
 
@@ -522,7 +424,7 @@ fun KnowledgeGraphScreen(
                 if (shouldDrawLabel) {
                     val label = node.note.displayTitle
                     val paint = if (isQueryMatch) selectedLabelPaint else labelPaint
-                    paint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 28f)
+                    paint.textSize = (baseLabelPx * scale).coerceIn(12f, 28f)
 
                     drawContext.canvas.nativeCanvas.drawText(
                         label,
@@ -681,11 +583,10 @@ fun KnowledgeGraphScreen(
                         center = Offset(sx, sy)
                     )
 
-                    // Prominent Title & Relevance Score Badge
-                    val scoreStr = if (score > 0f) " [σ=${String.format(Locale.US, "%.1f", score)}]" else ""
-                    val fullLabel = "${node.note.displayTitle}$scoreStr"
+                    // Prominent Title
+                    val fullLabel = node.note.displayTitle
                     neighborLabelPaint.color = android.graphics.Color.rgb(233, 213, 255)
-                    neighborLabelPaint.textSize = ((12.0f + 2.5f * normalized).sp.toPx() * scale).coerceIn(12f, 28f)
+                    neighborLabelPaint.textSize = ((baseNeighborPx + 2.5f * normalized) * scale).coerceIn(12f, 28f)
                     drawContext.canvas.nativeCanvas.drawText(
                         fullLabel,
                         sx,
@@ -729,7 +630,7 @@ fun KnowledgeGraphScreen(
 
                     // Neighbor Title Label in soft clean white (readable, focused)
                     val label = node.note.displayTitle
-                    neighborLabelPaint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 28f)
+                    neighborLabelPaint.textSize = (baseNeighborPx * scale).coerceIn(12f, 28f)
                     drawContext.canvas.nativeCanvas.drawText(
                         label,
                         sx,
@@ -769,13 +670,98 @@ fun KnowledgeGraphScreen(
 
                 // Selected Title Label in Radiant Accent Amber
                 val selLabel = selNode.note.displayTitle
-                selectedLabelPaint.textSize = (12.5.sp.toPx() * scale).coerceIn(13f, 30f)
+                selectedLabelPaint.textSize = (baseSelectedPx * scale).coerceIn(13f, 30f)
                 drawContext.canvas.nativeCanvas.drawText(
                     selLabel,
                     ssx,
                     ssy + sRadius + (13f * scale).coerceIn(11f, 24f),
                     selectedLabelPaint
                 )
+            }
+        }
+
+        // Floating Zoom Controller HUD (Minimal Obsidian Capsule on Right Edge)
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 12.dp)
+                .zIndex(8f)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xF012111A),
+                border = BorderStroke(0.5.dp, Color(0x33A78BFA)),
+                shadowElevation = 8.dp
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 2.dp)
+                ) {
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scale = (scale * 1.35f).coerceAtMost(5.0f)
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Zoom In",
+                            tint = Color(0xFFDDD6FE),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "${(scale * 100).roundToInt()}%",
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scale = (scale / 1.35f).coerceAtLeast(0.12f)
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Remove,
+                            contentDescription = "Zoom Out",
+                            tint = Color(0xFFDDD6FE),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .width(18.dp)
+                            .padding(vertical = 2.dp),
+                        color = Color(0x33A78BFA)
+                    )
+
+                    IconButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scale = galaxyScale
+                            offsetX = 0f
+                            offsetY = 0f
+                            selectedNodeIndex = null
+                        },
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CenterFocusStrong,
+                            contentDescription = "Recenter Galaxy",
+                            tint = themeAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
         }
 
