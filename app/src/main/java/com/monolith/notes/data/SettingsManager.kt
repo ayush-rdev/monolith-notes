@@ -130,7 +130,11 @@ class SettingsManager(context: Context) {
         val gDriveUri = prefs.getString(KEY_GDRIVE_URI, null)
         val galleryView = prefs.getBoolean(KEY_GALLERY_VIEW, false)
         val geminiKey = prefs.getString(KEY_GEMINI_API_KEY, "") ?: ""
-        val aiModel = prefs.getString(KEY_AI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash"
+        val rawAiModel = prefs.getString(KEY_AI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash"
+        val aiModel = if (rawAiModel == "gemini-1.5-flash" || rawAiModel.isBlank()) "gemini-2.0-flash" else rawAiModel
+        if (rawAiModel != aiModel) {
+            prefs.edit().putString(KEY_AI_MODEL, aiModel).apply()
+        }
 
         return AppSettings(
             hapticsEnabled = haptics,

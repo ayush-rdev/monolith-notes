@@ -53,7 +53,9 @@ fun GeminiConfigDialog(
     val coroutineScope = rememberCoroutineScope()
 
     var apiKey by remember { mutableStateOf(initialApiKey) }
-    var selectedModel by remember { mutableStateOf(initialModel) }
+    var selectedModel by remember {
+        mutableStateOf(if (initialModel == "gemini-1.5-flash" || initialModel.isBlank()) "gemini-2.0-flash" else initialModel)
+    }
     var isKeyVisible by remember { mutableStateOf(false) }
 
     var isTesting by remember { mutableStateOf(false) }
@@ -186,8 +188,10 @@ fun GeminiConfigDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val models = listOf(
-                        "gemini-2.0-flash" to "Gemini 2.0 Flash (Fastest)",
-                        "gemini-1.5-flash" to "Gemini 1.5 Flash (Stable)"
+                        "gemini-2.0-flash" to "Gemini 2.0 Flash (Recommended)",
+                        "gemini-2.0-flash-lite" to "Gemini 2.0 Flash Lite",
+                        "gemini-2.5-flash" to "Gemini 2.5 Flash",
+                        "gemini-1.5-flash-latest" to "Gemini 1.5 Flash (Legacy Alias)"
                     )
                     models.forEach { (id, label) ->
                         val isSelected = selectedModel == id

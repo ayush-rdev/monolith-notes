@@ -88,41 +88,64 @@ object GeminiApiClient {
             return@withContext Result.failure(IllegalArgumentException("Gemini API Key cannot be empty."))
         }
 
-        try {
-            val url = "$BASE_URL/$model:generateContent?key=${apiKey.trim()}"
-            val payload = JSONObject().apply {
-                put("contents", JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("parts", JSONArray().apply {
-                            put(JSONObject().apply {
-                                put("text", "Respond with the single word 'OK'")
+        val primaryModel = if (model == "gemini-1.5-flash" || model.isBlank()) "gemini-2.0-flash" else model
+        val candidateModels = linkedSetOf(
+            primaryModel,
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash-latest"
+        )
+
+        var lastError: String? = null
+        for (targetModel in candidateModels) {
+            try {
+                val url = "$BASE_URL/$targetModel:generateContent?key=${apiKey.trim()}"
+                val payload = JSONObject().apply {
+                    put("contents", JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("parts", JSONArray().apply {
+                                put(JSONObject().apply {
+                                    put("text", "Respond with the single word 'OK'")
+                                })
                             })
                         })
                     })
-                })
-                put("generationConfig", JSONObject().apply {
-                    put("temperature", 0.0)
-                    put("maxOutputTokens", 10)
-                })
-            }
-
-            val request = Request.Builder()
-                .url(url)
-                .post(payload.toString().toRequestBody(jsonMediaType))
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string().orEmpty()
-                if (response.isSuccessful) {
-                    Result.success(true)
-                } else {
-                    val errMsg = parseErrorMessage(response.code, body)
-                    Result.failure(IOException(errMsg))
+                    put("generationConfig", JSONObject().apply {
+                        put("temperature", 0.0)
+                        put("maxOutputTokens", 10)
+                    })
                 }
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(payload.toString().toRequestBody(jsonMediaType))
+                    .build()
+
+                val (isSuccess, errMsg, is404) = client.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (response.isSuccessful) {
+                        Triple(true, null, false)
+                    } else {
+                        Triple(false, parseErrorMessage(response.code, body), response.code == 404)
+                    }
+                }
+
+                if (isSuccess) {
+                    return@withContext Result.success(true)
+                }
+
+                lastError = errMsg
+                if (!is404) {
+                    // Not 404 (e.g. invalid API key 400 or quota 429), no need to retry models
+                    return@withContext Result.failure(IOException(errMsg))
+                }
+            } catch (e: Exception) {
+                lastError = e.localizedMessage
             }
-        } catch (e: Exception) {
-            Result.failure(IOException("Connection failed: ${e.localizedMessage ?: "Network error"}"))
         }
+
+        Result.failure(IOException(lastError ?: "Connection failed."))
     }
 
     /**
@@ -413,33 +436,59 @@ object GeminiApiClient {
      * Internal REST execution helper enforcing responseMimeType="application/json"
      */
     private fun callGeminiJson(apiKey: String, model: String, promptText: String): JSONObject {
-        val url = "$BASE_URL/$model:generateContent?key=${apiKey.trim()}"
+        val primaryModel = if (model == "gemini-1.5-flash" || model.isBlank()) "gemini-2.0-flash" else model
+        val candidateModels = linkedSetOf(
+            primaryModel,
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash-latest"
+        )
 
-        val payload = JSONObject().apply {
-            put("contents", JSONArray().apply {
-                put(JSONObject().apply {
-                    put("parts", JSONArray().apply {
-                        put(JSONObject().apply {
-                            put("text", promptText)
+        var lastException: IOException? = null
+
+        for (targetModel in candidateModels) {
+            val url = "$BASE_URL/$targetModel:generateContent?key=${apiKey.trim()}"
+
+            val payload = JSONObject().apply {
+                put("contents", JSONArray().apply {
+                    put(JSONObject().apply {
+                        put("parts", JSONArray().apply {
+                            put(JSONObject().apply {
+                                put("text", promptText)
+                            })
                         })
                     })
                 })
-            })
-            put("generationConfig", JSONObject().apply {
-                put("temperature", 0.15) // Deterministic, rigorous analytical output
-                put("responseMimeType", "application/json")
-            })
-        }
+                put("generationConfig", JSONObject().apply {
+                    put("temperature", 0.15) // Deterministic, rigorous analytical output
+                    put("responseMimeType", "application/json")
+                })
+            }
 
-        val request = Request.Builder()
-            .url(url)
-            .post(payload.toString().toRequestBody(jsonMediaType))
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .post(payload.toString().toRequestBody(jsonMediaType))
+                .build()
 
-        client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                val err = parseErrorMessage(response.code, body)
+            val responseData: Pair<Int, String> = try {
+                client.newCall(request).execute().use { response ->
+                    Pair(response.code, response.body?.string().orEmpty())
+                }
+            } catch (e: Exception) {
+                lastException = IOException("Network error: ${e.localizedMessage}", e)
+                continue
+            }
+
+            val (code, body) = responseData
+            if (code == 404) {
+                // Model not supported or deprecated; cascade to next candidate model
+                lastException = IOException(parseErrorMessage(code, body))
+                continue
+            }
+
+            if (code !in 200..299) {
+                val err = parseErrorMessage(code, body)
                 throw IOException(err)
             }
 
@@ -451,15 +500,21 @@ object GeminiApiClient {
 
             val content = candidates.getJSONObject(0).optJSONObject("content")
             val parts = content?.optJSONArray("parts")
-            val text = parts?.optJSONObject(0)?.optString("text").orEmpty().trim()
+            val rawText = parts?.optJSONObject(0)?.optString("text").orEmpty().trim()
 
-            if (text.isBlank()) {
+            if (rawText.isBlank()) {
                 throw IOException("Gemini returned empty text payload.")
             }
 
+            val cleanedText = if (rawText.startsWith("```")) {
+                rawText.substringAfter("\n").substringBeforeLast("```").trim()
+            } else rawText
+
             // Parse structured JSON
-            return JSONObject(text)
+            return JSONObject(cleanedText)
         }
+
+        throw lastException ?: IOException("Failed to obtain response from Gemini models.")
     }
 
     private fun parseErrorMessage(code: Int, body: String): String {
@@ -470,6 +525,7 @@ object GeminiApiClient {
             when (code) {
                 400 -> "API Key error or invalid request: $message"
                 403 -> "API Key invalid or permissions denied: $message"
+                404 -> "Model not found ($code): $message"
                 429 -> "Rate limit reached. Gemini free tier allows 15 requests/min."
                 500, 503 -> "Google Gemini server temporary error: $message"
                 else -> "Gemini API error ($code): $message"
