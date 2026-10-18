@@ -50,11 +50,14 @@ fun FoldersScreen(
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
 
+    val folderCounts = remember(notes) {
+        notes.groupingBy { it.folderName }.eachCount()
+    }
     val totalNotesCount = notes.size
-    val rootNotesCount = notes.count { it.folderName == "Notes" }
+    val rootNotesCount = folderCounts["Notes"] ?: 0
 
     // Map each custom folder to its count
-    val customFolders = remember(folders, notes) {
+    val customFolders = remember(folders) {
         folders.filter { it != "Notes" }.sorted()
     }
 
@@ -164,7 +167,7 @@ fun FoldersScreen(
                             // Custom Subfolders
                             filteredCustomFolders.forEach { folderName ->
                                 HorizontalDivider(modifier = Modifier.padding(start = 54.dp), thickness = 0.5.dp, color = iOSDivider)
-                                val count = notes.count { it.folderName == folderName }
+                                val count = folderCounts[folderName] ?: 0
                                 FolderRow(
                                     title = folderName,
                                     icon = Icons.Default.Folder,

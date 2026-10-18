@@ -680,7 +680,7 @@ fun NoteEditorScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "Point-to-Point Analysis",
+                                contentDescription = "Note Insights",
                                 tint = if (settings.isAiConfigured) Color(0xFFA78BFA) else iOSTextSecondary,
                                 modifier = Modifier.size(20.dp)
                             )

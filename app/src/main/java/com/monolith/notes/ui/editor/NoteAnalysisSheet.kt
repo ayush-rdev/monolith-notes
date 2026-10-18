@@ -25,6 +25,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.monolith.notes.data.ai.GeminiApiClient
@@ -105,6 +106,7 @@ fun NoteAnalysisSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -123,29 +125,40 @@ fun NoteAnalysisSheet(
                         )
                     }
 
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
-                            text = "Point-to-Point Analysis",
+                            text = "Note Insights",
                             style = MonolithTypography.titleMedium.copy(
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = iOSTextPrimary
+                            color = iOSTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Axiomatic proofing & vault-grounded links",
+                            text = "Connections, takeaways & suggestions",
                             style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),
-                            color = iOSTextSecondary
+                            color = iOSTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                TextButton(onClick = onDismiss) {
+                Spacer(modifier = Modifier.width(8.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Text(
                         text = "Done",
                         color = Color(0xFFA78BFA),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -178,7 +191,7 @@ fun NoteAnalysisSheet(
                             )
                         }
                         Text(
-                            text = "Connect Google's free-tier Gemini API in Settings to unlock point-to-point logical proofing, contradiction detection, and vault link suggestions.",
+                            text = "Connect Google's free-tier Gemini API in Settings to discover connections across your vault, key takeaways, and action items.",
                             style = MonolithTypography.bodySmall.copy(fontSize = 12.sp, lineHeight = 17.sp),
                             color = iOSTextSecondary
                         )
@@ -223,12 +236,12 @@ fun NoteAnalysisSheet(
                         )
                         Column {
                             Text(
-                                text = "Deconstructing note logic...",
+                                text = "Analyzing note...",
                                 style = MonolithTypography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, fontSize = 13.sp),
                                 color = iOSTextPrimary
                             )
                             Text(
-                                text = "Matching against ${allNotes.size} vault notes with model $aiModel",
+                                text = "Finding connections across ${allNotes.size} vault notes",
                                 style = MonolithTypography.bodySmall.copy(fontSize = 11.sp),
                                 color = iOSTextSecondary
                             )
@@ -291,7 +304,7 @@ fun NoteAnalysisSheet(
                 // Section: Verified Vault Wikilinks
                 if (result.suggestedWikilinks.isNotEmpty()) {
                     SectionTitle(
-                        title = "VAULT-GROUNDED WIKILINKS",
+                        title = "RELATED VAULT NOTES",
                         count = result.suggestedWikilinks.size,
                         badgeColor = Color(0xFFA78BFA)
                     )
@@ -346,7 +359,7 @@ fun NoteAnalysisSheet(
                                                     modifier = Modifier.size(13.dp)
                                                 )
                                                 Text(
-                                                    text = "INSERT",
+                                                    text = "LINK",
                                                     fontSize = 10.5.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Color(0xFFA78BFA)
@@ -369,10 +382,10 @@ fun NoteAnalysisSheet(
                     Spacer(modifier = Modifier.height(18.dp))
                 }
 
-                // Section: Foundational Premises
+                // Section: Key Takeaways
                 if (result.premises.isNotEmpty()) {
                     SectionTitle(
-                        title = "AXIOMATIC PREMISES",
+                        title = "KEY TAKEAWAYS",
                         count = result.premises.size,
                         badgeColor = Color(0xFF38BDF8)
                     )
@@ -380,7 +393,7 @@ fun NoteAnalysisSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         result.premises.forEachIndexed { idx, p ->
                             AnalyticBulletCard(
-                                indexLabel = "P${idx + 1}",
+                                indexLabel = "${idx + 1}",
                                 labelColor = Color(0xFF38BDF8),
                                 text = p
                             )
@@ -389,10 +402,10 @@ fun NoteAnalysisSheet(
                     Spacer(modifier = Modifier.height(18.dp))
                 }
 
-                // Section: Logical Inference Chain
+                // Section: Logical Flow
                 if (result.inferenceSteps.isNotEmpty()) {
                     SectionTitle(
-                        title = "LOGICAL INFERENCE CHAIN",
+                        title = "LOGICAL FLOW",
                         count = result.inferenceSteps.size,
                         badgeColor = Color(0xFF4ADE80)
                     )
@@ -409,10 +422,10 @@ fun NoteAnalysisSheet(
                     Spacer(modifier = Modifier.height(18.dp))
                 }
 
-                // Section: Logical Tensions & Vulnerabilities
+                // Section: Questions to Consider
                 if (result.logicalTensions.isNotEmpty()) {
                     SectionTitle(
-                        title = "LOGICAL TENSIONS & ASSUMPTIONS",
+                        title = "QUESTIONS TO CONSIDER",
                         count = result.logicalTensions.size,
                         badgeColor = Color(0xFFF87171)
                     )
@@ -432,7 +445,7 @@ fun NoteAnalysisSheet(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.WarningAmber,
+                                        imageVector = Icons.Default.HelpOutline,
                                         contentDescription = null,
                                         tint = Color(0xFFF87171),
                                         modifier = Modifier.size(15.dp).padding(top = 2.dp)
@@ -449,10 +462,10 @@ fun NoteAnalysisSheet(
                     Spacer(modifier = Modifier.height(18.dp))
                 }
 
-                // Section: Action Vectors
+                // Section: Action Items
                 if (result.actionVectors.isNotEmpty()) {
                     SectionTitle(
-                        title = "ACTION VECTORS",
+                        title = "ACTION ITEMS",
                         count = result.actionVectors.size,
                         badgeColor = Color(0xFFFBBF24)
                     )
@@ -544,7 +557,7 @@ fun NoteAnalysisSheet(
                 ) {
                     Icon(Icons.Default.Refresh, null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Re-run Point-to-Point Analysis", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Refresh Insights", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 

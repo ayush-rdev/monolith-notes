@@ -170,7 +170,6 @@ class NoteRepository(private val context: Context) {
             if (list.isNotEmpty()) {
                 _notes.value = sortNotesList(list, currentSortOrder)
                 _isLoaded.value = true
-                scheduleGraphBuild()
             }
         } catch (_: Exception) {
             // Silently fall back to loadNotes
@@ -355,7 +354,6 @@ class NoteRepository(private val context: Context) {
                 }
                 _notes.value = sortNotesList(merged, currentSortOrder)
                 saveFastCache(_notes.value)
-                scheduleGraphBuild()
             }
             _isLoaded.value = true
         }

@@ -18,14 +18,7 @@ data class Note(
     val rawFrontmatter: String? = null
 ) {
     val folderName: String
-        get() {
-            val parent = file?.parentFile ?: return folder
-            return if (parent.name == "MonolithNotes" || parent.name == "Notes" || parent.name.startsWith(".")) {
-                "Notes"
-            } else {
-                parent.name
-            }
-        }
+        get() = if (folder.isNotBlank()) folder else "Notes"
 
     val displayTitle: String by lazy(LazyThreadSafetyMode.NONE) {
         when {

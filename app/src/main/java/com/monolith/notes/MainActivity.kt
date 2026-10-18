@@ -250,12 +250,12 @@ class MainActivity : FragmentActivity() {
                         applyScreenSecurity(settings.screenSecurityEnabled)
                     }
 
-                    // Sync sort order, load notes, and execute background auto-sync on launch
+                    // Sync sort order, load notes, and execute background auto-sync after app settles
                     LaunchedEffect(Unit) {
                         repository.setSortOrder(settings.sortOrder)
                         repository.loadNotes()
                         repository.loadTrashNotes()
-                        triggerAutoSync(debounceMs = 400L)
+                        triggerAutoSync(debounceMs = 2500L)
                     }
 
                     // Process incoming Intent capture triggers (Widget, Quick Note Tile, Share Target)
@@ -383,8 +383,8 @@ class MainActivity : FragmentActivity() {
                             }
                         )
                     } else {
-                        // iOS UIKit fluid spring curve for page transitions (Apple 30% parallax slide, ProMotion 120Hz)
-                        val iosSpringCurve = remember { CubicBezierEasing(0.20f, 0.0f, 0.0f, 1.0f) }
+                        // Ultra-snappy 120Hz ProMotion fluid curve for instant zero-lag page transitions
+                        val iosSnappyCurve = remember { CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f) }
 
                         AnimatedContent(
                             targetState = currentScreen,
@@ -393,22 +393,22 @@ class MainActivity : FragmentActivity() {
                                 if (forward) {
                                     (slideInHorizontally(
                                         initialOffsetX = { fullWidth -> fullWidth },
-                                        animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 160))).togetherWith(
+                                        animationSpec = tween(durationMillis = 140, easing = iosSnappyCurve)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 100))).togetherWith(
                                         slideOutHorizontally(
-                                            targetOffsetX = { fullWidth -> -(fullWidth * 0.30f).toInt() },
-                                            animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 160))
+                                            targetOffsetX = { fullWidth -> -(fullWidth * 0.20f).toInt() },
+                                            animationSpec = tween(durationMillis = 140, easing = iosSnappyCurve)
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 100))
                                     ).using(SizeTransform(clip = false))
                                 } else {
                                     (slideInHorizontally(
-                                        initialOffsetX = { fullWidth -> -(fullWidth * 0.30f).toInt() },
-                                        animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
-                                    ) + fadeIn(animationSpec = tween(durationMillis = 160))).togetherWith(
+                                        initialOffsetX = { fullWidth -> -(fullWidth * 0.20f).toInt() },
+                                        animationSpec = tween(durationMillis = 140, easing = iosSnappyCurve)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 100))).togetherWith(
                                         slideOutHorizontally(
                                             targetOffsetX = { fullWidth -> fullWidth },
-                                            animationSpec = tween(durationMillis = 280, easing = iosSpringCurve)
-                                        ) + fadeOut(animationSpec = tween(durationMillis = 160))
+                                            animationSpec = tween(durationMillis = 140, easing = iosSnappyCurve)
+                                        ) + fadeOut(animationSpec = tween(durationMillis = 100))
                                     ).using(SizeTransform(clip = false))
                                 }
                             },
@@ -465,6 +465,7 @@ class MainActivity : FragmentActivity() {
                                             currentScreen = Screen.Folders
                                         },
                                         onOpenGraph = {
+                                            repository.scheduleGraphBuild()
                                             currentScreen = Screen.Graph
                                         },
                                         onOpenTrash = {

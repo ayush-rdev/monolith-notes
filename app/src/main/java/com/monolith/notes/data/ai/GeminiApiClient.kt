@@ -432,7 +432,7 @@ object GeminiApiClient {
     }
 
     /**
-     * Point-to-Point Note Deconstruction (Axioms, Logical Tensions, Vault-Grounded Wikilinks, Action Vectors)
+     * Note Insights & Suggestions (Takeaways, Logical Flow, Vault-Grounded Wikilinks, Action Items)
      */
     suspend fun analyzeNotePointByPoint(
         apiKey: String,
@@ -450,7 +450,7 @@ object GeminiApiClient {
                 .joinToString(", ") { "\"$it\"" }
 
             val prompt = """
-                You are the Monolith Point-to-Point Analytical Engine. Deconstruct the given note with axiomatic clarity. Zero conversational fluff, zero generic summaries, 100% precision.
+                You are the Monolith Note Analyzer. Analyze the note clearly, directly, and practically. Zero conversational fluff, zero generic filler, 100% precision.
 
                 NOTE TITLE: "${note.title}"
                 NOTE CONTENT:
@@ -459,32 +459,32 @@ object GeminiApiClient {
                 EXISTING VAULT NOTES (Candidate Wikilinks):
                 [$candidateTitles]
 
-                Perform a rigorous point-to-point structural analysis. Return a JSON object conforming EXACTLY to this schema:
+                Perform a concise, structured analysis. Return a JSON object conforming EXACTLY to this schema:
                 {
                   "premises": [
-                    "Axiomatic foundational premise 1",
-                    "Axiomatic foundational premise 2"
+                    "Key takeaway or central point 1",
+                    "Key takeaway or central point 2"
                   ],
                   "inferenceSteps": [
-                    "Point-to-point deduction step A -> B",
-                    "Point-to-point deduction step B -> C"
+                    "Logical flow or supporting point A",
+                    "Logical flow or supporting point B"
                   ],
                   "conclusions": [
-                    "Core asserted outcome or principle"
+                    "Main conclusion or summary takeaway"
                   ],
                   "logicalTensions": [
-                    "Unproven assumption, logical leap, or vulnerability in reasoning"
+                    "Question to consider, assumption, or area to clarify"
                   ],
                   "suggestedWikilinks": [
                     {
                       "vaultTitle": "EXACT TITLE from candidate list above (NEVER hallucinate)",
-                      "relevance": "Point-to-point concept intersection",
-                      "suggestedPlacement": "Where or how to integrate [[vaultTitle]]"
+                      "relevance": "Why this note connects to the current note",
+                      "suggestedPlacement": "Where or how to link [[vaultTitle]]"
                     }
                   ],
                   "actionVectors": [
-                    "Verifiable action item 1",
-                    "Verifiable action item 2"
+                    "Action item or next step 1",
+                    "Action item or next step 2"
                   ]
                 }
             """.trimIndent()

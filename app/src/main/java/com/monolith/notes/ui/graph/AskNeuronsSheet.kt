@@ -157,39 +157,36 @@ fun AskNeuronsSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFF261D3A)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "VAULT RETRIEVAL",
+                            text = "Ask Notes",
                             style = MonolithTypography.titleMedium.copy(
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.2.sp
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
                             ),
                             color = Color(0xFFF1F5F9)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(3.dp))
-                                .background(Color(0xFF1E1B2E))
-                                .border(0.5.dp, Color(0xFF4C3D75), RoundedCornerShape(3.dp))
-                                .padding(horizontal = 4.5.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "RAG",
-                                fontSize = 8.5.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFA78BFA)
-                            )
-                        }
                     }
                     Text(
-                        text = "S(n) = TF-IDF(q, n) + Σ λ·S(j)  |  λ = 0.25",
+                        text = "Answers grounded strictly in your notes • Zero hallucinations",
                         style = MonolithTypography.bodySmall.copy(
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace
+                            fontSize = 11.sp
                         ),
-                        color = Color(0xFF64748B)
+                        color = Color(0xFF94A3B8)
                     )
                 }
 
@@ -235,7 +232,7 @@ fun AskNeuronsSheet(
                         onValueChange = { queryText = it },
                         placeholder = {
                             Text(
-                                text = "Query vault neurons...",
+                                text = "Ask anything about your notes...",
                                 fontSize = 12.5.sp,
                                 color = Color(0xFF64748B)
                             )
@@ -361,9 +358,8 @@ fun AskNeuronsSheet(
                                 strokeWidth = 1.5.dp
                             )
                             Text(
-                                text = "EVALUATING SYNAPSE TRACTS [N=${notes.size}, λ=0.25]...",
-                                fontSize = 10.5.sp,
-                                fontFamily = FontFamily.Monospace,
+                                text = "Searching ${notes.size} notes and synthesizing answer...",
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFFE2E8F0)
                             )
@@ -371,11 +367,8 @@ fun AskNeuronsSheet(
 
                         if (activeCandidates.isNotEmpty()) {
                             Text(
-                                text = "SEEDS: " + activeCandidates.joinToString(" • ") {
-                                    "[[${it.note.displayTitle}]] (${String.format(Locale.US, "%.1f", it.activationScore)})"
-                                },
-                                fontSize = 9.sp,
-                                fontFamily = FontFamily.Monospace,
+                                text = "Matching notes: " + activeCandidates.joinToString(" • ") { it.note.displayTitle },
+                                fontSize = 10.sp,
                                 color = Color(0xFF94A3B8),
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -410,14 +403,14 @@ fun AskNeuronsSheet(
             if (syn != null) {
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Precision Telemetry Bar
+                // Grounded Status Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(5.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFF0C1310))
-                        .border(0.5.dp, Color(0x3334D399), RoundedCornerShape(5.dp))
-                        .padding(horizontal = 9.dp, vertical = 5.dp),
+                        .border(0.5.dp, Color(0x3334D399), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -427,53 +420,62 @@ fun AskNeuronsSheet(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(5.dp)
+                                .size(6.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF34D399))
                         )
                         Text(
-                            text = "GROUNDED: 100% VAULT",
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
+                            text = "Grounded in ${syn.activeNeurons.size} notes",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color(0xFF6EE7B7)
-                        )
-                        Text(
-                            text = "•  τ=${syn.retrievalLatencyMs}ms",
-                            fontSize = 9.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF64748B)
                         )
                     }
 
-                    Text(
-                        text = "[CONFIDENCE: ${syn.confidence}]",
-                        fontSize = 8.5.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = when (syn.confidence) {
-                            "HIGH" -> Color(0xFFA7F3D0)
-                            "MODERATE" -> Color(0xFFFDE68A)
-                            else -> Color(0xFFFECACA)
-                        }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                when (syn.confidence) {
+                                    "HIGH" -> Color(0x2234D399)
+                                    "MODERATE" -> Color(0x22FBBF24)
+                                    else -> Color(0x22F87171)
+                                }
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = when (syn.confidence) {
+                                "HIGH" -> "High Match"
+                                "MODERATE" -> "Moderate Match"
+                                else -> "Low Match"
+                            },
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = when (syn.confidence) {
+                                "HIGH" -> Color(0xFFA7F3D0)
+                                "MODERATE" -> Color(0xFFFDE68A)
+                                else -> Color(0xFFFECACA)
+                            }
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Section 01: Activated Neurons Vector
+                // Section 01: Relevant Notes
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 4.dp),
+                        .padding(bottom = 5.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "01 / ACTIVATED NEURON VECTOR (k = ${syn.activeNeurons.size})",
-                        fontSize = 9.5.sp,
-                        fontFamily = FontFamily.Monospace,
+                        text = "RELEVANT NOTES (${syn.activeNeurons.size})",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
                         color = Color(0xFFA78BFA)
                     )
                 }
@@ -488,16 +490,16 @@ fun AskNeuronsSheet(
                         val matchedNote = remember(neuron.noteId, notes) { notes.firstOrNull { it.id == neuron.noteId } }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(7.dp))
                                 .background(Color(0xFF13111C))
-                                .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(6.dp))
+                                .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(7.dp))
                                 .clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (neuron.noteId != null) {
                                         onLocateNeuronInGraph(neuron.noteId, neuron.title)
                                     }
                                 }
-                                .padding(horizontal = 9.dp, vertical = 6.dp)
+                                .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
                             Column(modifier = Modifier.widthIn(max = 180.dp)) {
                                 Row(
@@ -507,7 +509,7 @@ fun AskNeuronsSheet(
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
                                         modifier = Modifier.weight(1f, fill = false)
                                     ) {
                                         Box(
@@ -518,7 +520,7 @@ fun AskNeuronsSheet(
                                         )
                                         Text(
                                             text = neuron.title,
-                                            fontSize = 11.sp,
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color.White,
                                             maxLines = 1,
@@ -533,7 +535,7 @@ fun AskNeuronsSheet(
                                             contentDescription = "Open Note",
                                             tint = Color(0xFFA78BFA),
                                             modifier = Modifier
-                                                .size(12.dp)
+                                                .size(13.dp)
                                                 .clickable {
                                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                                     onOpenNote(matchedNote)
@@ -541,19 +543,11 @@ fun AskNeuronsSheet(
                                         )
                                     }
                                 }
-                                if (neuron.score > 0f) {
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = "σ = ${String.format(Locale.US, "%.1f", neuron.score)}",
-                                        fontSize = 9.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = Color(0xFF818CF8)
-                                    )
-                                } else if (neuron.relevance.isNotBlank()) {
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                if (neuron.relevance.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     Text(
                                         text = neuron.relevance,
-                                        fontSize = 9.sp,
+                                        fontSize = 10.sp,
                                         color = Color(0xFF94A3B8),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
@@ -564,74 +558,73 @@ fun AskNeuronsSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Section 02: Axiomatic Synthesis
+                // Section 02: Answer
                 Text(
-                    text = "02 / AXIOMATIC SYNTHESIS",
-                    fontSize = 9.5.sp,
-                    fontFamily = FontFamily.Monospace,
+                    text = "ANSWER",
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.8.sp,
                     color = Color(0xFFA78BFA),
-                    modifier = Modifier.padding(bottom = 3.dp)
+                    modifier = Modifier.padding(bottom = 4.dp)
                 )
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFF100F17))
-                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(6.dp))
-                        .padding(11.dp)
+                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(8.dp))
+                        .padding(12.dp)
                 ) {
                     Text(
                         text = syn.directAnswer,
                         style = MonolithTypography.bodyMedium.copy(
-                            fontSize = 12.5.sp,
-                            lineHeight = 18.sp,
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
                             fontWeight = FontWeight.Normal
                         ),
                         color = Color(0xFFF1F5F9)
                     )
                 }
 
-                // Section 03: Grounded Deductions & Citations
+                // Section 03: Key Points
                 if (syn.keyPoints.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "03 / DEDUCTIONS & CITATIONS",
-                        fontSize = 9.5.sp,
-                        fontFamily = FontFamily.Monospace,
+                        text = "KEY TAKEAWAYS",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF64748B),
-                        modifier = Modifier.padding(bottom = 3.dp)
+                        letterSpacing = 0.8.sp,
+                        color = Color(0xFF94A3B8),
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
 
                     syn.keyPoints.forEachIndexed { idx, point ->
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp)
-                                .clip(RoundedCornerShape(5.dp))
+                                .padding(vertical = 2.5.dp)
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFF0F0E16))
-                                .border(0.5.dp, Color(0x12FFFFFF), RoundedCornerShape(5.dp))
-                                .padding(horizontal = 9.dp, vertical = 7.dp)
+                                .border(0.5.dp, Color(0x18FFFFFF), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.Top,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = String.format(Locale.US, "[%02d]", idx + 1),
-                                    fontSize = 10.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    text = "•",
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFFA78BFA)
                                 )
                                 Text(
                                     text = point,
-                                    fontSize = 11.5.sp,
-                                    lineHeight = 16.sp,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp,
                                     color = Color(0xFFE2E8F0)
                                 )
                             }
@@ -639,17 +632,17 @@ fun AskNeuronsSheet(
                     }
                 }
 
-                // Section 04: Vault Boundaries & Missing Gaps
+                // Section 04: Missing from notes
                 val gaps = syn.missingGaps
                 if (!gaps.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "04 / VAULT BOUNDARIES & GAPS",
-                        fontSize = 9.5.sp,
-                        fontFamily = FontFamily.Monospace,
+                        text = "NOT COVERED IN NOTES",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
                         color = Color(0xFFF59E0B),
-                        modifier = Modifier.padding(bottom = 3.dp)
+                        modifier = Modifier.padding(bottom = 4.dp)
                     )
 
                     Box(
@@ -737,37 +730,37 @@ fun AskNeuronsSheet(
                     }
                 }
             } else if (!isQuerying) {
-                // Mathematical System State Card (Clean, rigorous, zero cringe)
+                // User-friendly Note Retrieval Help Card
                 Spacer(modifier = Modifier.height(14.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF0F0E16))
-                        .border(0.5.dp, Color(0x18FFFFFF), RoundedCornerShape(6.dp))
-                        .padding(12.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF12111A))
+                        .border(0.5.dp, Color(0x22A78BFA), RoundedCornerShape(8.dp))
+                        .padding(14.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Lightbulb,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA),
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "How Ask Notes Works",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFF1F5F9)
+                            )
+                        }
                         Text(
-                            text = "RETRIEVAL OPERATOR SPECIFICATION",
-                            fontSize = 9.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFA78BFA)
-                        )
-                        Text(
-                            text = "S(n) = TF-IDF(q, n) + Σ_{j ∈ Adj(n)} λ · S(j)",
+                            text = "Ask questions in natural language. Monolith searches across your ${notes.size} notes and their [[wikilinks]] to synthesize direct answers strictly from what you wrote — zero hallucination.",
                             fontSize = 11.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFFF1F5F9)
-                        )
-                        Text(
-                            text = "• Parameters: λ = 0.25 (decay)  |  k = 7 (focal subset)  |  α = 0.8 (title weight)\n• Manifold: ${notes.size} neurons, connected via [[wikilinks]]\n• Invariant: 100% Grounded in local vault  |  Zero Hallucination",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            lineHeight = 15.sp,
-                            color = Color(0xFF64748B)
+                            lineHeight = 16.sp,
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }

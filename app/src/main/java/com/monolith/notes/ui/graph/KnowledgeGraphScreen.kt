@@ -843,16 +843,15 @@ fun KnowledgeGraphScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.Psychology,
-                                contentDescription = "Query Neurons",
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Ask Notes",
                                 tint = Color(0xFFA78BFA),
                                 modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(3.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Query",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
+                                text = "Ask",
+                                fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFFE2E8F0)
                             )
@@ -1096,14 +1095,14 @@ fun KnowledgeGraphScreen(
                     horizontalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Psychology,
+                        imageVector = Icons.Default.AutoAwesome,
                         contentDescription = null,
                         tint = Color(0xFFA78BFA),
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Query vault neurons...",
-                        fontSize = 11.5.sp,
+                        text = "Ask Notes...",
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFFDDD6FE)
                     )
@@ -1143,14 +1142,14 @@ fun KnowledgeGraphScreen(
                             modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Psychology,
+                                imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = Color(0xFFA78BFA),
                                 modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "\"$neuralQueryText\"",
-                                fontSize = 11.5.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Color(0xFFF1F5F9),
                                 maxLines = 1,
@@ -1159,14 +1158,13 @@ fun KnowledgeGraphScreen(
                             )
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(3.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(Color(0x3334D399))
-                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "${activeNeuronIds.size} active",
-                                    fontSize = 8.5.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    text = "${activeNeuronIds.size} matched",
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF6EE7B7),
                                     maxLines = 1,
@@ -1181,36 +1179,29 @@ fun KnowledgeGraphScreen(
                         ) {
                             if (isNeuralSynthesizing) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(10.dp),
+                                    modifier = Modifier.size(11.dp),
                                     color = Color(0xFFA78BFA),
-                                    strokeWidth = 1.4.dp
+                                    strokeWidth = 1.5.dp
                                 )
                                 Text(
-                                    text = "Synthesizing...",
-                                    fontSize = 9.sp,
-                                    fontFamily = FontFamily.Monospace,
+                                    text = "Searching...",
+                                    fontSize = 10.sp,
                                     color = Color(0xFFC4B5FD)
                                 )
                             } else if (neuralSynthesisResult != null) {
-                                Text(
-                                    text = "τ=${neuralSynthesisResult?.retrievalLatencyMs}ms",
-                                    fontSize = 8.5.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = Color(0xFF64748B)
-                                )
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .background(Color(0xFF242038))
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(Color(0xFF261D3A))
                                         .clickable {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             showAskNeuronsSheet = true
                                         }
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "Axioms ↗",
-                                        fontSize = 9.5.sp,
+                                        text = "View Answer ↗",
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFA78BFA)
                                     )
@@ -1219,10 +1210,10 @@ fun KnowledgeGraphScreen(
 
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Clear Neurons",
+                                contentDescription = "Clear",
                                 tint = Color(0xFF94A3B8),
                                 modifier = Modifier
-                                    .size(14.dp)
+                                    .size(15.dp)
                                     .clickable {
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                         activeNeuronIds = emptySet()
@@ -1234,20 +1225,20 @@ fun KnowledgeGraphScreen(
                         }
                     }
 
-                    // Candidate Seed Reel (Horizontal chips: tap to center on neuron)
+                    // Matching Notes (Horizontal chips: tap to center on note)
                     if (neuralActiveCandidates.isNotEmpty()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             neuralActiveCandidates.forEach { candidate ->
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(4.dp))
+                                        .clip(RoundedCornerShape(6.dp))
                                         .background(Color(0xFF161422))
-                                        .border(0.5.dp, Color(0x22A78BFA), RoundedCornerShape(4.dp))
+                                        .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(6.dp))
                                         .clickable {
                                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             val matchIdx = allNodes.indexOfFirst { it.id == candidate.note.id }
@@ -1258,14 +1249,25 @@ fun KnowledgeGraphScreen(
                                                 offsetY = -targetNode.y * scale
                                             }
                                         }
-                                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
-                                    Text(
-                                        text = "[[${candidate.note.displayTitle}]]  σ=${String.format(Locale.US, "%.1f", candidate.activationScore)}",
-                                        fontSize = 8.5.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = Color(0xFFDDD6FE)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFFA78BFA))
+                                        )
+                                        Text(
+                                            text = candidate.note.displayTitle,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFDDD6FE)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1350,52 +1352,64 @@ fun KnowledgeGraphScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFF261D3A)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AutoAwesome,
+                                        contentDescription = null,
+                                        tint = Color(0xFFA78BFA),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Search Notes",
+                                        fontSize = 14.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "Answers grounded strictly in your notes",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { showNeuralQueryBox = false },
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Psychology,
-                                    contentDescription = null,
-                                    tint = Color(0xFFA78BFA),
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close",
+                                    tint = Color(0xFF94A3B8),
                                     modifier = Modifier.size(16.dp)
                                 )
-                                Text(
-                                    text = "NEURAL RETRIEVAL OPERATOR",
-                                    fontSize = 11.5.sp,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.sp,
-                                    color = Color(0xFFF1F5F9)
-                                )
                             }
-                            Text(
-                                text = "λ = 0.25",
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF818CF8)
-                            )
                         }
-
-                        Text(
-                            text = "S(n) = TF-IDF(q, n) + Σ_{j ∈ Adj(n)} λ · S(j)  |  k = 7",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color(0xFF64748B)
-                        )
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(Color(0xFF161422))
-                                .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 9.dp),
+                                .border(0.5.dp, Color(0x33A78BFA), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Search,
                                 contentDescription = null,
                                 tint = Color(0xFFA78BFA),
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             BasicTextField(
@@ -1404,8 +1418,8 @@ fun KnowledgeGraphScreen(
                                 singleLine = true,
                                 textStyle = TextStyle(
                                     color = Color.White,
-                                    fontSize = 13.sp,
-                                    fontFamily = FontFamily.Monospace
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.Normal
                                 ),
                                 cursorBrush = SolidColor(Color(0xFFA78BFA)),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -1418,9 +1432,8 @@ fun KnowledgeGraphScreen(
                                 decorationBox = { innerTextField ->
                                     if (neuralInputQuery.isEmpty()) {
                                         Text(
-                                            text = "Query vault neurons...",
-                                            fontSize = 12.sp,
-                                            fontFamily = FontFamily.Monospace,
+                                            text = "Ask anything about your notes...",
+                                            fontSize = 12.5.sp,
                                             color = Color(0xFF64748B),
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -1463,7 +1476,7 @@ fun KnowledgeGraphScreen(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Text(
-                                        text = "Enter",
+                                        text = "Search",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = if (neuralInputQuery.isNotBlank()) Color.White else Color(0xFF64748B)
