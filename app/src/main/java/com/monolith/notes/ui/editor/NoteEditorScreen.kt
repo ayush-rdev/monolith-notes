@@ -59,6 +59,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.monolith.notes.data.PdfPublisher
 import java.io.File
+import java.util.Locale
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -97,7 +98,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
+private val SEPARATOR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
+private val NUMBERED_LIST_REGEX = "^(\\d+)\\.\\s*(.*)$".toRegex()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1356,9 +1358,8 @@ private fun handleSmartListContinuation(
             val indent = prevLine.takeWhile { it == ' ' || it == '\t' }
             val trimmedPrev = prevLine.substring(indent.length)
 
-            // 0. Horizontal Rule on Enter: "---", "***", "___", "===", or long lines
-            val separatorRegex = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
-            if (trimmedPrev.matches(separatorRegex)) {
+            // 0. Horizontal Rule on Enter: "---", "***", "___", "===", or long lines (allow frontmatter start on line 0)
+            if (prevLineStart > 0 && trimmedPrev.matches(SEPARATOR_REGEX)) {
                 val resultText = newText.substring(0, prevLineStart) + indent + "───\n" + newText.substring(insertPos + 1)
                 val newCursor = prevLineStart + indent.length + 4
                 return TextFieldValue(text = resultText, selection = TextRange(newCursor), composition = null)
@@ -1491,7 +1492,7 @@ private fun handleSmartListContinuation(
             }
 
             // 3. Numbered list item: "1. ", "2. ", etc.
-            val numMatch = "^(\\d+)\\.\\s*(.*)$".toRegex().find(trimmedPrev)
+            val numMatch = NUMBERED_LIST_REGEX.find(trimmedPrev)
             if (numMatch != null) {
                 val num = numMatch.groupValues[1].toIntOrNull() ?: 1
                 val itemContent = numMatch.groupValues[2]
@@ -1549,7 +1550,8 @@ private fun handleSmartInput(
                 if (it == -1) 0 else it + 1
             }
             val textBeforeCursor = newText.substring(lineStart, insertPos + 1)
-            if (textBeforeCursor == "---" || textBeforeCursor == "***" || textBeforeCursor == "___" || textBeforeCursor == "===") {
+            // Allow Obsidian YAML frontmatter start on line 0 (never convert --- on line 0)
+            if ((textBeforeCursor == "---" && lineStart > 0) || textBeforeCursor == "***" || textBeforeCursor == "___" || textBeforeCursor == "===") {
                 val lineRest = newText.substring(insertPos + 1)
                 val replacement = "───\n"
                 val resultText = newText.substring(0, lineStart) + replacement + lineRest
@@ -1568,7 +1570,8 @@ private fun handleSmartInput(
                 "[] ", "() ", "- [ ] " -> "○ "
                 "* " -> "• "
                 "- " -> "• "
-                "--- ", "*** ", "___ ", "=== " -> "───\n"
+                "--- " -> if (lineStart > 0) "───\n" else null
+                "*** ", "___ ", "=== " -> "───\n"
                 else -> null
             }
 

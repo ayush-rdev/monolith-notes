@@ -1100,18 +1100,6 @@ fun IOSNoteRow(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val rowBgState = animateColorAsState(
-        targetValue = if (isPressed) Color(0xFF2C2C2E) else Color.Transparent,
-        animationSpec = tween(durationMillis = 80),
-        label = "iosRowPressBg"
-    )
-
-    val pressScaleState = animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = 520f),
-        label = "iosRowPressScale"
-    )
-
     val formattedDate = note.formattedDate
 
     val highlightColor = iOSYellow
@@ -1129,14 +1117,13 @@ fun IOSNoteRow(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer {
-                val s = pressScaleState.value
+                val s = if (isPressed) 0.985f else 1f
                 scaleX = s
                 scaleY = s
             }
             .drawBehind {
-                val bg = rowBgState.value
-                if (bg.alpha > 0f) {
-                    drawRect(bg)
+                if (isPressed) {
+                    drawRect(Color(0xFF2C2C2E))
                 }
             }
             .combinedClickable(

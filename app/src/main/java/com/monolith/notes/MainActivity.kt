@@ -741,8 +741,10 @@ class MainActivity : FragmentActivity() {
                                 }
                                 is Screen.Graph -> {
                                     val notes by repository.notes.collectAsState()
+                                    val cachedGraphBundle by repository.graphBundle.collectAsState()
                                     KnowledgeGraphScreen(
                                         notes = notes,
+                                        initialBundle = cachedGraphBundle,
                                         onBack = {
                                             currentScreen = Screen.List
                                         },

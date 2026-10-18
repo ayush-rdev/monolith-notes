@@ -63,7 +63,9 @@ data class GraphAnalytics(
 data class KnowledgeGraphBundle(
     val nodes: List<GraphNode>,
     val edges: List<GraphEdge>,
-    val analytics: GraphAnalytics
+    val analytics: GraphAnalytics,
+    val initialGalaxyScale: Float = 0.55f,
+    val initialBrainScale: Float = 0.82f
 )
 
 enum class ClusterMode {
@@ -144,13 +146,13 @@ object KnowledgeGraphEngine {
         // 3. PageRank Centrality Calculation (15 iterations)
         val totalDeg = IntArray(count) { inDegrees[it] + outDegrees[it] }
         var pageRank = FloatArray(count) { 1.0f / count }
-        val damping = 0.85f
+        val prDamping = 0.85f
 
         for (iter in 0 until 15) {
-            val nextPR = FloatArray(count) { (1f - damping) / count }
+            val nextPR = FloatArray(count) { (1f - prDamping) / count }
             for (edge in edgesList) {
                 val outDeg = max(outDegrees[edge.sourceIndex], 1)
-                nextPR[edge.targetIndex] += damping * (pageRank[edge.sourceIndex] / outDeg)
+                nextPR[edge.targetIndex] += prDamping * (pageRank[edge.sourceIndex] / outDeg)
             }
             pageRank = nextPR
         }
@@ -209,6 +211,41 @@ object KnowledgeGraphEngine {
         // 4b. Compute anatomical Brain Graph coordinates (Obsidian Brain Graph architecture)
         BrainGraphEngine.computeBrainLayout(nodesList, edgesList)
 
+        // 4c. Pre-stabilize galaxy coordinates so opening the graph is instantaneous with 0ms delay and 0 jump
+        val kRepulse = (14000f + 600f * sqrt(count.toFloat())).coerceIn(12000f, 32000f)
+        val kSpring = 0.036f
+        val restLength = (80f + 12f * log2(count.coerceAtLeast(2).toFloat())).coerceIn(75f, 150f)
+        val physicsDamping = 0.80f
+        val centerForce = (0.012f / sqrt(count.coerceAtLeast(1).toFloat())).coerceIn(0.003f, 0.016f)
+
+        for (step in 0 until 40) {
+            stepPhysics(
+                nodes = nodesList,
+                edges = edgesList,
+                kRepulse = kRepulse,
+                kSpring = kSpring,
+                restLength = restLength,
+                damping = physicsDamping,
+                centerForce = centerForce,
+                draggedIndex = null
+            )
+        }
+
+        var minX = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+        for (n in nodesList) {
+            if (n.x < minX) minX = n.x
+            if (n.x > maxX) maxX = n.x
+            if (n.y < minY) minY = n.y
+            if (n.y > maxY) maxY = n.y
+        }
+        val spanX = (maxX - minX).coerceAtLeast(200f) + 160f
+        val spanY = (maxY - minY).coerceAtLeast(200f) + 240f
+        val autoFitGalaxy = minOf(950f / spanX, 1600f / spanY).coerceIn(0.25f, 0.85f)
+        val autoFitBrain = 0.82f
+
         // 5. Suggestions Map (deferred / lightweight to prevent UI thread freezing)
         val suggestionsMap = emptyMap<String, List<SuggestedConnection>>()
 
@@ -225,7 +262,13 @@ object KnowledgeGraphEngine {
             suggestions = suggestionsMap
         )
 
-        return KnowledgeGraphBundle(nodesList, edgesList, analytics)
+        return KnowledgeGraphBundle(
+            nodes = nodesList,
+            edges = edgesList,
+            analytics = analytics,
+            initialGalaxyScale = autoFitGalaxy,
+            initialBrainScale = autoFitBrain
+        )
     }
 
     /**
@@ -251,11 +294,12 @@ object KnowledgeGraphEngine {
             for (j in (i + 1) until count) {
                 val nodeB = nodes[j]
                 val dx = nodeB.x - nodeA.x
-                if (abs(dx) > 450f) continue
+                if (dx > 450f || dx < -450f) continue
                 val dy = nodeB.y - nodeA.y
-                if (abs(dy) > 450f) continue
+                if (dy > 450f || dy < -450f) continue
 
                 val distSq = dx * dx + dy * dy + 300f
+                if (distSq > 202500f) continue // 450^2 cutoff: skip expensive sqrt and division if far away
                 val dist = sqrt(distSq)
 
                 // Standard inverse-square repulsion

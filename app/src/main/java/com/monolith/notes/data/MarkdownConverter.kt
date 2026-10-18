@@ -12,6 +12,9 @@ package com.monolith.notes.data
 object MarkdownConverter {
 
     private val PINNED_REGEX = "pinned:\\s*true".toRegex(RegexOption.IGNORE_CASE)
+    private val PINNED_REPLACE_REGEX = "(?m)^pinned:\\s*true\\s*\\n?".toRegex(RegexOption.IGNORE_CASE)
+    private val HR_REGEX = "^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()
+    private val HEADING_PREFIX_REGEX = "^#{1,6}\\s*".toRegex()
 
     /**
      * Converts a raw .md file content from disk to clean Apple Notes presentation:
@@ -87,7 +90,7 @@ object MarkdownConverter {
                             trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> bodySb.append(indent).append("✓ ").append(trimmed.substring(6))
                             trimmed.startsWith("- ") -> bodySb.append(indent).append("• ").append(trimmed.substring(2))
                             trimmed.startsWith("* ") -> bodySb.append(indent).append("• ").append(trimmed.substring(2))
-                            trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> bodySb.append(indent).append("───")
+                            trimmed.matches(HR_REGEX) -> bodySb.append(indent).append("───")
                             else -> bodySb.append(line)
                         }
                     }
@@ -110,7 +113,7 @@ object MarkdownConverter {
                             trimmed.startsWith("* [x] ") || trimmed.startsWith("* [X] ") -> bodySb.append(indent).append("✓ ").append(trimmed.substring(6))
                             trimmed.startsWith("- ") -> bodySb.append(indent).append("• ").append(trimmed.substring(2))
                             trimmed.startsWith("* ") -> bodySb.append(indent).append("• ").append(trimmed.substring(2))
-                            trimmed.matches("^(-{3,}|\\*{3,}|_{3,}|─{3,}|={3,}|(-\\s*){3,}|(\\*\\s*){3,}|(_\\s*){3,})$".toRegex()) -> bodySb.append(indent).append("───")
+                            trimmed.matches(HR_REGEX) -> bodySb.append(indent).append("───")
                             else -> bodySb.append(line)
                         }
                     }
@@ -147,7 +150,7 @@ object MarkdownConverter {
                     "$existingFrontmatter\npinned: true"
                 }
             } else {
-                existingFrontmatter.replace("(?m)^pinned:\\s*true\\s*\\n?".toRegex(RegexOption.IGNORE_CASE), "").trim()
+                existingFrontmatter.replace(PINNED_REPLACE_REGEX, "").trim()
             }
             if (updatedFrontmatter.isNotBlank()) {
                 sb.append("---\n").append(updatedFrontmatter).append("\n---\n\n")
@@ -157,7 +160,7 @@ object MarkdownConverter {
         }
 
         if (cleanTitle.isNotBlank()) {
-            val strippedTitle = cleanTitle.replaceFirst("^#{1,6}\\s*".toRegex(), "").trim()
+            val strippedTitle = cleanTitle.replaceFirst(HEADING_PREFIX_REGEX, "").trim()
             if (strippedTitle.isNotBlank()) {
                 sb.append("# ").append(strippedTitle).append("\n\n")
             }

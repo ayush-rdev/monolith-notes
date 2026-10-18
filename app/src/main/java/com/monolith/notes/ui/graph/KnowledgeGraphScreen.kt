@@ -51,6 +51,7 @@ import kotlin.math.*
 @Composable
 fun KnowledgeGraphScreen(
     notes: List<Note>,
+    initialBundle: KnowledgeGraphBundle? = null,
     onBack: () -> Unit,
     onNavigateToNote: (Note) -> Unit,
     modifier: Modifier = Modifier
@@ -76,23 +77,27 @@ fun KnowledgeGraphScreen(
         label = "selectionDepthTransition"
     )
 
-    var galaxyScale by remember { mutableFloatStateOf(0.55f) }
-    var brainScale by remember { mutableFloatStateOf(0.85f) }
-
-    // Canvas Transformation State (Pan & Zoom)
-    var scale by remember { mutableFloatStateOf(0.85f) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var offsetY by remember { mutableFloatStateOf(0f) }
-    var defaultScale by remember { mutableFloatStateOf(0.85f) }
-
-    // Build Graph Data using KnowledgeGraphEngine
-    val graphBundle = remember(notes) {
-        KnowledgeGraphEngine.buildGraph(notes, ClusterMode.FOLDER)
+    // Build or reuse cached Graph Data from background engine
+    val graphBundle = remember(notes, initialBundle) {
+        if (initialBundle != null && initialBundle.nodes.size == notes.size) {
+            initialBundle
+        } else {
+            KnowledgeGraphEngine.buildGraph(notes, ClusterMode.FOLDER)
+        }
     }
 
     val allNodes = graphBundle.nodes
     val allEdges = graphBundle.edges
     val analytics = graphBundle.analytics
+
+    var galaxyScale by remember(graphBundle) { mutableFloatStateOf(graphBundle.initialGalaxyScale) }
+    var brainScale by remember(graphBundle) { mutableFloatStateOf(graphBundle.initialBrainScale) }
+
+    // Canvas Transformation State (Pan & Zoom) initialized directly to calibrated resting scale
+    val defaultScale = if (graphMode == GraphMode.BRAIN) brainScale else galaxyScale
+    var scale by remember(graphBundle) { mutableFloatStateOf(defaultScale) }
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    var offsetY by remember { mutableFloatStateOf(0f) }
 
     // Top 4 landmark hubs with highest connectivity (for uncluttered overview labels)
     val topLandmarkIds = remember(allNodes) {
@@ -124,50 +129,8 @@ fun KnowledgeGraphScreen(
         val centerForce = (0.012f / sqrt(nodeCount.coerceAtLeast(1).toFloat())).coerceIn(0.003f, 0.016f)
 
         withContext(Dispatchers.Default) {
-            // Pre-stabilize physics silently off-screen so the graph doesn't explode when opened
-            for (step in 0 until 40) {
-                KnowledgeGraphEngine.stepPhysics(
-                    nodes = allNodes,
-                    edges = allEdges,
-                    kRepulse = kRepulse,
-                    kSpring = kSpring,
-                    restLength = restLength,
-                    damping = damping,
-                    centerForce = centerForce,
-                    draggedIndex = draggedNodeIndex
-                )
-            }
-
-            // Compute Bounding Box and set Auto-Fit Scale so whole galaxy fits viewport
-            if (allNodes.isNotEmpty()) {
-                var minX = Float.MAX_VALUE
-                var maxX = -Float.MAX_VALUE
-                var minY = Float.MAX_VALUE
-                var maxY = -Float.MAX_VALUE
-                for (n in allNodes) {
-                    if (n.x < minX) minX = n.x
-                    if (n.x > maxX) maxX = n.x
-                    if (n.y < minY) minY = n.y
-                    if (n.y > maxY) maxY = n.y
-                }
-                val spanX = (maxX - minX).coerceAtLeast(200f) + 160f
-                val spanY = (maxY - minY).coerceAtLeast(200f) + 240f
-                val autoFitGalaxy = minOf(950f / spanX, 1600f / spanY).coerceIn(0.25f, 0.85f)
-                val autoFitBrain = 0.82f
-
-                withContext(Dispatchers.Main) {
-                    galaxyScale = autoFitGalaxy
-                    brainScale = autoFitBrain
-                    defaultScale = if (graphMode == GraphMode.BRAIN) autoFitBrain else autoFitGalaxy
-                    scale = defaultScale
-                    offsetX = 0f
-                    offsetY = 0f
-                    physicsIteration++
-                }
-            }
-
-            // Smoothly converge remaining steps
-            for (step in 40 until 120) {
+            // Smoothly converge remaining steps (already pre-stabilized off-screen)
+            for (step in 40 until 90) {
                 val energy = KnowledgeGraphEngine.stepPhysics(
                     nodes = allNodes,
                     edges = allEdges,
@@ -179,7 +142,7 @@ fun KnowledgeGraphScreen(
                     draggedIndex = draggedNodeIndex
                 )
 
-                if (step > 50 && energy < 0.035f && draggedNodeIndex == null) {
+                if (energy < 0.035f && draggedNodeIndex == null) {
                     break
                 }
 
@@ -410,11 +373,27 @@ fun KnowledgeGraphScreen(
             @Suppress("UNUSED_VARIABLE")
             val iter = physicsIteration
 
-            fun getNodeX(node: GraphNode): Float =
-                node.x * (1f - transitionProgress) + node.brainX * transitionProgress
+            val isBrain = transitionProgress >= 0.99f
+            val isGalaxy = transitionProgress <= 0.01f
 
-            fun getNodeY(node: GraphNode): Float =
-                node.y * (1f - transitionProgress) + node.brainY * transitionProgress
+            val screenXs = FloatArray(nodeCount)
+            val screenYs = FloatArray(nodeCount)
+
+            for (i in 0 until nodeCount) {
+                val node = allNodes[i]
+                val nx = when {
+                    isBrain -> node.brainX
+                    isGalaxy -> node.x
+                    else -> node.x * (1f - transitionProgress) + node.brainX * transitionProgress
+                }
+                val ny = when {
+                    isBrain -> node.brainY
+                    isGalaxy -> node.y
+                    else -> node.y * (1f - transitionProgress) + node.brainY * transitionProgress
+                }
+                screenXs[i] = centerX + offsetX + (nx * scale)
+                screenYs[i] = centerY + offsetY + (ny * scale)
+            }
 
             fun toScreenX(gx: Float): Float = centerX + offsetX + (gx * scale)
             fun toScreenY(gy: Float): Float = centerY + offsetY + (gy * scale)
@@ -447,12 +426,10 @@ fun KnowledgeGraphScreen(
                 if (isConnectedToSelected && selectionTransition > 0.05f) continue
 
                 val srcNode = allNodes[edge.sourceIndex]
-                val dstNode = allNodes[edge.targetIndex]
-
-                val sx = toScreenX(getNodeX(srcNode))
-                val sy = toScreenY(getNodeY(srcNode))
-                val dx = toScreenX(getNodeX(dstNode))
-                val dy = toScreenY(getNodeY(dstNode))
+                val sx = screenXs[edge.sourceIndex]
+                val sy = screenYs[edge.sourceIndex]
+                val dx = screenXs[edge.targetIndex]
+                val dy = screenYs[edge.targetIndex]
 
                 if ((sx < -60f && dx < -60f) || (sx > canvasWidth + 60f && dx > canvasWidth + 60f) ||
                     (sy < -60f && dy < -60f) || (sy > canvasHeight + 60f && dy > canvasHeight + 60f)) {
@@ -509,10 +486,8 @@ fun KnowledgeGraphScreen(
                 if ((isSelected || isConnectedToSelected) && selectionTransition > 0.05f) continue
 
                 val node = allNodes[nodeIndex]
-                val nx = getNodeX(node)
-                val ny = getNodeY(node)
-                val sx = toScreenX(nx)
-                val sy = toScreenY(ny)
+                val sx = screenXs[nodeIndex]
+                val sy = screenYs[nodeIndex]
                 val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
 
                 if (sx + nodeRadius < -30f || sx - nodeRadius > canvasWidth + 30f ||
@@ -566,10 +541,10 @@ fun KnowledgeGraphScreen(
 
             // 3. High-Performance 18% Atmospheric Defocus Depth Scrim
             if (selectionTransition > 0.01f) {
-                val selNode = selectedNodeIndex?.let { if (it in allNodes.indices) allNodes[it] else null }
-                if (selNode != null) {
-                    val selSx = toScreenX(getNodeX(selNode))
-                    val selSy = toScreenY(getNodeY(selNode))
+                val selIdx = selectedNodeIndex
+                if (selIdx != null && selIdx in allNodes.indices) {
+                    val selSx = screenXs[selIdx]
+                    val selSy = screenYs[selIdx]
                     // Radial optical defocus: soft 18% veil at focal center, deepening to 62% towards borders
                     drawRect(
                         brush = androidx.compose.ui.graphics.Brush.radialGradient(
@@ -596,12 +571,10 @@ fun KnowledgeGraphScreen(
                     if (!isConnectedToSelected) continue
 
                     val srcNode = allNodes[edge.sourceIndex]
-                    val dstNode = allNodes[edge.targetIndex]
-
-                    val sx = toScreenX(getNodeX(srcNode))
-                    val sy = toScreenY(getNodeY(srcNode))
-                    val dx = toScreenX(getNodeX(dstNode))
-                    val dy = toScreenY(getNodeY(dstNode))
+                    val sx = screenXs[edge.sourceIndex]
+                    val sy = screenYs[edge.sourceIndex]
+                    val dx = screenXs[edge.targetIndex]
+                    val dy = screenYs[edge.targetIndex]
 
                     if ((sx < -60f && dx < -60f) || (sx > canvasWidth + 60f && dx > canvasWidth + 60f) ||
                         (sy < -60f && dy < -60f) || (sy > canvasHeight + 60f && dy > canvasHeight + 60f)) {
@@ -662,10 +635,8 @@ fun KnowledgeGraphScreen(
                 // First draw connected neighbors
                 for (neighborIndex in selectedNeighbors) {
                     val node = allNodes[neighborIndex]
-                    val nx = getNodeX(node)
-                    val ny = getNodeY(node)
-                    val sx = toScreenX(nx)
-                    val sy = toScreenY(ny)
+                    val sx = screenXs[neighborIndex]
+                    val sy = screenYs[neighborIndex]
                     val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
 
                     // Neighbor Aura / Glow
@@ -702,11 +673,10 @@ fun KnowledgeGraphScreen(
                 }
 
                 // Finally draw Selected Node on the highest layer
-                val selNode = allNodes[selectedNodeIndex!!]
-                val snx = getNodeX(selNode)
-                val sny = getNodeY(selNode)
-                val ssx = toScreenX(snx)
-                val ssy = toScreenY(sny)
+                val selIdx = selectedNodeIndex!!
+                val selNode = allNodes[selIdx]
+                val ssx = screenXs[selIdx]
+                val ssy = screenYs[selIdx]
                 val sRadius = (selNode.radius * scale).coerceIn(3.5f, 24f)
 
                 // Large Selection Pulse Ring

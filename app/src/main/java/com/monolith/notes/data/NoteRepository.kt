@@ -3,10 +3,13 @@ package com.monolith.notes.data
 import android.content.Context
 import android.os.Environment
 import com.monolith.notes.model.Note
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +41,23 @@ class NoteRepository(private val context: Context) {
 
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
+    private val _graphBundle = MutableStateFlow<com.monolith.notes.ui.graph.KnowledgeGraphBundle?>(null)
+    val graphBundle: StateFlow<com.monolith.notes.ui.graph.KnowledgeGraphBundle?> = _graphBundle.asStateFlow()
+
+    private var graphBuildJob: Job? = null
+    fun scheduleGraphBuild() {
+        graphBuildJob?.cancel()
+        graphBuildJob = CoroutineScope(Dispatchers.Default).launch {
+            val currentNotes = _notes.value
+            if (currentNotes.isNotEmpty()) {
+                val bundle = com.monolith.notes.ui.graph.KnowledgeGraphEngine.buildGraph(currentNotes)
+                _graphBundle.value = bundle
+            } else {
+                _graphBundle.value = null
+            }
+        }
+    }
 
     private var currentSortOrder = NoteSortOrder.DATE_EDITED
     private val noteFileMap = ConcurrentHashMap<String, File>()
@@ -150,6 +170,7 @@ class NoteRepository(private val context: Context) {
             if (list.isNotEmpty()) {
                 _notes.value = sortNotesList(list, currentSortOrder)
                 _isLoaded.value = true
+                scheduleGraphBuild()
             }
         } catch (_: Exception) {
             // Silently fall back to loadNotes
@@ -258,10 +279,9 @@ class NoteRepository(private val context: Context) {
         val allFiles = collectMarkdownFiles(notesDir)
 
         // Ghost draft cleanup: if multiple files share the same _[a-fA-F0-9]{8}.md shortId, keep newest and delete older ghosts
-        val shortIdRegex = "_([a-fA-F0-9]{8})\\.md$".toRegex()
         val validFiles = mutableListOf<File>()
         val groupedByShortId = allFiles.groupBy { file ->
-            shortIdRegex.find(file.name)?.value
+            SHORT_ID_REGEX.find(file.name)?.value
         }
         for ((shortIdSuffix, files) in groupedByShortId) {
             if (shortIdSuffix != null && files.size > 1) {
@@ -335,6 +355,7 @@ class NoteRepository(private val context: Context) {
                 }
                 _notes.value = sortNotesList(merged, currentSortOrder)
                 saveFastCache(_notes.value)
+                scheduleGraphBuild()
             }
             _isLoaded.value = true
         }
@@ -355,7 +376,7 @@ class NoteRepository(private val context: Context) {
 
             val shortId = note.id.replace("-", "").take(8)
             val safeTitle = note.title.ifBlank { "Note" }
-                .replace("[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex(), "_")
+                .replace(ILLEGAL_FILENAME_CHARS, "_")
                 .trim()
                 .take(40)
             val expectedFileName = "${safeTitle}_$shortId.md"
@@ -419,6 +440,7 @@ class NoteRepository(private val context: Context) {
             currentList.add(0, updatedNote)
             _notes.value = sortNotesList(currentList, currentSortOrder)
             saveFastCache(_notes.value)
+            scheduleGraphBuild()
             refreshFolders()
             updatedNote
         }
@@ -478,12 +500,13 @@ class NoteRepository(private val context: Context) {
         }
         _notes.value = sortNotesList(currentList, currentSortOrder)
         saveFastCache(_notes.value)
+        scheduleGraphBuild()
         refreshFolders()
         updated
     }
 
     suspend fun createFolder(folderName: String): Boolean = withContext(Dispatchers.IO) {
-        val cleanName = folderName.trim().replace("[\\\\/:*?\"<>|]".toRegex(), "")
+        val cleanName = folderName.trim().replace(ILLEGAL_FOLDER_CHARS, "")
         if (cleanName.isBlank() || cleanName.contains("..") || cleanName.equals("Notes", ignoreCase = true)) return@withContext false
         val dir = File(notesDir, cleanName)
         val created = if (!dir.exists()) dir.mkdirs() else true
@@ -492,7 +515,7 @@ class NoteRepository(private val context: Context) {
     }
 
     suspend fun deleteFolder(folderName: String): Boolean = withContext(Dispatchers.IO) {
-        val cleanName = folderName.trim().replace("[\\\\/:*?\"<>|]".toRegex(), "")
+        val cleanName = folderName.trim().replace(ILLEGAL_FOLDER_CHARS, "")
         if (cleanName.isBlank() || cleanName.contains("..") || cleanName.equals("Notes", ignoreCase = true)) return@withContext false
         val dir = File(notesDir, cleanName).canonicalFile
         val rootDir = notesDir.canonicalFile
@@ -593,6 +616,7 @@ class NoteRepository(private val context: Context) {
             it.id != note.id && it.file?.path != fileToDelete?.path
         }
         saveFastCache(_notes.value)
+        scheduleGraphBuild()
         loadTrashNotes()
         refreshFolders()
     }
@@ -644,6 +668,7 @@ class NoteRepository(private val context: Context) {
         currentList.add(0, restored)
         _notes.value = sortNotesList(currentList, currentSortOrder)
         saveFastCache(_notes.value)
+        scheduleGraphBuild()
         refreshFolders()
         restored
     }
@@ -678,7 +703,7 @@ class NoteRepository(private val context: Context) {
         val safeTitle = note.title.ifBlank { "Note" }
         val newTitle = "$safeTitle Copy"
         val timestamp = System.currentTimeMillis()
-        val newFile = File(targetDir, "${newTitle.replace("[^a-zA-Z0-9_-]".toRegex(), "_")}_$timestamp.md")
+        val newFile = File(targetDir, "${newTitle.replace(TITLE_SANITIZER_REGEX, "_")}_$timestamp.md")
 
         val duplicated = note.copy(
             id = newFile.absolutePath,
@@ -799,6 +824,10 @@ class NoteRepository(private val context: Context) {
 
     companion object {
         private val TAG_REGEX = "(?:^|\\s)#([a-zA-Z0-9_\\-/]+)".toRegex()
+        private val SHORT_ID_REGEX = "_([a-fA-F0-9]{8})\\.md$".toRegex()
+        private val ILLEGAL_FILENAME_CHARS = "[\\\\/:*?\"<>|\\x00-\\x1F]".toRegex()
+        private val ILLEGAL_FOLDER_CHARS = "[\\\\/:*?\"<>|]".toRegex()
+        private val TITLE_SANITIZER_REGEX = "[^a-zA-Z0-9_-]".toRegex()
 
         val WELCOME_MARKDOWN = """
             # Welcome to Monolith
