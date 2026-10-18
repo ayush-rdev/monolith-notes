@@ -415,10 +415,10 @@ private fun TrashNoteRow(
 
     val formattedDate = note.formattedDate
 
-    // Calculate days remaining (30 - days passed)
+    // Calculate days remaining (30 - days passed since trashed)
     val daysRemaining = remember(note.lastModified) {
         val daysPassed = ((System.currentTimeMillis() - note.lastModified) / 86400000L).toInt()
-        maxOf(1, 30 - daysPassed)
+        (30 - daysPassed).coerceIn(1, 30)
     }
 
     Row(

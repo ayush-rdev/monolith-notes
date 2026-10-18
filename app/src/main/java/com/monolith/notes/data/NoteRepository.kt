@@ -47,6 +47,38 @@ class NoteRepository(private val context: Context) {
         File(context.cacheDir, "monolith_notes_cache.json")
     }
 
+    private val trashMetaFile: File by lazy {
+        File(trashDir, ".trash_manifest.json")
+    }
+
+    private fun loadTrashManifest(): MutableMap<String, Long> {
+        val map = mutableMapOf<String, Long>()
+        try {
+            if (trashMetaFile.exists()) {
+                val json = trashMetaFile.readText()
+                if (json.isNotBlank()) {
+                    val obj = org.json.JSONObject(json)
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        map[k] = obj.getLong(k)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    private fun saveTrashManifest(map: Map<String, Long>) {
+        try {
+            val obj = org.json.JSONObject()
+            for ((k, v) in map) {
+                obj.put(k, v)
+            }
+            trashMetaFile.writeText(obj.toString())
+        } catch (_: Exception) {}
+    }
+
     init {
         loadFastCache()
     }
@@ -88,12 +120,23 @@ class NoteRepository(private val context: Context) {
                     continue
                 }
 
+                val tags = if (obj.has("tags")) {
+                    val tagArr = obj.getJSONArray("tags")
+                    val tagList = ArrayList<String>(tagArr.length())
+                    for (t in 0 until tagArr.length()) {
+                        tagList.add(tagArr.getString(t))
+                    }
+                    tagList
+                } else {
+                    TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList()
+                }
+
                 val note = Note(
                     id = id,
                     file = targetFile,
                     title = title,
                     content = content,
-                    tags = TAG_REGEX.findAll(content).map { it.groupValues[1] }.distinct().toList(),
+                    tags = tags,
                     lastModified = lastModified,
                     isPinned = isPinned,
                     folder = folder,
@@ -127,6 +170,11 @@ class NoteRepository(private val context: Context) {
                     put("folder", note.folder)
                     if (note.rawFrontmatter != null) {
                         put("rawFrontmatter", note.rawFrontmatter)
+                    }
+                    if (note.tags.isNotEmpty()) {
+                        val tagsArr = org.json.JSONArray()
+                        note.tags.forEach { tagsArr.put(it) }
+                        put("tags", tagsArr)
                     }
                 }
                 array.put(obj)
@@ -476,14 +524,31 @@ class NoteRepository(private val context: Context) {
         val files = trashDir.listFiles { file -> file.isFile && file.extension.equals("md", ignoreCase = true) }
             ?: emptyArray()
 
+        val trashManifest = loadTrashManifest()
+        var manifestDirty = false
+
         val activeTrash = mutableListOf<Note>()
         for (file in files) {
-            if (file.lastModified() < thirtyDaysAgo) {
+            val trashedAt = trashManifest[file.name] ?: run {
+                val now = System.currentTimeMillis()
+                trashManifest[file.name] = now
+                manifestDirty = true
+                now
+            }
+
+            if (trashedAt < thirtyDaysAgo) {
                 try { file.delete() } catch (_: Exception) {}
+                trashManifest.remove(file.name)
+                manifestDirty = true
             } else {
                 val raw = try { file.readText() } catch (e: Exception) { "" }
-                activeTrash.add(parseNoteFromFile(file, raw))
+                val parsed = parseNoteFromFile(file, raw).copy(lastModified = trashedAt)
+                activeTrash.add(parsed)
             }
+        }
+
+        if (manifestDirty) {
+            saveTrashManifest(trashManifest)
         }
         _trashNotes.value = activeTrash.sortedByDescending { it.lastModified }
     }
@@ -507,6 +572,11 @@ class NoteRepository(private val context: Context) {
             try {
                 targetTrashFile.setLastModified(System.currentTimeMillis())
             } catch (_: Exception) {}
+
+            val trashManifest = loadTrashManifest()
+            trashManifest[targetTrashFile.name] = System.currentTimeMillis()
+            saveTrashManifest(trashManifest)
+
             try {
                 val journal = com.monolith.notes.data.sync.SyncJournal(context)
                 journal.addTombstone(fileToDelete.name)
@@ -548,6 +618,10 @@ class NoteRepository(private val context: Context) {
             trashFile.renameTo(targetFile)
         }
 
+        val trashManifest = loadTrashManifest()
+        trashManifest.remove(trashFile.name)
+        saveTrashManifest(trashManifest)
+
         val raw = try { targetFile.readText() } catch (e: Exception) { "" }
         val restored = parseNoteFromFile(targetFile, raw)
         noteFileMap[restored.id] = targetFile
@@ -577,6 +651,9 @@ class NoteRepository(private val context: Context) {
     suspend fun permanentlyDelete(note: Note) = withContext(Dispatchers.IO) {
         val trashFile = note.file ?: File(trashDir, note.id)
         try { trashFile.delete() } catch (_: Exception) {}
+        val trashManifest = loadTrashManifest()
+        trashManifest.remove(trashFile.name)
+        saveTrashManifest(trashManifest)
         try {
             val journal = com.monolith.notes.data.sync.SyncJournal(context)
             journal.addTombstone(trashFile.name)
@@ -588,6 +665,7 @@ class NoteRepository(private val context: Context) {
     suspend fun emptyTrash() = withContext(Dispatchers.IO) {
         try {
             trashDir.listFiles()?.forEach { it.delete() }
+            trashMetaFile.delete()
         } catch (e: Exception) {
             e.printStackTrace()
         }

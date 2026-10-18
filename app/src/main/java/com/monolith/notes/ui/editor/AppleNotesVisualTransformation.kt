@@ -155,142 +155,152 @@ class AppleNotesVisualTransformation(
             lineStart = lineEnd + 1
         }
 
-        // 2. Inline Bold: "**text**"
-        for (match in BOLD_REGEX.findAll(raw)) {
-            val range = match.range
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
-            builder.addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = primaryTextColor), range.first + 2, range.last - 1)
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
-        }
+        // 2. Inline Bold & Italic (Fast-path: only scan if '*' is present)
+        if ('*' in raw) {
+            for (match in BOLD_REGEX.findAll(raw)) {
+                val range = match.range
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
+                builder.addStyle(SpanStyle(fontWeight = FontWeight.Bold, color = primaryTextColor), range.first + 2, range.last - 1)
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
+            }
 
-        // 3. Inline Italic: "*text*"
-        for (match in ITALIC_REGEX.findAll(raw)) {
-            val range = match.range
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
-            builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic, color = primaryTextColor), range.first + 1, range.last)
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last, range.last + 1)
+            for (match in ITALIC_REGEX.findAll(raw)) {
+                val range = match.range
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
+                builder.addStyle(SpanStyle(fontStyle = FontStyle.Italic, color = primaryTextColor), range.first + 1, range.last)
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
+            }
         }
 
         // 4. Inline Strikethrough: "~~text~~"
-        for (match in STRIKE_REGEX.findAll(raw)) {
-            val range = match.range
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
-            builder.addStyle(
-                SpanStyle(textDecoration = TextDecoration.LineThrough, color = secondaryTextColor),
-                range.first + 2,
-                range.last - 1
-            )
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
-        }
-
-        // 5. Inline Code: "`code`"
-        for (match in CODE_REGEX.findAll(raw)) {
-            val range = match.range
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
-            builder.addStyle(
-                SpanStyle(
-                    fontFamily = FontFamily.Monospace,
-                    color = accentColor,
-                    background = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE4E4E7)
-                ),
-                range.first + 1,
-                range.last
-            )
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last, range.last + 1)
-        }
-
-        // 6. Hashtags: "#tag"
-        for (match in TAG_REGEX.findAll(raw)) {
-            val tagGroup = match.groups[1]
-            if (tagGroup != null) {
+        if ('~' in raw) {
+            for (match in STRIKE_REGEX.findAll(raw)) {
+                val range = match.range
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 2)
                 builder.addStyle(
-                    SpanStyle(color = accentColor, fontWeight = FontWeight.SemiBold),
-                    tagGroup.range.first,
-                    tagGroup.range.last + 1
-                )
-            }
-        }
-
-        // 7. WikiLinks: "[[Note Title]]" or "[[Note Title|Display Alias]]"
-        for (match in WIKILINK_REGEX.findAll(raw)) {
-            val range = match.range
-            val alias = match.groupValues[2]
-
-            // Dim opening brackets "[["
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, range.first + 2)
-
-            if (alias.isNotEmpty()) {
-                val pipeIdx = match.value.indexOf('|')
-                val pipePos = range.first + pipeIdx
-                // Dim target and pipe: "Target|"
-                builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.6f), fontSize = 12.sp), range.first + 2, pipePos + 1)
-                // Highlight alias
-                builder.addStyle(
-                    SpanStyle(
-                        color = accentColor,
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    pipePos + 1,
-                    range.last - 1
-                )
-            } else {
-                // Highlight target note title
-                builder.addStyle(
-                    SpanStyle(
-                        color = accentColor,
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = TextDecoration.Underline
-                    ),
+                    SpanStyle(textDecoration = TextDecoration.LineThrough, color = secondaryTextColor),
                     range.first + 2,
                     range.last - 1
                 )
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last - 1, range.last + 1)
             }
-
-            // Dim closing brackets "]]"
-            builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.last - 1, range.last + 1)
         }
 
-        // 8. Markdown Links: "[label](url)"
-        for (match in MARKDOWN_LINK_REGEX.findAll(raw)) {
-            val range = match.range
-            val closeBracketIndex = match.value.indexOf("](")
-            if (closeBracketIndex != -1) {
-                val labelStart = range.first + 1
-                val labelEnd = range.first + closeBracketIndex
-                val urlEnd = range.last
-
-                // Dim opening bracket "["
-                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, labelStart)
-                // Highlight label with link styling
+        // 5. Inline Code: "`code`"
+        if ('`' in raw) {
+            for (match in CODE_REGEX.findAll(raw)) {
+                val range = match.range
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.first, range.first + 1)
                 builder.addStyle(
                     SpanStyle(
-                        color = Color(0xFF60A5FA),
-                        fontWeight = FontWeight.Medium,
-                        textDecoration = TextDecoration.Underline
+                        fontFamily = FontFamily.Monospace,
+                        color = accentColor,
+                        background = if (isDark) Color(0xFF2C2C2E) else Color(0xFFE4E4E7)
                     ),
-                    labelStart,
-                    labelEnd
+                    range.first + 1,
+                    range.last
                 )
-                // Dim "](url)"
-                builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.65f), fontSize = 12.sp), labelEnd, urlEnd + 1)
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 11.sp), range.last, range.last + 1)
+            }
+        }
+
+        // 6. Hashtags: "#tag"
+        if ('#' in raw) {
+            for (match in TAG_REGEX.findAll(raw)) {
+                val tagGroup = match.groups[1]
+                if (tagGroup != null) {
+                    builder.addStyle(
+                        SpanStyle(color = accentColor, fontWeight = FontWeight.SemiBold),
+                        tagGroup.range.first,
+                        tagGroup.range.last + 1
+                    )
+                }
+            }
+        }
+
+        // 7. WikiLinks & Markdown Links: only scan if '[' is present
+        if ('[' in raw) {
+            for (match in WIKILINK_REGEX.findAll(raw)) {
+                val range = match.range
+                val alias = match.groupValues[2]
+
+                // Dim opening brackets "[["
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, range.first + 2)
+
+                if (alias.isNotEmpty()) {
+                    val pipeIdx = match.value.indexOf('|')
+                    val pipePos = range.first + pipeIdx
+                    // Dim target and pipe: "Target|"
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.6f), fontSize = 12.sp), range.first + 2, pipePos + 1)
+                    // Highlight alias
+                    builder.addStyle(
+                        SpanStyle(
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        pipePos + 1,
+                        range.last - 1
+                    )
+                } else {
+                    // Highlight target note title
+                    builder.addStyle(
+                        SpanStyle(
+                            color = accentColor,
+                            fontWeight = FontWeight.SemiBold,
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        range.first + 2,
+                        range.last - 1
+                    )
+                }
+
+                // Dim closing brackets "]]"
+                builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.last - 1, range.last + 1)
+            }
+
+            for (match in MARKDOWN_LINK_REGEX.findAll(raw)) {
+                val range = match.range
+                val closeBracketIndex = match.value.indexOf("](")
+                if (closeBracketIndex != -1) {
+                    val labelStart = range.first + 1
+                    val labelEnd = range.first + closeBracketIndex
+                    val urlEnd = range.last
+
+                    // Dim opening bracket "["
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor, fontSize = 12.sp), range.first, labelStart)
+                    // Highlight label with link styling
+                    builder.addStyle(
+                        SpanStyle(
+                            color = Color(0xFF60A5FA),
+                            fontWeight = FontWeight.Medium,
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        labelStart,
+                        labelEnd
+                    )
+                    // Dim "](url)"
+                    builder.addStyle(SpanStyle(color = ghostSyntaxColor.copy(alpha = 0.65f), fontSize = 12.sp), labelEnd, urlEnd + 1)
+                }
             }
         }
 
         // 9. Bare URLs: "https://..." or "http://..."
-        for (match in BARE_URL_REGEX.findAll(raw)) {
-            val range = match.range
-            val isInsideMarkdownLink = range.first > 0 && raw[range.first - 1] == '('
-            if (!isInsideMarkdownLink) {
-                builder.addStyle(
-                    SpanStyle(
-                        color = Color(0xFF60A5FA),
-                        fontWeight = FontWeight.Medium,
-                        textDecoration = TextDecoration.Underline
-                    ),
-                    range.first,
-                    range.last + 1
-                )
+        if ("://" in raw) {
+            for (match in BARE_URL_REGEX.findAll(raw)) {
+                val range = match.range
+                val isInsideMarkdownLink = range.first > 0 && raw[range.first - 1] == '('
+                if (!isInsideMarkdownLink) {
+                    builder.addStyle(
+                        SpanStyle(
+                            color = Color(0xFF60A5FA),
+                            fontWeight = FontWeight.Medium,
+                            textDecoration = TextDecoration.Underline
+                        ),
+                        range.first,
+                        range.last + 1
+                    )
+                }
             }
         }
 

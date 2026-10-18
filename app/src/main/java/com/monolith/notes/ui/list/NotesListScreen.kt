@@ -236,17 +236,6 @@ fun NotesListScreen(
                             settings.cloudConfig.isLoggedIn ||
                             settings.webDavConfig.isConfigured
 
-                    val infiniteTransition = rememberInfiniteTransition(label = "SyncSpin")
-                    val spinAngle by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 1000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "SyncSpinAngle"
-                    )
-
                     IconButton(
                         onClick = {
                             performHaptic(HapticFeedbackType.TextHandleMove)
@@ -267,14 +256,7 @@ fun NotesListScreen(
                     ) {
                         when (syncState) {
                             SyncState.SYNCING -> {
-                                Icon(
-                                    imageVector = Icons.Default.Sync,
-                                    contentDescription = "Syncing with Cloud",
-                                    tint = iOSYellow,
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .graphicsLayer { rotationZ = spinAngle }
-                                )
+                                SyncSpinningIcon(modifier = Modifier.size(22.dp))
                             }
                             SyncState.SUCCESS -> {
                                 Icon(
@@ -1524,7 +1506,7 @@ fun IOSSwipeableNoteRow(
                 searchQuery = searchQuery,
                 showFolderBadge = showFolderBadge,
                 onClick = {
-                    if (offsetXAnim.value != 0f) {
+                    if (kotlin.math.abs(offsetXAnim.value) > 4f) {
                         coroutineScope.launch {
                             offsetXAnim.animateTo(0f, iosSnapSpring)
                         }
@@ -1566,26 +1548,50 @@ fun highlightQuery(text: String, query: String, highlightColor: Color = Color(0x
     val firstMatch = text.indexOf(trimmedQuery, 0, ignoreCase = true)
     if (firstMatch == -1) return AnnotatedString(text)
 
-    return buildAnnotatedString {
-        var startIdx = 0
-        val textLen = text.length
-        val queryLen = trimmedQuery.length
-        while (startIdx < textLen) {
-            val matchIdx = text.indexOf(trimmedQuery, startIdx, ignoreCase = true)
-            if (matchIdx == -1) {
-                append(text.substring(startIdx))
-                break
+    return try {
+        buildAnnotatedString {
+            var startIdx = 0
+            val textLen = text.length
+            val queryLen = trimmedQuery.length
+            while (startIdx < textLen) {
+                val matchIdx = text.indexOf(trimmedQuery, startIdx, ignoreCase = true)
+                if (matchIdx == -1) {
+                    append(text.substring(startIdx))
+                    break
+                }
+                if (matchIdx > startIdx) {
+                    append(text.substring(startIdx, matchIdx))
+                }
+                val matchEnd = (matchIdx + queryLen).coerceAtMost(textLen)
+                pushStyle(SpanStyle(background = highlightColor.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
+                append(text.substring(matchIdx, matchEnd))
+                pop()
+                startIdx = maxOf(matchEnd, matchIdx + 1)
             }
-            if (matchIdx > startIdx) {
-                append(text.substring(startIdx, matchIdx))
-            }
-            val matchEnd = (matchIdx + queryLen).coerceAtMost(textLen)
-            pushStyle(SpanStyle(background = highlightColor.copy(alpha = 0.35f), color = Color.White, fontWeight = FontWeight.Bold))
-            append(text.substring(matchIdx, matchEnd))
-            pop()
-            startIdx = matchEnd
         }
+    } catch (_: Exception) {
+        AnnotatedString(text)
     }
+}
+
+@Composable
+private fun SyncSpinningIcon(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "SyncSpin")
+    val spinAngle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "SyncSpinAngle"
+    )
+    Icon(
+        imageVector = Icons.Default.Sync,
+        contentDescription = "Syncing with Cloud",
+        tint = iOSYellow,
+        modifier = modifier.graphicsLayer { rotationZ = spinAngle }
+    )
 }
 
 @Composable

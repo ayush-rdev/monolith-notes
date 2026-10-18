@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.monolith.notes.model.Note
 import com.monolith.notes.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -62,11 +64,26 @@ fun KnowledgeGraphScreen(
     var selectedNodeIndex by remember { mutableStateOf<Int?>(null) }
     var draggedNodeIndex by remember { mutableStateOf<Int?>(null) }
 
+    var graphMode by remember { mutableStateOf(GraphMode.BRAIN) }
+    val transitionProgress by animateFloatAsState(
+        targetValue = if (graphMode == GraphMode.BRAIN) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+        label = "graphModeTransition"
+    )
+    val selectionTransition by animateFloatAsState(
+        targetValue = if (selectedNodeIndex != null) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+        label = "selectionDepthTransition"
+    )
+
+    var galaxyScale by remember { mutableFloatStateOf(0.55f) }
+    var brainScale by remember { mutableFloatStateOf(0.85f) }
+
     // Canvas Transformation State (Pan & Zoom)
-    var scale by remember { mutableFloatStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(0.85f) }
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
-    var defaultScale by remember { mutableFloatStateOf(0.6f) }
+    var defaultScale by remember { mutableFloatStateOf(0.85f) }
 
     // Build Graph Data using KnowledgeGraphEngine
     val graphBundle = remember(notes) {
@@ -135,11 +152,14 @@ fun KnowledgeGraphScreen(
                 }
                 val spanX = (maxX - minX).coerceAtLeast(200f) + 160f
                 val spanY = (maxY - minY).coerceAtLeast(200f) + 240f
-                val autoFitScale = minOf(950f / spanX, 1600f / spanY).coerceIn(0.25f, 0.85f)
+                val autoFitGalaxy = minOf(950f / spanX, 1600f / spanY).coerceIn(0.25f, 0.85f)
+                val autoFitBrain = 0.82f
 
                 withContext(Dispatchers.Main) {
-                    defaultScale = autoFitScale
-                    scale = autoFitScale
+                    galaxyScale = autoFitGalaxy
+                    brainScale = autoFitBrain
+                    defaultScale = if (graphMode == GraphMode.BRAIN) autoFitBrain else autoFitGalaxy
+                    scale = defaultScale
                     offsetX = 0f
                     offsetY = 0f
                     physicsIteration++
@@ -176,21 +196,29 @@ fun KnowledgeGraphScreen(
         }
     }
 
-    // Traveling Energy Pulse Animation along Directed Links (Active only when a node is selected)
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "pulseProgress"
-    )
+    // Traveling Energy Pulse Animation along Directed Links (Active ONLY when a node is selected to save 100% idle GPU/CPU cycles)
+    val shouldAnimatePulse = selectedNodeIndex != null
+    val pulseProgress: Float = if (shouldAnimatePulse) {
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val anim by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "pulseProgress"
+        )
+        anim
+    } else {
+        0f
+    }
 
     // Back button handling
     BackHandler {
-        if (selectedNodeIndex != null) {
+        if (showIntelligenceSheet) {
+            showIntelligenceSheet = false
+        } else if (selectedNodeIndex != null) {
             selectedNodeIndex = null
         } else if (isSearchActive) {
             isSearchActive = false
@@ -202,21 +230,33 @@ fun KnowledgeGraphScreen(
 
     val primaryTextColor = iOSTextPrimary
     val themeAccent = iOSYellow
+    val canvasBgColor = iOSBackground
 
-    // Text Paint for Canvas Node Labels
-    val labelPaint = remember(primaryTextColor) {
+    // Text Paint for Canvas Node Labels (Gentle on OLED screens, zero glare)
+    val labelPaint = remember {
         Paint().apply {
-            color = primaryTextColor.toArgb()
+            color = Color(0xFFC7C7CC).toArgb() // Slightly less white, comfortable soft silver
             textSize = 28f
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
-            setShadowLayer(4f, 0f, 2f, Color.Black.copy(alpha = 0.6f).toArgb())
+            setShadowLayer(4f, 0f, 2f, Color.Black.copy(alpha = 0.7f).toArgb())
+        }
+    }
+
+    val neighborLabelPaint = remember {
+        Paint().apply {
+            color = Color(0xFFE5E5EA).toArgb() // Crisp soft white for direct connections
+            textSize = 29f
+            isAntiAlias = true
+            isFakeBoldText = true
+            textAlign = Paint.Align.CENTER
+            setShadowLayer(5f, 0f, 2f, Color.Black.toArgb())
         }
     }
 
     val selectedLabelPaint = remember(themeAccent) {
         Paint().apply {
-            color = themeAccent.toArgb()
+            color = themeAccent.toArgb() // Radiant amber gold for selected thought
             textSize = 32f
             isAntiAlias = true
             isFakeBoldText = true
@@ -224,6 +264,9 @@ fun KnowledgeGraphScreen(
             setShadowLayer(6f, 0f, 2f, Color.Black.toArgb())
         }
     }
+
+    val fiberReusablePath = remember { Path() }
+    val contourReusablePath = remember { Path() }
 
     Box(
         modifier = modifier
@@ -238,7 +281,7 @@ fun KnowledgeGraphScreen(
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val down = awaitFirstDown(requireUnconsumed = true)
                         val downTime = System.currentTimeMillis()
                         val downPos = down.position
                         var isTransforming = false
@@ -248,6 +291,13 @@ fun KnowledgeGraphScreen(
                         val canvasH = size.height.toFloat()
                         val centerX = canvasW / 2f
                         val centerY = canvasH / 2f
+
+                        // Discard touches starting within Top Navigation Bar or Bottom Capsule zone
+                        val topBarThreshold = if (isSearchActive) 280f else 190f
+                        val bottomCapsuleThreshold = canvasH - 220f
+                        if (downPos.y < topBarThreshold || (selectedNodeIndex != null && downPos.y > bottomCapsuleThreshold)) {
+                            return@awaitEachGesture
+                        }
 
                         // Convert touch coordinate to graph space
                         val currentScale = scale
@@ -259,8 +309,10 @@ fun KnowledgeGraphScreen(
                         // Hit-test nodes (with a comfortable 26px touch target margin)
                         for (i in allNodes.indices) {
                             val node = allNodes[i]
-                            val dx = node.x - graphDownX
-                            val dy = node.y - graphDownY
+                            val nx = node.x * (1f - transitionProgress) + node.brainX * transitionProgress
+                            val ny = node.y * (1f - transitionProgress) + node.brainY * transitionProgress
+                            val dx = nx - graphDownX
+                            val dy = ny - graphDownY
                             val dist = sqrt(dx * dx + dy * dy)
                             if (dist < (node.radius + 26f)) {
                                 activeDraggedNode = i
@@ -316,10 +368,15 @@ fun KnowledgeGraphScreen(
                                         val node = allNodes[activeDraggedNode]
                                         val deltaX = panChange.x / scale
                                         val deltaY = panChange.y / scale
-                                        node.x += deltaX
-                                        node.y += deltaY
-                                        node.vx = deltaX * 0.45f
-                                        node.vy = deltaY * 0.45f
+                                        if (graphMode == GraphMode.BRAIN) {
+                                            node.brainX += deltaX
+                                            node.brainY += deltaY
+                                        } else {
+                                            node.x += deltaX
+                                            node.y += deltaY
+                                            node.vx = deltaX * 0.45f
+                                            node.vy = deltaY * 0.45f
+                                        }
                                         physicsIteration++
                                     } else {
                                         // Pan entire graph canvas
@@ -353,137 +410,149 @@ fun KnowledgeGraphScreen(
             @Suppress("UNUSED_VARIABLE")
             val iter = physicsIteration
 
+            fun getNodeX(node: GraphNode): Float =
+                node.x * (1f - transitionProgress) + node.brainX * transitionProgress
+
+            fun getNodeY(node: GraphNode): Float =
+                node.y * (1f - transitionProgress) + node.brainY * transitionProgress
+
             fun toScreenX(gx: Float): Float = centerX + offsetX + (gx * scale)
             fun toScreenY(gy: Float): Float = centerY + offsetY + (gy * scale)
 
-            // 1. Draw Directed Links (with Viewport Frustum Culling)
+            // 0. Anatomical Cortical Silhouette (Superior View)
+            if (transitionProgress > 0.05f) {
+                val contourPath = BrainGraphEngine.buildAnatomicalContourPath(
+                    targetPath = contourReusablePath,
+                    centerX = centerX + offsetX,
+                    centerY = centerY + offsetY,
+                    scale = scale
+                )
+                val contourAlpha = (0.16f * transitionProgress * (1f - 0.70f * selectionTransition)).coerceAtLeast(0.04f)
+                drawPath(
+                    path = contourPath,
+                    color = Color(0xFFE5E5EA).copy(alpha = contourAlpha),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = (1.5f * scale).coerceIn(1.0f, 3.0f)
+                    )
+                )
+            }
+
+            // 1. Draw Background / Unselected Edges
             for (edgeIndex in allEdges.indices) {
                 val edge = allEdges[edgeIndex]
-                val srcNode = allNodes[edge.sourceIndex]
-                val dstNode = allNodes[edge.targetIndex]
-
-                val sx = toScreenX(srcNode.x)
-                val sy = toScreenY(srcNode.y)
-                val dx = toScreenX(dstNode.x)
-                val dy = toScreenY(dstNode.y)
-
-                // Frustum culling: skip drawing if both ends are outside viewport bounds
-                if ((sx < -40f && dx < -40f) || (sx > canvasWidth + 40f && dx > canvasWidth + 40f) ||
-                    (sy < -40f && dy < -40f) || (sy > canvasHeight + 40f && dy > canvasHeight + 40f)) {
-                    continue
-                }
-
                 val isConnectedToSelected = selectedNodeIndex != null &&
                         (edge.sourceIndex == selectedNodeIndex || edge.targetIndex == selectedNodeIndex)
 
-                val edgeColor = when {
-                    isConnectedToSelected -> themeAccent.copy(alpha = 0.95f)
-                    selectedNodeIndex != null -> Color(0xFF2C2C2E).copy(alpha = 0.08f)
-                    else -> srcNode.clusterColor.copy(alpha = 0.18f)
+                // Skip connected edges: they will be drawn in Pass 4 on top of the defocus scrim
+                if (isConnectedToSelected && selectionTransition > 0.05f) continue
+
+                val srcNode = allNodes[edge.sourceIndex]
+                val dstNode = allNodes[edge.targetIndex]
+
+                val sx = toScreenX(getNodeX(srcNode))
+                val sy = toScreenY(getNodeY(srcNode))
+                val dx = toScreenX(getNodeX(dstNode))
+                val dy = toScreenY(getNodeY(dstNode))
+
+                if ((sx < -60f && dx < -60f) || (sx > canvasWidth + 60f && dx > canvasWidth + 60f) ||
+                    (sy < -60f && dy < -60f) || (sy > canvasHeight + 60f && dy > canvasHeight + 60f)) {
+                    continue
                 }
 
-                val strokeWidth = when {
-                    isConnectedToSelected -> (2.2f * scale).coerceIn(1.8f, 5.0f)
-                    else -> (0.85f * scale).coerceIn(0.6f, 2.5f)
-                }
+                val edgeAlpha = (if (transitionProgress > 0.5f) 0.25f else 0.18f) * (1f - 0.90f * selectionTransition)
+                if (edgeAlpha < 0.015f) continue
 
-                // Base Link Line
-                drawLine(
-                    color = edgeColor,
-                    start = Offset(sx, sy),
-                    end = Offset(dx, dy),
-                    strokeWidth = strokeWidth,
-                    cap = StrokeCap.Round
-                )
+                val edgeColor = srcNode.clusterColor.copy(alpha = edgeAlpha)
+                val strokeWidth = (0.85f * scale).coerceIn(0.6f, 2.5f)
 
-                // Traveling Energy Particle (Only animated for connected links to save GPU)
-                if (isConnectedToSelected) {
-                    val px = sx + (dx - sx) * pulseProgress
-                    val py = sy + (dy - sy) * pulseProgress
-                    drawCircle(
-                        color = Color.White,
-                        radius = (3.0f * scale).coerceIn(2.0f, 5.5f),
-                        center = Offset(px, py)
+                val midX = (sx + dx) * 0.5f
+                val midY = (sy + dy) * 0.5f
+                val ctrlX: Float
+                val ctrlY: Float
+
+                if (transitionProgress > 0.05f) {
+                    val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
+                    val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
+                    ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
+                    ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
+
+                    fiberReusablePath.reset()
+                    fiberReusablePath.moveTo(sx, sy)
+                    fiberReusablePath.quadraticBezierTo(ctrlX, ctrlY, dx, dy)
+                    drawPath(
+                        path = fiberReusablePath,
+                        color = edgeColor,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                            width = strokeWidth,
+                            cap = StrokeCap.Round
+                        )
+                    )
+                } else {
+                    ctrlX = midX
+                    ctrlY = midY
+                    drawLine(
+                        color = edgeColor,
+                        start = Offset(sx, sy),
+                        end = Offset(dx, dy),
+                        strokeWidth = strokeWidth,
+                        cap = StrokeCap.Round
                     )
                 }
             }
 
-            // 2. Draw Nodes (with Viewport Frustum Culling)
+            // 2. Draw Background / Unselected Nodes
             for (nodeIndex in allNodes.indices) {
+                val isSelected = nodeIndex == selectedNodeIndex
+                val isConnectedToSelected = selectedNeighbors.contains(nodeIndex)
+
+                // Skip selected and neighbor nodes: they will be drawn in Pass 5 on top of the defocus scrim
+                if ((isSelected || isConnectedToSelected) && selectionTransition > 0.05f) continue
+
                 val node = allNodes[nodeIndex]
-                val sx = toScreenX(node.x)
-                val sy = toScreenY(node.y)
+                val nx = getNodeX(node)
+                val ny = getNodeY(node)
+                val sx = toScreenX(nx)
+                val sy = toScreenY(ny)
                 val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
 
-                // Frustum culling: skip off-screen nodes
                 if (sx + nodeRadius < -30f || sx - nodeRadius > canvasWidth + 30f ||
                     sy + nodeRadius < -30f || sy - nodeRadius > canvasHeight + 30f) {
                     continue
                 }
 
-                val isSelected = nodeIndex == selectedNodeIndex
-                val isConnectedToSelected = selectedNeighbors.contains(nodeIndex)
                 val isQueryMatch = searchQuery.isNotBlank() &&
                         node.note.displayTitle.contains(searchQuery, ignoreCase = true)
 
                 val nodeAlpha = when {
-                    isSelected || isQueryMatch -> 1.0f
-                    isConnectedToSelected -> 0.95f
-                    selectedNodeIndex != null -> 0.15f
-                    else -> 0.88f
-                }
-
-                // Selection Glow Ring
-                if (isSelected || isQueryMatch) {
-                    drawCircle(
-                        color = themeAccent.copy(alpha = 0.25f),
-                        radius = nodeRadius + 10f * scale,
-                        center = Offset(sx, sy)
-                    )
-                }
-
-                // Node Body
-                val baseColor = when {
-                    isSelected || isQueryMatch -> themeAccent
-                    isConnectedToSelected -> node.clusterColor
-                    else -> node.clusterColor
+                    isQueryMatch -> 1.0f
+                    else -> 0.88f * (1f - 0.90f * selectionTransition) + 0.08f * selectionTransition
                 }
 
                 drawCircle(
-                    color = baseColor.copy(alpha = nodeAlpha),
-                    radius = nodeRadius,
+                    color = node.clusterColor.copy(alpha = nodeAlpha),
+                    radius = nodeRadius * (1f - 0.15f * selectionTransition),
                     center = Offset(sx, sy)
                 )
 
-                // Node Outline (Hubs and selected nodes only to prevent visual clutter)
-                if (node.isHub || isSelected) {
+                if (node.isPinned && selectionTransition < 0.5f) {
                     drawCircle(
-                        color = Color.White.copy(alpha = if (isSelected) 0.9f else 0.35f * nodeAlpha),
-                        radius = nodeRadius,
-                        center = Offset(sx, sy),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = (if (isSelected) 2.0f else 1.0f) * scale)
-                    )
-                }
-
-                // Pinned indicator dot inside core
-                if (node.isPinned) {
-                    drawCircle(
-                        color = Color.White,
+                        color = Color.White.copy(alpha = nodeAlpha),
                         radius = (2.5f * scale).coerceIn(1.8f, 5.0f),
                         center = Offset(sx, sy)
                     )
                 }
 
-                // Title Labels (Obsidian-grade spatial filtering: shows landmark hubs at overview, neighbors on select, and deep labels on zoom)
-                val shouldDrawLabel = isSelected || isQueryMatch || isConnectedToSelected ||
+                // Title Labels (Only drawn when nothing is selected, or for search query match)
+                val shouldDrawLabel = isQueryMatch || (selectedNodeIndex == null && (
                         (topLandmarkIds.contains(node.id) && scale >= 0.45f) ||
                         (node.isHub && scale >= 1.25f) ||
                         (scale >= 1.65f && node.degree >= 3) ||
                         (scale >= 2.3f)
+                ))
 
                 if (shouldDrawLabel) {
                     val label = node.note.displayTitle
-                    val paint = if (isSelected || isQueryMatch) selectedLabelPaint else labelPaint
+                    val paint = if (isQueryMatch) selectedLabelPaint else labelPaint
                     paint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 28f)
 
                     drawContext.canvas.nativeCanvas.drawText(
@@ -494,12 +563,191 @@ fun KnowledgeGraphScreen(
                     )
                 }
             }
+
+            // 3. High-Performance 18% Atmospheric Defocus Depth Scrim
+            if (selectionTransition > 0.01f) {
+                val selNode = selectedNodeIndex?.let { if (it in allNodes.indices) allNodes[it] else null }
+                if (selNode != null) {
+                    val selSx = toScreenX(getNodeX(selNode))
+                    val selSy = toScreenY(getNodeY(selNode))
+                    // Radial optical defocus: soft 18% veil at focal center, deepening to 62% towards borders
+                    drawRect(
+                        brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                            colors = listOf(
+                                canvasBgColor.copy(alpha = 0.18f * selectionTransition),
+                                canvasBgColor.copy(alpha = 0.62f * selectionTransition)
+                            ),
+                            center = Offset(selSx, selSy),
+                            radius = (450f * scale).coerceIn(300f, 1400f)
+                        )
+                    )
+                } else {
+                    drawRect(
+                        color = canvasBgColor.copy(alpha = 0.50f * selectionTransition)
+                    )
+                }
+            }
+
+            // 4. In-Focus Highlighted Directed Connections (Selected Node Links)
+            if (selectedNodeIndex != null) {
+                for (edgeIndex in allEdges.indices) {
+                    val edge = allEdges[edgeIndex]
+                    val isConnectedToSelected = edge.sourceIndex == selectedNodeIndex || edge.targetIndex == selectedNodeIndex
+                    if (!isConnectedToSelected) continue
+
+                    val srcNode = allNodes[edge.sourceIndex]
+                    val dstNode = allNodes[edge.targetIndex]
+
+                    val sx = toScreenX(getNodeX(srcNode))
+                    val sy = toScreenY(getNodeY(srcNode))
+                    val dx = toScreenX(getNodeX(dstNode))
+                    val dy = toScreenY(getNodeY(dstNode))
+
+                    if ((sx < -60f && dx < -60f) || (sx > canvasWidth + 60f && dx > canvasWidth + 60f) ||
+                        (sy < -60f && dy < -60f) || (sy > canvasHeight + 60f && dy > canvasHeight + 60f)) {
+                        continue
+                    }
+
+                    val edgeColor = themeAccent.copy(alpha = 0.95f)
+                    val strokeWidth = (2.4f * scale).coerceIn(2.0f, 5.5f)
+
+                    val midX = (sx + dx) * 0.5f
+                    val midY = (sy + dy) * 0.5f
+                    val ctrlX: Float
+                    val ctrlY: Float
+
+                    if (transitionProgress > 0.05f) {
+                        val brainCtrlScreenX = toScreenX(edge.brainCtrlX)
+                        val brainCtrlScreenY = toScreenY(edge.brainCtrlY)
+                        ctrlX = midX * (1f - transitionProgress) + brainCtrlScreenX * transitionProgress
+                        ctrlY = midY * (1f - transitionProgress) + brainCtrlScreenY * transitionProgress
+
+                        fiberReusablePath.reset()
+                        fiberReusablePath.moveTo(sx, sy)
+                        fiberReusablePath.quadraticBezierTo(ctrlX, ctrlY, dx, dy)
+                        drawPath(
+                            path = fiberReusablePath,
+                            color = edgeColor,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = strokeWidth,
+                                cap = StrokeCap.Round
+                            )
+                        )
+                    } else {
+                        ctrlX = midX
+                        ctrlY = midY
+                        drawLine(
+                            color = edgeColor,
+                            start = Offset(sx, sy),
+                            end = Offset(dx, dy),
+                            strokeWidth = strokeWidth,
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Traveling Energy Particle / Action Potential along Curved Neural Tract
+                    val u = 1f - pulseProgress
+                    val px = u * u * sx + 2f * u * pulseProgress * ctrlX + pulseProgress * pulseProgress * dx
+                    val py = u * u * sy + 2f * u * pulseProgress * ctrlY + pulseProgress * pulseProgress * dy
+                    drawCircle(
+                        color = Color.White,
+                        radius = (3.4f * scale).coerceIn(2.4f, 6.0f),
+                        center = Offset(px, py)
+                    )
+                }
+            }
+
+            // 5. In-Focus Highlighted Nodes (Selected Thought + Connected Neighbors)
+            if (selectedNodeIndex != null) {
+                // First draw connected neighbors
+                for (neighborIndex in selectedNeighbors) {
+                    val node = allNodes[neighborIndex]
+                    val nx = getNodeX(node)
+                    val ny = getNodeY(node)
+                    val sx = toScreenX(nx)
+                    val sy = toScreenY(ny)
+                    val nodeRadius = (node.radius * scale).coerceIn(3.5f, 24f)
+
+                    // Neighbor Aura / Glow
+                    drawCircle(
+                        color = node.clusterColor.copy(alpha = 0.22f),
+                        radius = nodeRadius + 5f * scale,
+                        center = Offset(sx, sy)
+                    )
+
+                    // Neighbor Body
+                    drawCircle(
+                        color = node.clusterColor,
+                        radius = nodeRadius,
+                        center = Offset(sx, sy)
+                    )
+
+                    // Subtle Neighbor Outline
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.50f),
+                        radius = nodeRadius,
+                        center = Offset(sx, sy),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2f * scale)
+                    )
+
+                    // Neighbor Title Label in soft clean white (readable, focused)
+                    val label = node.note.displayTitle
+                    neighborLabelPaint.textSize = (11.5.sp.toPx() * scale).coerceIn(12f, 28f)
+                    drawContext.canvas.nativeCanvas.drawText(
+                        label,
+                        sx,
+                        sy + nodeRadius + (12f * scale).coerceIn(10f, 22f),
+                        neighborLabelPaint
+                    )
+                }
+
+                // Finally draw Selected Node on the highest layer
+                val selNode = allNodes[selectedNodeIndex!!]
+                val snx = getNodeX(selNode)
+                val sny = getNodeY(selNode)
+                val ssx = toScreenX(snx)
+                val ssy = toScreenY(sny)
+                val sRadius = (selNode.radius * scale).coerceIn(3.5f, 24f)
+
+                // Large Selection Pulse Ring
+                drawCircle(
+                    color = themeAccent.copy(alpha = 0.28f),
+                    radius = sRadius + 12f * scale,
+                    center = Offset(ssx, ssy)
+                )
+
+                // Selected Node Body
+                drawCircle(
+                    color = themeAccent,
+                    radius = sRadius,
+                    center = Offset(ssx, ssy)
+                )
+
+                // Crisp Double Outline
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.95f),
+                    radius = sRadius,
+                    center = Offset(ssx, ssy),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2f * scale)
+                )
+
+                // Selected Title Label in Radiant Accent Amber
+                val selLabel = selNode.note.displayTitle
+                selectedLabelPaint.textSize = (12.5.sp.toPx() * scale).coerceIn(13f, 30f)
+                drawContext.canvas.nativeCanvas.drawText(
+                    selLabel,
+                    ssx,
+                    ssy + sRadius + (13f * scale).coerceIn(11f, 24f),
+                    selectedLabelPaint
+                )
+            }
         }
 
         // Top Navigation Bar (Clean, Minimal, Professional)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .zIndex(10f)
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Row(
@@ -522,28 +770,103 @@ fun KnowledgeGraphScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = themeAccent,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Notes",
                         color = themeAccent,
-                        fontSize = 17.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
-                // Center/Title: Professional, simple "Graph"
-                Text(
-                    text = "Graph",
-                    style = MonolithTypography.headlineMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
-                    color = primaryTextColor
-                )
+                // Segmented Mode Selector: Brain 🧠 | Galaxy 🌌
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(iOSCardBackground)
+                        .border(0.5.dp, iOSDivider.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                        .padding(2.dp)
+                ) {
+                    // Brain Tab
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (graphMode == GraphMode.BRAIN) themeAccent.copy(alpha = 0.18f)
+                                else Color.Transparent
+                            )
+                            .clickable {
+                                if (graphMode != GraphMode.BRAIN) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    graphMode = GraphMode.BRAIN
+                                    scale = brainScale
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                    selectedNodeIndex = null
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "🧠",
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "Brain",
+                                fontSize = 11.5.sp,
+                                fontWeight = if (graphMode == GraphMode.BRAIN) FontWeight.Bold else FontWeight.Medium,
+                                color = if (graphMode == GraphMode.BRAIN) themeAccent else iOSTextSecondary
+                            )
+                        }
+                    }
+
+                    // Galaxy Tab
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (graphMode == GraphMode.GALAXY) themeAccent.copy(alpha = 0.18f)
+                                else Color.Transparent
+                            )
+                            .clickable {
+                                if (graphMode != GraphMode.GALAXY) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    graphMode = GraphMode.GALAXY
+                                    scale = galaxyScale
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                    selectedNodeIndex = null
+                                }
+                            }
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "🌌",
+                                fontSize = 11.sp
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "Galaxy",
+                                fontSize = 11.5.sp,
+                                fontWeight = if (graphMode == GraphMode.GALAXY) FontWeight.Bold else FontWeight.Medium,
+                                color = if (graphMode == GraphMode.GALAXY) themeAccent else iOSTextSecondary
+                            )
+                        }
+                    }
+                }
 
                 // Right Actions: Search, Recenter, Vault Intelligence (i)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     IconButton(
                         onClick = {
@@ -551,31 +874,31 @@ fun KnowledgeGraphScreen(
                             isSearchActive = !isSearchActive
                             if (!isSearchActive) searchQuery = ""
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = if (isSearchActive) Icons.Default.Close else Icons.Default.Search,
                             contentDescription = "Search",
                             tint = if (isSearchActive) themeAccent else primaryTextColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
                     IconButton(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            scale = defaultScale
+                            scale = if (graphMode == GraphMode.BRAIN) brainScale else galaxyScale
                             offsetX = 0f
                             offsetY = 0f
                             selectedNodeIndex = null
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CenterFocusStrong,
                             contentDescription = "Recenter",
                             tint = primaryTextColor,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
@@ -584,13 +907,13 @@ fun KnowledgeGraphScreen(
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             showIntelligenceSheet = true
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Info,
                             contentDescription = "Vault Intelligence",
                             tint = themeAccent,
-                            modifier = Modifier.size(21.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -622,8 +945,10 @@ fun KnowledgeGraphScreen(
                                 if (matchIndex != -1) {
                                     val matchNode = allNodes[matchIndex]
                                     selectedNodeIndex = matchIndex
-                                    offsetX = -matchNode.x * scale
-                                    offsetY = -matchNode.y * scale
+                                    val targetX = if (graphMode == GraphMode.BRAIN) matchNode.brainX else matchNode.x
+                                    val targetY = if (graphMode == GraphMode.BRAIN) matchNode.brainY else matchNode.y
+                                    offsetX = -targetX * scale
+                                    offsetY = -targetY * scale
                                 }
                             }
                         },
@@ -653,6 +978,7 @@ fun KnowledgeGraphScreen(
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .zIndex(10f)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             if (selectedNode != null) {
@@ -670,7 +996,7 @@ fun KnowledgeGraphScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Left: Cluster Color Dot + Title + Degree
+                        // Left: Cluster Color Dot + Title + Degree / Lobe
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
@@ -692,7 +1018,12 @@ fun KnowledgeGraphScreen(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "${selectedNode.degree} links • ${selectedNode.clusterName}",
+                                    text = if (graphMode == GraphMode.BRAIN) {
+                                        if (selectedNode.degree == 0) "Orphan Neuron • ${selectedNode.lobe.shortName}"
+                                        else "${selectedNode.degree} links • ${selectedNode.lobe.shortName} • ${selectedNode.clusterName}"
+                                    } else {
+                                        "${selectedNode.degree} links • ${selectedNode.clusterName}"
+                                    },
                                     fontSize = 11.5.sp,
                                     color = iOSTextSecondary,
                                     maxLines = 1,
@@ -764,12 +1095,19 @@ fun KnowledgeGraphScreen(
                     if (matchIndex != -1) {
                         selectedNodeIndex = matchIndex
                         // Auto-center camera on the selected hub
-                        offsetX = -hubNode.x * scale
-                        offsetY = -hubNode.y * scale
+                        val hubX = if (graphMode == GraphMode.BRAIN) hubNode.brainX else hubNode.x
+                        val hubY = if (graphMode == GraphMode.BRAIN) hubNode.brainY else hubNode.y
+                        offsetX = -hubX * scale
+                        offsetY = -hubY * scale
                     }
                 },
                 onDismiss = { showIntelligenceSheet = false }
             )
         }
     }
+}
+
+enum class GraphMode {
+    BRAIN,
+    GALAXY
 }
